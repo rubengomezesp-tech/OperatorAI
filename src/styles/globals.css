@@ -1,0 +1,71 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: 11 11 12;
+  --surface: 17 17 19;
+  --surface-2: 22 22 26;
+  --surface-3: 29 29 34;
+  --border: 34 34 38;
+  --border-strong: 45 45 51;
+  --fg: 242 236 221;
+  --fg-soft: 217 210 191;
+  --fg-muted: 138 133 122;
+  --fg-subtle: 90 86 78;
+  --gold: 201 168 99;
+  --gold-soft: 228 203 143;
+  --gold-deep: 156 127 63;
+  --danger: 214 106 90;
+  --success: 127 176 135;
+}
+
+@layer base {
+  * { border-color: rgb(var(--border)); }
+  html, body {
+    background: rgb(var(--bg));
+    color: rgb(var(--fg));
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    letter-spacing: -0.005em;
+  }
+  h1, h2, h3 { letter-spacing: -0.02em; }
+  ::selection { background: rgb(var(--gold)); color: rgb(var(--bg)); }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb {
+    background: rgb(var(--border-strong)); border-radius: 10px;
+    border: 2px solid rgb(var(--bg));
+  }
+  ::-webkit-scrollbar-thumb:hover { background: rgb(var(--fg-subtle)); }
+}
+
+@layer utilities {
+  .font-display { font-family: var(--font-serif), 'Times New Roman', serif; letter-spacing: -0.02em; }
+  .glass {
+    background-color: rgb(var(--surface) / 0.75);
+    backdrop-filter: blur(14px) saturate(140%);
+    -webkit-backdrop-filter: blur(14px) saturate(140%);
+  }
+  .surface {
+    background: rgb(var(--surface));
+    border: 1px solid rgb(var(--border));
+    border-radius: 14px;
+  }
+  .surface-raised {
+    background: linear-gradient(180deg, rgb(var(--surface-2)), rgb(var(--surface)));
+    border: 1px solid rgb(var(--border));
+    border-radius: 14px;
+    box-shadow: 0 1px 0 0 rgb(255 255 255 / 0.03) inset, 0 12px 40px -16px rgb(0 0 0 / 0.6);
+  }
+  .gold-grad { background: linear-gradient(135deg, #e4cb8f 0%, #c9a863 40%, #9c7f3f 100%); }
+  .text-gold-grad {
+    background: linear-gradient(135deg, #f0dba8 0%, #c9a863 60%, #9c7f3f 100%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .shimmer {
+    background: linear-gradient(90deg, transparent 0%, rgb(201 168 99 / 0.1) 50%, transparent 100%);
+    background-size: 200% 100%;
+    animation: shimmer 2s linear infinite;
+  }
+}
