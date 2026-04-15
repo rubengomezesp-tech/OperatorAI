@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { RotateCcw, Copy, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { SpeakButton } from '@/features/voice/components/speak-button';
 
 interface Props {
   content: string;
@@ -29,7 +30,9 @@ export function MessageActions({ content, onRegenerate, disabled }: Props) {
       >
         {copied ? <Check className="h-3 w-3 text-gold" /> : <Copy className="h-3 w-3" />}
         <span>{copied ? 'Copied' : 'Copy'}</span>
-      </button>
+      </button>       <div className="h-7 px-2 rounded-md border border-transparent hover:border-border hover:bg-surface-2 transition-colors flex items-center">
+        <SpeakButton text={content} />
+      </div>
       {onRegenerate && (
         <button
           type="button"
