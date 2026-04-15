@@ -238,7 +238,7 @@ export function VoiceConversation() {
         </div>
         <div className="text-center">
           <div className="text-[12.5px] uppercase tracking-[0.18em] text-fg-muted">{phaseLabel}</div>
-          {isActive && phase !== 'idle' && (
+          {isActive && (phase as string) !== 'idle' && (
             <button
               type="button"
               onClick={stopAll}
