@@ -2,7 +2,6 @@
 import { useEffect, useRef } from 'react';
 import { MessageBubble } from './message-bubble';
 import type { UiMessage } from '@/lib/chat/types';
-import { SpeakButton } from '@/features/voice/components/speak-button';
 
 interface Props {
   messages: UiMessage[];
