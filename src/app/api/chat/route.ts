@@ -7,6 +7,8 @@ import { runChat } from '@/lib/orchestrator/run-chat';
 import { resolveOrgContext } from '@/features/chat/server/resolve-org-context';
 import { ensureDefaultAssistant } from '@/features/chat/server/ensure-assistant';
 import { getOrCreateConversation } from '@/features/chat/server/get-or-create-conversation';
+import { embedOne } from '@/lib/rag/embeddings';
+import { retrieveChunks, formatKnowledgeBlock, type RetrievedChunk } from '@/lib/rag/retrieve';
 import type { ChatMessage } from '@/lib/providers';
 
 export const runtime = 'nodejs';
@@ -49,7 +51,6 @@ export async function POST(req: NextRequest) {
 
   const assistantId = await ensureDefaultAssistant(svc, orgId, orgName);
 
-  // Regenerate mode requires existing conversation
   if (body.regenerate && !body.conversationId) {
     return NextResponse.json({ error: 'conversationId required for regenerate' }, { status: 400 });
   }
@@ -59,24 +60,21 @@ export async function POST(req: NextRequest) {
   });
 
   let userMessageId: string | null = null;
+  let queryText: string | null = body.message ?? null;
 
   if (body.regenerate) {
-    // Soft-delete the last assistant message(s) after the last user turn
     const { data: lastUserRows } = await svc
       .from('messages')
-      .select('id, created_at')
+      .select('id, content, created_at')
       .eq('conversation_id', conversationId)
       .eq('role', 'user')
       .order('created_at', { ascending: false })
       .limit(1);
-
-    const lastUserRow = lastUserRows?.[0] as { id: string; created_at: string } | undefined;
-    if (!lastUserRow) {
-      return NextResponse.json({ error: 'Nothing to regenerate' }, { status: 400 });
-    }
+    const lastUserRow = lastUserRows?.[0] as { id: string; content: string; created_at: string } | undefined;
+    if (!lastUserRow) return NextResponse.json({ error: 'Nothing to regenerate' }, { status: 400 });
     userMessageId = lastUserRow.id;
+    queryText = lastUserRow.content;
 
-    // Hard-delete assistant messages after that user message (since we haven't added soft-delete column yet)
     await svc
       .from('messages')
       .delete()
@@ -84,7 +82,6 @@ export async function POST(req: NextRequest) {
       .eq('role', 'assistant')
       .gt('created_at', lastUserRow.created_at);
   } else {
-    // Persist new user message
     const userMsgInsert = {
       org_id: orgId,
       conversation_id: conversationId,
@@ -104,7 +101,23 @@ export async function POST(req: NextRequest) {
     userMessageId = (userMsgRow as { id: string }).id;
   }
 
-  // Load recent history (last 30 messages) for context
+  // === RAG retrieval ===
+  let retrieved: RetrievedChunk[] = [];
+  let knowledgeBlock = '';
+  if (queryText && queryText.trim().length > 0) {
+    try {
+      const queryEmbedding = await embedOne(queryText);
+      retrieved = await retrieveChunks({
+        svc, orgId, assistantId, query: queryText, queryEmbedding, topK: 6,
+      });
+      knowledgeBlock = formatKnowledgeBlock(retrieved);
+    } catch (e) {
+      // RAG failure must not break chat — log and continue without knowledge
+      console.error('[rag] retrieval failed:', e);
+    }
+  }
+
+  // Load history
   const { data: history } = await svc
     .from('messages')
     .select('role, content')
@@ -112,19 +125,22 @@ export async function POST(req: NextRequest) {
     .order('created_at', { ascending: true })
     .limit(30);
 
-  const messages: ChatMessage[] = (history ?? []).map((m) => ({
+  const baseMessages: ChatMessage[] = (history ?? []).map((m) => ({
     role: (m as { role: string }).role as ChatMessage['role'],
     content: (m as { content: string }).content ?? '',
   }));
 
-  // Load assistant profile
+  // Inject knowledge block as a synthetic system turn at the very start (after the real system prompt)
+  const messages: ChatMessage[] = knowledgeBlock
+    ? [{ role: 'system', content: knowledgeBlock }, ...baseMessages]
+    : baseMessages;
+
   const { data: assistantRow } = await svc
     .from('assistants')
     .select('business_name, industry, audience, services, goals, tone, writing_style, languages, custom_instructions, banned_words')
     .eq('id', assistantId)
     .single();
 
-  // Create pending assistant message
   const pendingInsert = {
     org_id: orgId,
     conversation_id: conversationId,
@@ -135,6 +151,7 @@ export async function POST(req: NextRequest) {
     provider: body.provider ?? 'openai',
     model: body.model ?? null,
     parent_message_id: userMessageId,
+    context_doc_chunks: retrieved.map((c) => c.id),
   } as never;
   const { data: pendingRow, error: pendingErr } = await svc
     .from('messages')
@@ -156,6 +173,11 @@ export async function POST(req: NextRequest) {
           conversationId,
           assistantMessageId: pendingMessageId,
           isNewConversation: isNew,
+          citations: retrieved.map((c, i) => ({
+            n: i + 1,
+            documentId: c.document_id,
+            source: c.source,
+          })),
         }));
 
         let fullText = '';
@@ -213,9 +235,7 @@ export async function POST(req: NextRequest) {
           p_cost: costUsd,
         });
 
-        controller.enqueue(sseEncode('done', {
-          latencyMs, inputTokens, outputTokens, costUsd,
-        }));
+        controller.enqueue(sseEncode('done', { latencyMs, inputTokens, outputTokens, costUsd }));
         controller.close();
       } catch (err) {
         const msg = err instanceof Error ? err.message : 'Unknown error';
