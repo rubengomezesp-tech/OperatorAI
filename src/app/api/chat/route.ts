@@ -12,6 +12,7 @@ import { retrieveChunks, formatKnowledgeBlock, type RetrievedChunk } from '@/lib
 import { getRelevantMemories, formatMemoriesBlock } from '@/features/memory/server/queries';
 import { extractMemoryFromTurn, isExplicitMemoryRequest } from '@/features/memory/server/extract-memory';
 import { fingerprintToPromptSnippet } from '@/features/memory/server/learn-voice';
+import { findAgent } from '@/features/agents/data/catalog';
 import type { ChatMessage } from '@/lib/providers';
 
 export const runtime = 'nodejs';
@@ -23,6 +24,8 @@ const BodySchema = z.object({
   regenerate: z.boolean().optional().default(false),
   provider: z.enum(['openai', 'anthropic', 'google']).optional(),
   model: z.string().optional(),
+  agentType: z.enum(['creative','brand','copy','research','analyst','social']).optional(),
+  projectId: z.string().optional().nullable(),
 });
 
 export async function POST(req: NextRequest) {
@@ -111,6 +114,11 @@ export async function POST(req: NextRequest) {
     userMessageId = (userMsgRow as { id: string }).id;
   }
 
+  // Specialized agent
+  const selectedAgent = findAgent(body.agentType ?? 'creative');
+  const effectiveProvider = body.provider ?? selectedAgent?.preferredProvider ?? 'openai';
+  const effectiveModel = body.model ?? selectedAgent?.preferredModel;
+
   // === RAG retrieval ===
   let retrieved: RetrievedChunk[] = [];
   let knowledgeBlock = '';
@@ -166,6 +174,9 @@ export async function POST(req: NextRequest) {
   }));
 
   const systemAdditions: ChatMessage[] = [];
+  if (selectedAgent && selectedAgent.systemPromptAddition) {
+    systemAdditions.push({ role: 'system', content: selectedAgent.systemPromptAddition });
+  }
   if (voiceSnippet) systemAdditions.push({ role: 'system', content: voiceSnippet });
   if (memoryBlock) systemAdditions.push({ role: 'system', content: memoryBlock });
   if (knowledgeBlock) systemAdditions.push({ role: 'system', content: knowledgeBlock });
@@ -184,8 +195,8 @@ export async function POST(req: NextRequest) {
     role: 'assistant',
     content: '',
     status: 'streaming',
-    provider: body.provider ?? 'openai',
-    model: body.model ?? null,
+    provider: effectiveProvider,
+    model: effectiveModel ?? null,
     parent_message_id: userMessageId,
     context_doc_chunks: retrieved.map((c) => c.id),
   } as never;
@@ -226,8 +237,8 @@ export async function POST(req: NextRequest) {
         for await (const delta of runChat({
           messages,
           assistant: assistantRow as Parameters<typeof runChat>[0]['assistant'],
-          provider: body.provider,
-          model: body.model,
+          provider: effectiveProvider,
+          model: effectiveModel,
           signal: req.signal,
         })) {
           if (delta.type === 'text') {

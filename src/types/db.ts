@@ -187,6 +187,7 @@ export type Database = {
       }
       conversations: {
         Row: {
+          agent_type: string | null
           assistant_id: string
           created_at: string
           deleted_at: string | null
@@ -197,6 +198,7 @@ export type Database = {
           locale: string | null
           message_count: number
           org_id: string
+          project_id: string | null
           summary: string | null
           title: string | null
           token_count: number
@@ -204,6 +206,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          agent_type?: string | null
           assistant_id: string
           created_at?: string
           deleted_at?: string | null
@@ -214,6 +217,7 @@ export type Database = {
           locale?: string | null
           message_count?: number
           org_id: string
+          project_id?: string | null
           summary?: string | null
           title?: string | null
           token_count?: number
@@ -221,6 +225,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          agent_type?: string | null
           assistant_id?: string
           created_at?: string
           deleted_at?: string | null
@@ -231,6 +236,7 @@ export type Database = {
           locale?: string | null
           message_count?: number
           org_id?: string
+          project_id?: string | null
           summary?: string | null
           title?: string | null
           token_count?: number
@@ -250,6 +256,13 @@ export type Database = {
             columns: ["org_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversations_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
             referencedColumns: ["id"]
           },
           {
@@ -336,6 +349,7 @@ export type Database = {
           original_name: string
           processed_at: string | null
           processing_error: string | null
+          project_id: string | null
           size_bytes: number
           status: Database["public"]["Enums"]["document_status"]
           storage_bucket: string
@@ -359,6 +373,7 @@ export type Database = {
           original_name: string
           processed_at?: string | null
           processing_error?: string | null
+          project_id?: string | null
           size_bytes: number
           status?: Database["public"]["Enums"]["document_status"]
           storage_bucket?: string
@@ -382,6 +397,7 @@ export type Database = {
           original_name?: string
           processed_at?: string | null
           processing_error?: string | null
+          project_id?: string | null
           size_bytes?: number
           status?: Database["public"]["Enums"]["document_status"]
           storage_bucket?: string
@@ -397,6 +413,13 @@ export type Database = {
             columns: ["org_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documents_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
             referencedColumns: ["id"]
           },
           {
@@ -724,6 +747,62 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      integrations: {
+        Row: {
+          composio_connection_id: string | null
+          composio_entity_id: string | null
+          connected_at: string | null
+          created_at: string
+          id: string
+          last_used_at: string | null
+          metadata: Json | null
+          org_id: string
+          provider: string
+          scopes: string[] | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          composio_connection_id?: string | null
+          composio_entity_id?: string | null
+          connected_at?: string | null
+          created_at?: string
+          id?: string
+          last_used_at?: string | null
+          metadata?: Json | null
+          org_id: string
+          provider: string
+          scopes?: string[] | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          composio_connection_id?: string | null
+          composio_entity_id?: string | null
+          connected_at?: string | null
+          created_at?: string
+          id?: string
+          last_used_at?: string | null
+          metadata?: Json | null
+          org_id?: string
+          provider?: string
+          scopes?: string[] | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "integrations_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]
@@ -1363,6 +1442,56 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      projects: {
+        Row: {
+          color: string | null
+          created_at: string
+          description: string | null
+          icon: string | null
+          id: string
+          is_archived: boolean
+          name: string
+          org_id: string
+          sort_order: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          icon?: string | null
+          id?: string
+          is_archived?: boolean
+          name: string
+          org_id: string
+          sort_order?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          icon?: string | null
+          id?: string
+          is_archived?: boolean
+          name?: string
+          org_id?: string
+          sort_order?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "projects_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       prompt_versions: {
         Row: {

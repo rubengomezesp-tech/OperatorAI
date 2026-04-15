@@ -12,7 +12,7 @@ export default function PricingPage() {
   const router = useRouter();
   const [loading, setLoading] = useState<string | null>(null);
 
-  async function startCheckout(planId: 'starter' | 'pro' | 'agency') {
+  async function startCheckout(planId: 'starter' | 'pro' | 'studio' | 'agency') {
     setLoading(planId);
     try {
       const res = await fetch('/api/billing/checkout', {

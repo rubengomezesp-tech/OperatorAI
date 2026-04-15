@@ -1,5 +1,5 @@
 export interface PlanDefinition {
-  id: 'starter' | 'pro' | 'agency';
+  id: 'starter' | 'pro' | 'studio' | 'agency';
   name: string;
   tagline: string;
   priceCents: number;
@@ -9,6 +9,8 @@ export interface PlanDefinition {
     imageGenerations: number;
     knowledgeDocuments: number;
     assistants: number;
+    projects: number;
+    integrations: number;
   };
   features: string[];
   highlight?: boolean;
@@ -19,16 +21,18 @@ export const PLANS: PlanDefinition[] = [
   {
     id: 'starter',
     name: 'Starter',
-    tagline: 'For individuals and small projects',
+    tagline: 'For individuals',
     priceCents: 2900,
     priceDisplay: '$29',
-    quotas: { chatMessages: 500, imageGenerations: 50, knowledgeDocuments: 10, assistants: 1 },
+    quotas: { chatMessages: 500, imageGenerations: 50, knowledgeDocuments: 10, assistants: 1, projects: 1, integrations: 2 },
     features: [
-      'GPT-4o, Claude Sonnet 4.5, Gemini 3.1 Pro',
-      '500 chat messages / month',
-      '50 AI images / month',
-      '10 documents in Knowledge',
-      '1 branded assistant',
+      '3 AI models (GPT-4o, Claude 4.5, Gemini 3.1)',
+      '500 chat messages / mo',
+      '50 AI images / mo',
+      '10 knowledge documents',
+      '1 project',
+      '2 integrations',
+      'Voice mode + memory',
       'Email support',
     ],
     cta: 'Start with Starter',
@@ -36,41 +40,62 @@ export const PLANS: PlanDefinition[] = [
   {
     id: 'pro',
     name: 'Pro',
-    tagline: 'For brands and independent professionals',
+    tagline: 'For brands and pros',
     priceCents: 9900,
     priceDisplay: '$99',
-    quotas: { chatMessages: 3000, imageGenerations: 300, knowledgeDocuments: 100, assistants: 5 },
+    quotas: { chatMessages: 3000, imageGenerations: 300, knowledgeDocuments: 100, assistants: 5, projects: 5, integrations: 10 },
     features: [
       'Everything in Starter',
-      '3,000 chat messages / month',
-      '300 AI images / month',
-      '100 documents in Knowledge',
-      '5 branded assistants',
+      '3,000 chat messages / mo',
+      '300 AI images / mo',
+      '100 knowledge documents',
+      '5 projects',
+      '10 integrations (Gmail, Notion, Slack...)',
+      '6 specialized agents',
       'Reference images + refinement',
-      'All editorial presets',
       'Priority support',
     ],
     highlight: true,
     cta: 'Start with Pro',
   },
   {
-    id: 'agency',
-    name: 'Agency',
-    tagline: 'For studios managing multiple brands',
+    id: 'studio',
+    name: 'Studio',
+    tagline: 'For studios with multiple brands',
     priceCents: 29900,
     priceDisplay: '$299',
-    quotas: { chatMessages: 15000, imageGenerations: 1500, knowledgeDocuments: 999999, assistants: 999999 },
+    quotas: { chatMessages: 15000, imageGenerations: 1500, knowledgeDocuments: 999999, assistants: 999999, projects: 25, integrations: 50 },
     features: [
       'Everything in Pro',
-      '15,000 chat messages / month',
-      '1,500 AI images / month',
-      'Unlimited documents',
-      'Unlimited assistants',
+      '15,000 chat messages / mo',
+      '1,500 AI images / mo',
+      'Unlimited documents & assistants',
+      '25 projects',
+      '50 integrations',
+      '5 team seats',
       'Concierge onboarding',
-      'Custom branding',
-      'Dedicated account manager',
     ],
-    cta: 'Start with Agency',
+    cta: 'Start with Studio',
+  },
+  {
+    id: 'agency',
+    name: 'Agency',
+    tagline: 'White-label for agencies',
+    priceCents: 99900,
+    priceDisplay: '$999',
+    quotas: { chatMessages: 50000, imageGenerations: 5000, knowledgeDocuments: 999999, assistants: 999999, projects: 999999, integrations: 999999 },
+    features: [
+      'Everything in Studio',
+      '50,000 chat messages / mo',
+      '5,000 AI images / mo',
+      'Unlimited projects + integrations',
+      '25 team seats',
+      'White-label (your domain, your logo)',
+      'Custom AI training on your IP',
+      'Dedicated account manager',
+      'SLA 99.9%',
+    ],
+    cta: 'Talk to sales',
   },
 ];
 
