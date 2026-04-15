@@ -35,6 +35,11 @@ export function Composer({ onSend, onCancel, loading, disabled }: Props) {
     }
   }
 
+  function handleTranscript(text: string) {
+    setValue((prev) => (prev ? prev + ' ' + text : text));
+    setTimeout(() => ref.current?.focus(), 0);
+  }
+
   return (
     <div className="border-t border-border glass">
       <div className="max-w-[760px] mx-auto px-6 py-4">
@@ -56,7 +61,8 @@ export function Composer({ onSend, onCancel, loading, disabled }: Props) {
               'min-h-[48px] max-h-[200px]',
             )}
           />
-          <div className="p-1.5">
+          <div className="p-1.5 flex items-center gap-1.5">
+            <MicButton onTranscript={handleTranscript} disabled={disabled || loading} size="md" />
             {loading ? (
               <button
                 type="button"
