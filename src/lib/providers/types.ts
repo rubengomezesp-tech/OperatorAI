@@ -19,7 +19,7 @@ export type StreamDelta =
   | { type: 'error'; message: string };
 
 export interface ChatProvider {
-  readonly name: 'openai' | 'anthropic';
+  readonly name: 'openai' | 'anthropic' | 'google';
   stream(req: ProviderRequest, signal?: AbortSignal): AsyncIterable<StreamDelta>;
 }
 
@@ -30,6 +30,8 @@ export const MODEL_PRICING: Record<string, { input: number; output: number }> = 
   'claude-sonnet-4-5-20250929': { input: 3, output: 15 },
   'claude-opus-4-5-20251101': { input: 15, output: 75 },
   'claude-haiku-4-5-20251001': { input: 1, output: 5 },
+  'gemini-3.1-pro-preview': { input: 1.25, output: 10 },
+  'gemini-2.5-flash': { input: 0.15, output: 0.6 },
 };
 
 export function costForUsage(model: string, inputTokens: number, outputTokens: number): number {

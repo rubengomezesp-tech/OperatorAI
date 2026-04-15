@@ -5,7 +5,7 @@ import { parseSSEStream } from '@/lib/chat/sse-client';
 interface SendOptions {
   conversationId: string | null;
   message: string;
-  provider?: 'openai' | 'anthropic';
+  provider?: 'openai' | 'anthropic' | 'google';
   model?: string;
   regenerate?: boolean;
   onAssistantStart?: (meta: { conversationId: string; assistantMessageId: string; isNewConversation: boolean }) => void;

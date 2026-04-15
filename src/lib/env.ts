@@ -18,9 +18,10 @@ const serverSchema = z.object({
 
   OPENAI_API_KEY: z.string().optional(),
   ANTHROPIC_API_KEY: z.string().optional(),
+  GOOGLE_API_KEY: z.string().optional(),
   REPLICATE_API_TOKEN: z.string().optional(),
 
-  DEFAULT_TEXT_PROVIDER: z.enum(['openai', 'anthropic']).default('openai'),
+  DEFAULT_TEXT_PROVIDER: z.enum(['openai', 'anthropic', 'google']).default('openai'),
   DEFAULT_IMAGE_PROVIDER: z.enum(['replicate']).default('replicate'),
 
   LANGFUSE_PUBLIC_KEY: z.string().optional(),

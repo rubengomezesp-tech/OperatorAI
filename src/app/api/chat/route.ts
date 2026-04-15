@@ -18,7 +18,7 @@ const BodySchema = z.object({
   conversationId: z.string().optional().nullable(),
   message: z.string().min(1).max(10_000).optional().nullable(),
   regenerate: z.boolean().optional().default(false),
-  provider: z.enum(['openai', 'anthropic']).optional(),
+  provider: z.enum(['openai', 'anthropic', 'google']).optional(),
   model: z.string().optional(),
 });
 

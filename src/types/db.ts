@@ -605,6 +605,7 @@ export type Database = {
           org_id: string
           output_storage_paths: string[] | null
           output_urls: string[] | null
+          parent_image_id: string | null
           preset: string | null
           prompt: string
           provider: string
@@ -636,6 +637,7 @@ export type Database = {
           org_id: string
           output_storage_paths?: string[] | null
           output_urls?: string[] | null
+          parent_image_id?: string | null
           preset?: string | null
           prompt: string
           provider: string
@@ -667,6 +669,7 @@ export type Database = {
           org_id?: string
           output_storage_paths?: string[] | null
           output_urls?: string[] | null
+          parent_image_id?: string | null
           preset?: string | null
           prompt?: string
           provider?: string
@@ -707,6 +710,13 @@ export type Database = {
             columns: ["org_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "image_generations_parent_image_id_fkey"
+            columns: ["parent_image_id"]
+            isOneToOne: false
+            referencedRelation: "image_generations"
             referencedColumns: ["id"]
           },
           {

@@ -5,7 +5,7 @@ import { buildSystemPrompt } from './build-system-prompt';
 interface RunChatInput {
   messages: ChatMessage[];
   assistant?: Parameters<typeof buildSystemPrompt>[0];
-  provider?: 'openai' | 'anthropic';
+  provider?: 'openai' | 'anthropic' | 'google';
   model?: string;
   temperature?: number;
   signal?: AbortSignal;
