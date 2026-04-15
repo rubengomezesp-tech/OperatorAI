@@ -960,6 +960,63 @@ export type Database = {
           },
         ]
       }
+      memories: {
+        Row: {
+          category: string | null
+          content: string
+          created_at: string
+          id: string
+          importance: number
+          is_active: boolean
+          org_id: string
+          source: string | null
+          source_conversation_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          category?: string | null
+          content: string
+          created_at?: string
+          id?: string
+          importance?: number
+          is_active?: boolean
+          org_id: string
+          source?: string | null
+          source_conversation_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          category?: string | null
+          content?: string
+          created_at?: string
+          id?: string
+          importance?: number
+          is_active?: boolean
+          org_id?: string
+          source?: string | null
+          source_conversation_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "memories_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "memories_source_conversation_id_fkey"
+            columns: ["source_conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       memory_entries: {
         Row: {
           assistant_id: string | null
@@ -1597,6 +1654,65 @@ export type Database = {
         }
         Relationships: []
       }
+      voice_fingerprints: {
+        Row: {
+          avoided_phrases: string[] | null
+          created_at: string
+          example_messages: Json | null
+          id: string
+          last_analyzed_at: string | null
+          org_id: string
+          preferred_phrases: string[] | null
+          sample_count: number
+          sentence_length: string | null
+          structural_preferences: string | null
+          tone_summary: string | null
+          updated_at: string
+          user_id: string
+          vocabulary_style: string | null
+        }
+        Insert: {
+          avoided_phrases?: string[] | null
+          created_at?: string
+          example_messages?: Json | null
+          id?: string
+          last_analyzed_at?: string | null
+          org_id: string
+          preferred_phrases?: string[] | null
+          sample_count?: number
+          sentence_length?: string | null
+          structural_preferences?: string | null
+          tone_summary?: string | null
+          updated_at?: string
+          user_id: string
+          vocabulary_style?: string | null
+        }
+        Update: {
+          avoided_phrases?: string[] | null
+          created_at?: string
+          example_messages?: Json | null
+          id?: string
+          last_analyzed_at?: string | null
+          org_id?: string
+          preferred_phrases?: string[] | null
+          sample_count?: number
+          sentence_length?: string | null
+          structural_preferences?: string | null
+          tone_summary?: string | null
+          updated_at?: string
+          user_id?: string
+          vocabulary_style?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "voice_fingerprints_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       voice_requests: {
         Row: {
           assistant_id: string | null
@@ -1712,6 +1828,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      check_quota: { Args: { p_kind: string; p_org_id: string }; Returns: Json }
       gen_cuid2: { Args: never; Returns: string }
       has_org_role: {
         Args: { required_roles: string[]; target_org_id: string }
