@@ -75,7 +75,7 @@ export default function PricingPage() {
               </div>
               <Button
                 size="md"
-                variant={plan.highlight ? 'default' : 'outline'}
+                variant={plan.highlight ? 'primary' : 'outline'}
                 onClick={() => startCheckout(plan.id)}
                 loading={loading === plan.id}
                 className="w-full mb-5"
