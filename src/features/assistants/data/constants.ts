@@ -1,0 +1,45 @@
+export const INDUSTRY_OPTIONS = [
+  'Beauty & Cosmetics',
+  'Fashion & Apparel',
+  'Food & Beverage',
+  'Health & Wellness',
+  'Real Estate',
+  'Hospitality & Travel',
+  'Fitness & Sports',
+  'Education',
+  'Technology / SaaS',
+  'Consulting',
+  'Marketing & Advertising',
+  'Finance',
+  'Legal',
+  'E-commerce',
+  'Architecture & Design',
+  'Art & Entertainment',
+  'Non-profit',
+  'Other',
+] as const;
+
+export const TONE_OPTIONS = [
+  { id: 'professional',  label: 'Professional',  desc: 'Formal, trusted, expert' },
+  { id: 'warm',          label: 'Warm',          desc: 'Friendly, approachable, human' },
+  { id: 'luxurious',     label: 'Luxurious',     desc: 'Refined, sophisticated, elevated' },
+  { id: 'playful',       label: 'Playful',       desc: 'Witty, light, charming' },
+  { id: 'direct',        label: 'Direct',        desc: 'No fluff, sharp, decisive' },
+  { id: 'poetic',        label: 'Poetic',        desc: 'Lyrical, evocative, sensorial' },
+  { id: 'technical',     label: 'Technical',     desc: 'Precise, detailed, expert' },
+  { id: 'rebellious',    label: 'Rebellious',    desc: 'Bold, unfiltered, edgy' },
+  { id: 'minimalist',    label: 'Minimalist',    desc: 'Spare, calm, intentional' },
+  { id: 'inspirational', label: 'Inspirational', desc: 'Uplifting, ambitious, energetic' },
+] as const;
+
+export const LANGUAGE_OPTIONS = [
+  { id: 'en', label: 'English' },
+  { id: 'es', label: 'Spanish' },
+  { id: 'fr', label: 'French' },
+  { id: 'pt', label: 'Portuguese' },
+  { id: 'it', label: 'Italian' },
+  { id: 'de', label: 'German' },
+  { id: 'nl', label: 'Dutch' },
+  { id: 'ja', label: 'Japanese' },
+  { id: 'zh', label: 'Chinese' },
+] as const;

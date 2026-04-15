@@ -21,7 +21,7 @@ export function getDefaultProvider(): ChatProvider {
 
 export function resolveModelForProvider(name: 'openai' | 'anthropic'): string {
   if (name === 'openai') return 'gpt-4o';
-  return 'claude-3-5-sonnet-latest';
+  return 'claude-sonnet-4-5-20250929';
 }
 
 export * from './types';

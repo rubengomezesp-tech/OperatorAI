@@ -1,6 +1,28 @@
+import { redirect } from 'next/navigation';
+import { createSupabaseServerClient } from '@/lib/supabase/server';
+import { createSupabaseServiceClient } from '@/lib/supabase/service';
+import { resolveOrgContext } from '@/features/chat/server/resolve-org-context';
+import { getDefaultAssistant, isAssistantConfigured } from '@/features/assistants/server/queries';
 import { ConversationsRail } from '@/features/chat/components/conversations-rail';
 
-export default function ChatLayout({ children }: { children: React.ReactNode }) {
+export default async function ChatLayout({ children }: { children: React.ReactNode }) {
+  const ssr = await createSupabaseServerClient();
+  const { data: { user } } = await ssr.auth.getUser();
+  if (!user) redirect('/login');
+
+  const svc = createSupabaseServiceClient();
+  let orgId: string;
+  try {
+    orgId = (await resolveOrgContext(svc, user.id)).orgId;
+  } catch {
+    redirect('/create-organization');
+  }
+
+  const assistant = await getDefaultAssistant(svc, orgId);
+  if (!isAssistantConfigured(assistant)) {
+    redirect('/setup-assistant');
+  }
+
   return (
     <div className="flex h-[calc(100vh-56px)]">
       <ConversationsRail />

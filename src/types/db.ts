@@ -99,6 +99,7 @@ export type Database = {
           voice_id: string | null
           voice_provider: string | null
           voice_speed: number | null
+          website: string | null
           writing_style: string | null
         }
         Insert: {
@@ -131,6 +132,7 @@ export type Database = {
           voice_id?: string | null
           voice_provider?: string | null
           voice_speed?: number | null
+          website?: string | null
           writing_style?: string | null
         }
         Update: {
@@ -163,6 +165,7 @@ export type Database = {
           voice_id?: string | null
           voice_provider?: string | null
           voice_speed?: number | null
+          website?: string | null
           writing_style?: string | null
         }
         Relationships: [

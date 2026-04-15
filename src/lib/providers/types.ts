@@ -23,12 +23,13 @@ export interface ChatProvider {
   stream(req: ProviderRequest, signal?: AbortSignal): AsyncIterable<StreamDelta>;
 }
 
-// Rough unit prices in USD per 1M tokens (update as providers change pricing).
+// Pricing in USD per 1M tokens (April 2026).
 export const MODEL_PRICING: Record<string, { input: number; output: number }> = {
   'gpt-4o': { input: 2.5, output: 10 },
   'gpt-4o-mini': { input: 0.15, output: 0.6 },
-  'claude-3-5-sonnet-latest': { input: 3, output: 15 },
-  'claude-3-5-haiku-latest': { input: 0.8, output: 4 },
+  'claude-sonnet-4-5-20250929': { input: 3, output: 15 },
+  'claude-opus-4-5-20251101': { input: 15, output: 75 },
+  'claude-haiku-4-5-20251001': { input: 1, output: 5 },
 };
 
 export function costForUsage(model: string, inputTokens: number, outputTokens: number): number {
