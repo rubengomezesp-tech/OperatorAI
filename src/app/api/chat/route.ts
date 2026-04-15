@@ -176,16 +176,17 @@ export async function POST(req: NextRequest) {
   }));
 
   const systemAdditions: ChatMessage[] = [];
+
   // Web browse: explicit flag OR auto-detect for researcher agent
-  const wantsWeb = body.webBrowse === true ||
-    (selectedAgent?.id === 'research' && shouldSearch(body.message));
+  const wantsWeb = body.webBrowse === true || (selectedAgent?.id === 'research' && shouldSearch(body.message ?? ''));
   if (wantsWeb) {
     try {
-      const webResults = await webSearch(body.message, 5);
+      const webResults = await webSearch(body.message ?? '', 5);
       const webBlock = formatWebContext(webResults);
       if (webBlock) systemAdditions.push({ role: 'system', content: webBlock });
     } catch { /* graceful fallback */ }
   }
+
   if (selectedAgent && selectedAgent.systemPromptAddition) {
     systemAdditions.push({ role: 'system', content: selectedAgent.systemPromptAddition });
   }

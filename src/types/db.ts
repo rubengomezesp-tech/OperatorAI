@@ -1783,6 +1783,93 @@ export type Database = {
         }
         Relationships: []
       }
+      videos: {
+        Row: {
+          aspect_ratio: string
+          completed_at: string | null
+          cost_usd: number | null
+          created_at: string
+          deleted_at: string | null
+          duration_seconds: number
+          error_message: string | null
+          has_audio: boolean | null
+          id: string
+          metadata: Json | null
+          model: string
+          operation_name: string | null
+          org_id: string
+          project_id: string | null
+          prompt: string
+          resolution: string | null
+          source_image_url: string | null
+          status: string
+          storage_path: string | null
+          thumbnail_path: string | null
+          user_id: string
+        }
+        Insert: {
+          aspect_ratio?: string
+          completed_at?: string | null
+          cost_usd?: number | null
+          created_at?: string
+          deleted_at?: string | null
+          duration_seconds?: number
+          error_message?: string | null
+          has_audio?: boolean | null
+          id?: string
+          metadata?: Json | null
+          model: string
+          operation_name?: string | null
+          org_id: string
+          project_id?: string | null
+          prompt: string
+          resolution?: string | null
+          source_image_url?: string | null
+          status?: string
+          storage_path?: string | null
+          thumbnail_path?: string | null
+          user_id: string
+        }
+        Update: {
+          aspect_ratio?: string
+          completed_at?: string | null
+          cost_usd?: number | null
+          created_at?: string
+          deleted_at?: string | null
+          duration_seconds?: number
+          error_message?: string | null
+          has_audio?: boolean | null
+          id?: string
+          metadata?: Json | null
+          model?: string
+          operation_name?: string | null
+          org_id?: string
+          project_id?: string | null
+          prompt?: string
+          resolution?: string | null
+          source_image_url?: string | null
+          status?: string
+          storage_path?: string | null
+          thumbnail_path?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "videos_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "videos_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       voice_fingerprints: {
         Row: {
           avoided_phrases: string[] | null
