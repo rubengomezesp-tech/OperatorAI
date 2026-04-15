@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
         const sub = event.data.object as Stripe.Subscription;
         const orgId = sub.metadata?.org_id;
         if (!orgId) break;
-        let planId = sub.metadata?.plan_id ?? null;
+        let planId: string | null = sub.metadata?.plan_id ?? null;
         const item = sub.items.data[0];
         if (!planId && item?.price?.id) {
           const { data: pr } = await svc.from('plans').select('id').eq('stripe_price_monthly_id', item.price.id).maybeSingle();
