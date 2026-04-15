@@ -4,7 +4,7 @@ import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import {
-  LayoutDashboard, MessageSquare, FolderOpen, ImageIcon, Mic,
+  LayoutDashboard, MessageSquare, FolderOpen, ImageIcon, Video, Mic,
   FileText, Brain, Sparkles, Plug, CreditCard, Settings,
   ChevronDown,
   type LucideIcon,
@@ -33,6 +33,7 @@ const nav: Section[] = [
     group: 'Studio',
     items: [
       { href: '/studio/image', label: 'Image Studio', icon: ImageIcon },
+      { href: '/studio/video', label: 'Video Studio', icon: Video, badge: 'NEW' },
       { href: '/voice', label: 'Voice Mode', icon: Mic },
     ],
   },

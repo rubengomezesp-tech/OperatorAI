@@ -13,6 +13,7 @@ import { getRelevantMemories, formatMemoriesBlock } from '@/features/memory/serv
 import { extractMemoryFromTurn, isExplicitMemoryRequest } from '@/features/memory/server/extract-memory';
 import { fingerprintToPromptSnippet } from '@/features/memory/server/learn-voice';
 import { findAgent } from '@/features/agents/data/catalog';
+import { webSearch, formatWebContext, shouldSearch } from '@/features/web-browse/server/web-search';
 import type { ChatMessage } from '@/lib/providers';
 
 export const runtime = 'nodejs';
@@ -25,6 +26,7 @@ const BodySchema = z.object({
   provider: z.enum(['openai', 'anthropic', 'google']).optional(),
   model: z.string().optional(),
   agentType: z.enum(['creative','brand','copy','research','analyst','social']).optional(),
+  webBrowse: z.boolean().optional(),
   projectId: z.string().optional().nullable(),
 });
 
@@ -174,6 +176,16 @@ export async function POST(req: NextRequest) {
   }));
 
   const systemAdditions: ChatMessage[] = [];
+  // Web browse: explicit flag OR auto-detect for researcher agent
+  const wantsWeb = body.webBrowse === true ||
+    (selectedAgent?.id === 'research' && shouldSearch(body.message));
+  if (wantsWeb) {
+    try {
+      const webResults = await webSearch(body.message, 5);
+      const webBlock = formatWebContext(webResults);
+      if (webBlock) systemAdditions.push({ role: 'system', content: webBlock });
+    } catch { /* graceful fallback */ }
+  }
   if (selectedAgent && selectedAgent.systemPromptAddition) {
     systemAdditions.push({ role: 'system', content: selectedAgent.systemPromptAddition });
   }

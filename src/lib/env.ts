@@ -34,6 +34,7 @@ const serverSchema = z.object({
   STRIPE_SECRET_KEY: z.string().optional(),
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
   COMPOSIO_API_KEY: z.string().optional(),
+  BRAVE_API_KEY: z.string().optional(),
 
   UPSTASH_REDIS_REST_URL: optionalUrl,
   UPSTASH_REDIS_REST_TOKEN: z.string().optional(),
