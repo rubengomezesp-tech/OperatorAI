@@ -1,7 +1,8 @@
 'use client';
 import { ModelSelector } from './model-selector';
+import { ShareButton } from './share-button';
 
-export function ChatTopbar({ title }: { title?: string | null }) {
+export function ChatTopbar({ title, conversationId }: { title?: string | null; conversationId?: string | null }) {
   return (
     <div className="flex items-center justify-between px-6 py-3 border-b border-border">
       <div className="min-w-0">
@@ -10,6 +11,7 @@ export function ChatTopbar({ title }: { title?: string | null }) {
         </div>
       </div>
       <div className="flex items-center gap-2">
+        {conversationId && <ShareButton conversationId={conversationId} />}
         <ModelSelector />
       </div>
     </div>
