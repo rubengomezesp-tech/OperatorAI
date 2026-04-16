@@ -135,7 +135,7 @@ export async function POST(req: NextRequest) {
           completed_at: new Date().toISOString(),
         } as never).eq('id', runId);
       }
-      await svc.rpc('increment_failure_count', { wf_id: wf.id }).then(() => {}).catch(() => {});
+      try { await svc.rpc('increment_failure_count', { wf_id: wf.id }); } catch { /* ignore */ }
       await svc.from('workflows').update({
         last_run_at: new Date().toISOString(),
         last_run_status: 'failed',
