@@ -14,6 +14,7 @@ interface Props {
 
 export function Composer({ onSend, onCancel, loading, disabled }: Props) {
   const [value, setValue] = useState('');
+  const [agentType, setAgentType] = useState<'creative' | 'brand' | 'copy' | 'research' | 'analyst' | 'social'>('creative');
   const ref = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -43,7 +44,10 @@ export function Composer({ onSend, onCancel, loading, disabled }: Props) {
 
   return (
     <div className="border-t border-border glass">
-      <div className="max-w-[760px] mx-auto px-6 py-4">
+      <div className="max-w-[760px] mx-auto px-6 py-4 space-y-2.5">
+        <div className="flex items-center gap-2">
+          <AgentPicker value={agentType} onChange={setAgentType} />
+        </div>
         <div className={cn(
           'relative flex items-end gap-2 rounded-xl border border-border bg-surface-2',
           'focus-within:border-gold/50 focus-within:ring-2 focus-within:ring-gold/15 transition-colors',

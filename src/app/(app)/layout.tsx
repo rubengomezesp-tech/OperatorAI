@@ -1,3 +1,4 @@
+import { CommandPaletteProvider } from '@/features/command-palette/components/command-palette-provider';
 import { redirect } from 'next/navigation';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { resolveCurrentOrg } from '@/features/organizations/server/resolve';
@@ -18,7 +19,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <OrgProvider initialOrg={currentOrg} initialOrgs={orgs}>
       <AppShell email={me?.email ?? user.email ?? ''} fullName={me?.full_name ?? null}>
-        {children}
+        <CommandPaletteProvider>{children}</CommandPaletteProvider>
       </AppShell>
     </OrgProvider>
   );
