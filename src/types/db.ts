@@ -247,6 +247,47 @@ export type Database = {
           },
         ]
       }
+      brand_profile: {
+        Row: {
+          brand_name: string | null
+          description: string | null
+          first_prompt: string | null
+          logo_url: string | null
+          org_id: string
+          updated_at: string
+          user_role: string | null
+          vibe: string | null
+        }
+        Insert: {
+          brand_name?: string | null
+          description?: string | null
+          first_prompt?: string | null
+          logo_url?: string | null
+          org_id: string
+          updated_at?: string
+          user_role?: string | null
+          vibe?: string | null
+        }
+        Update: {
+          brand_name?: string | null
+          description?: string | null
+          first_prompt?: string | null
+          logo_url?: string | null
+          org_id?: string
+          updated_at?: string
+          user_role?: string | null
+          vibe?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brand_profile_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       conversations: {
         Row: {
           agent_type: string | null
@@ -1379,6 +1420,44 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      onboarding_state: {
+        Row: {
+          completed: boolean | null
+          completed_at: string | null
+          current_step: number | null
+          data: Json | null
+          org_id: string | null
+          started_at: string | null
+          user_id: string
+        }
+        Insert: {
+          completed?: boolean | null
+          completed_at?: string | null
+          current_step?: number | null
+          data?: Json | null
+          org_id?: string | null
+          started_at?: string | null
+          user_id: string
+        }
+        Update: {
+          completed?: boolean | null
+          completed_at?: string | null
+          current_step?: number | null
+          data?: Json | null
+          org_id?: string | null
+          started_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "onboarding_state_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]
