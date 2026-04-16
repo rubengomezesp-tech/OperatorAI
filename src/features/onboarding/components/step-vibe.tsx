@@ -7,7 +7,7 @@ import type { OnboardingData } from './wizard';
 const vibes = [
   { id: 'minimal', label: 'Minimal', desc: 'Clean, restrained, architectural', sample: 'Less is more.' },
   { id: 'editorial', label: 'Editorial', desc: 'Cultured, cinematic, considered', sample: 'A quiet kind of luxury.' },
-  { id: 'bold', label: 'Bold', desc: 'Loud, confident, category-defining', sample: 'We don\'t whisper. We move.' },
+  { id: 'bold', label: 'Bold', desc: 'Loud, confident, category-defining', sample: 'We don&apos;t whisper. We move.' },
   { id: 'playful', label: 'Playful', desc: 'Warm, fun, conversational', sample: 'Serious work. Fun people.' },
 ] as const;
 
@@ -44,7 +44,7 @@ export function StepVibe({
             <div className="font-display text-[20px] mb-1">{v.label}</div>
             <div className="text-[12.5px] text-fg-muted mb-3">{v.desc}</div>
             <div className="text-[13px] italic text-fg-soft border-l-2 border-gold/40 pl-3">
-              "{v.sample}"
+              &ldquo;{v.sample}&rdquo;
             </div>
           </button>
         ))}

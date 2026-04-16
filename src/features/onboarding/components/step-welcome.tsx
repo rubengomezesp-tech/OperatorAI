@@ -31,7 +31,7 @@ export function StepWelcome({ onNext, email }: { onNext: () => void; email: stri
         {email}
       </p>
       <p className="text-[14.5px] text-fg-muted max-w-[460px] mx-auto mb-10 leading-relaxed">
-        Let's set up your studio in 60 seconds. We'll tailor Operator to your brand, your vibe, and your first question.
+        Let&apos;s set up your studio in 60 seconds. We&apos;ll tailor Operator to your brand, your vibe, and your first question.
       </p>
       <Button size="lg" onClick={onNext} className="min-w-[180px]">
         <span>Begin</span>
