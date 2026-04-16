@@ -14,6 +14,8 @@ export interface AgentDefinition {
 export const AGENTS: AgentDefinition[] = [
   {
     id: 'creative',
+    emoji: '💬',
+    provider: 'GPT-4o',
     name: 'Creative Agent',
     tagline: 'General-purpose, knows your brand',
     description: 'Your default operator. Creative, fast, knows your knowledge base, your voice, and your memory.',
@@ -30,6 +32,8 @@ export const AGENTS: AgentDefinition[] = [
   },
   {
     id: 'brand',
+    emoji: '🎨',
+    provider: 'Claude',
     name: 'Brand Strategist',
     tagline: 'Positioning, messaging, identity',
     description: 'Senior brand consultant. Pressure-tests your positioning, shapes messaging, audits campaigns against brand DNA.',
@@ -55,6 +59,8 @@ export const AGENTS: AgentDefinition[] = [
   },
   {
     id: 'copy',
+    emoji: '✍️',
+    provider: 'Claude',
     name: 'Copywriter',
     tagline: 'Headlines, ads, emails, web copy',
     description: 'Long-form and short-form copy specialist. Always writes in your voice fingerprint with precision.',
@@ -80,6 +86,8 @@ export const AGENTS: AgentDefinition[] = [
   },
   {
     id: 'research',
+    emoji: '🔍',
+    provider: 'Gemini',
     name: 'Researcher',
     tagline: 'Deep web research with citations',
     description: 'Investigative analyst. Cross-references sources, surfaces non-obvious patterns, always cites.',
@@ -105,6 +113,8 @@ export const AGENTS: AgentDefinition[] = [
   },
   {
     id: 'analyst',
+    emoji: '📊',
+    provider: 'GPT-4o',
     name: 'Analyst',
     tagline: 'Data, spreadsheets, metrics',
     description: 'Quantitative thinker. Reads CSVs, computes metrics, spots anomalies, recommends actions.',
@@ -130,6 +140,8 @@ export const AGENTS: AgentDefinition[] = [
   },
   {
     id: 'social',
+    emoji: '📱',
+    provider: 'GPT-4o',
     name: 'Social Media Manager',
     tagline: 'IG, LinkedIn, TikTok-ready content',
     description: 'Knows the algorithm. Produces platform-native content. Calendars, hooks, captions, hashtags.',

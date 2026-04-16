@@ -1,77 +1,82 @@
 'use client';
-import { useState } from 'react';
-import { Sparkles, Crown, Pen, Search, BarChart3, Megaphone, ChevronDown } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
 import { cn } from '@/lib/utils';
-import { AGENTS, type AgentDefinition } from '../data/catalog';
-
-const ICONS: Record<string, typeof Sparkles> = {
-  sparkles: Sparkles,
-  crown: Crown,
-  pen: Pen,
-  search: Search,
-  chart: BarChart3,
-  megaphone: Megaphone,
-};
+import { ChevronDown, Check } from 'lucide-react';
+import { AGENTS, type AgentId } from '../data/catalog';
 
 interface Props {
-  value: AgentDefinition['id'];
-  onChange: (id: AgentDefinition['id']) => void;
-  compact?: boolean;
+  value: AgentId;
+  onChange: (id: AgentId) => void;
 }
 
-export function AgentPicker({ value, onChange, compact = false }: Props) {
+export function AgentPicker({ value, onChange }: Props) {
   const [open, setOpen] = useState(false);
-  const current = AGENTS.find(a => a.id === value) ?? AGENTS[0];
-  const Icon = ICONS[current.icon] ?? Sparkles;
+  const ref = useRef<HTMLDivElement>(null);
+  const selected = AGENTS.find((a) => a.id === value) ?? AGENTS[0];
+
+  useEffect(() => {
+    function close(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, []);
 
   return (
-    <div className="relative">
+    <div className="relative" ref={ref}>
       <button
         type="button"
-        onClick={() => setOpen(v => !v)}
+        onClick={() => setOpen(!open)}
         className={cn(
-          'inline-flex items-center gap-2 rounded-md border border-border bg-surface-2 hover:bg-surface-3 transition',
-          compact ? 'h-7 px-2 text-[11.5px]' : 'h-8 px-2.5 text-[12px]',
+          'flex items-center gap-2 px-2.5 h-8 rounded-md border text-[12px] transition',
+          open
+            ? 'bg-gold/10 border-gold/50 text-gold'
+            : 'bg-surface-2 border-border text-fg-muted hover:text-fg hover:border-border/60'
         )}
       >
-        <Icon className={cn('text-gold', compact ? 'h-3 w-3' : 'h-3.5 w-3.5')} />
-        <span className="font-medium">{current.name}</span>
-        <ChevronDown className={cn(compact ? 'h-3 w-3' : 'h-3.5 w-3.5')} />
+        <span className="text-[14px] leading-none">{selected.emoji}</span>
+        <span className="font-medium">{selected.name}</span>
+        <ChevronDown className={cn('h-3 w-3 transition-transform', open && 'rotate-180')} />
       </button>
 
       {open && (
-        <>
-          <div
-            className="fixed inset-0 z-40"
-            onClick={() => setOpen(false)}
-            aria-hidden
-          />
-          <div className="absolute right-0 mt-1 w-[320px] rounded-lg border border-border bg-surface shadow-2xl z-50 p-1.5">
-            {AGENTS.map((a) => {
-              const I = ICONS[a.icon] ?? Sparkles;
-              const active = a.id === value;
+        <div className="absolute bottom-[calc(100%+6px)] left-0 w-[320px] surface-raised rounded-lg border border-border shadow-2xl overflow-hidden z-40 animate-fadeIn">
+          <div className="p-1.5 max-h-[380px] overflow-y-auto">
+            {AGENTS.map((agent) => {
+              const isSelected = agent.id === value;
               return (
                 <button
-                  key={a.id}
+                  key={agent.id}
                   type="button"
-                  onClick={() => { onChange(a.id); setOpen(false); }}
+                  onClick={() => { onChange(agent.id); setOpen(false); }}
                   className={cn(
-                    'w-full text-left px-2.5 py-2 rounded-md hover:bg-surface-2 transition flex items-start gap-2.5',
-                    active && 'bg-gold/8',
+                    'w-full text-left flex items-start gap-3 p-2.5 rounded-md transition',
+                    isSelected
+                      ? 'bg-gold/10'
+                      : 'hover:bg-surface-2'
                   )}
                 >
-                  <I className={cn('h-4 w-4 mt-0.5 shrink-0', active ? 'text-gold' : 'text-fg-muted')} />
-                  <div className="min-w-0 flex-1">
-                    <div className={cn('text-[12.5px] font-medium', active ? 'text-gold' : 'text-fg')}>
-                      {a.name}
+                  <span className="text-[20px] leading-none shrink-0 mt-0.5">{agent.emoji}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className={cn(
+                        'text-[13px] font-medium',
+                        isSelected ? 'text-gold' : 'text-fg'
+                      )}>{agent.name}</span>
+                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-surface-3 text-fg-subtle uppercase tracking-[0.1em]">
+                        {agent.provider}
+                      </span>
                     </div>
-                    <div className="text-[11px] text-fg-muted mt-0.5 leading-snug">{a.tagline}</div>
+                    <div className="text-[11.5px] text-fg-muted mt-0.5 leading-relaxed">
+                      {agent.tagline}
+                    </div>
                   </div>
+                  {isSelected && <Check className="h-3.5 w-3.5 text-gold shrink-0 mt-1" />}
                 </button>
               );
             })}
           </div>
-        </>
+        </div>
       )}
     </div>
   );

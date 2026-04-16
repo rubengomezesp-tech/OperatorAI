@@ -1,3 +1,4 @@
+import { AgentPicker } from '@/features/agents/components/agent-picker';
 'use client';
 import { useState, useRef, useEffect, type KeyboardEvent } from 'react';
 import { ArrowUp, Square, Paperclip, X as XIcon } from 'lucide-react';
