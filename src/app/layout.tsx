@@ -1,3 +1,4 @@
+import { I18nProvider } from '@/lib/i18n';
 import type { Metadata } from 'next';
 import { Inter, Instrument_Serif, JetBrains_Mono } from 'next/font/google';
 import { RootProviders } from '@/components/providers/root-providers';
@@ -18,7 +19,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={inter.variable + ' ' + serif.variable + ' ' + mono.variable} suppressHydrationWarning>
       <body className="min-h-screen bg-bg text-fg antialiased">
-        <RootProviders>{children}</RootProviders>
+        <RootProviders><I18nProvider>{children}</I18nProvider></RootProviders>
       
         <script dangerouslySetInnerHTML={{__html: `
           if ('serviceWorker' in navigator) {

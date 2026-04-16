@@ -1,3 +1,4 @@
+import { LanguageToggle } from '@/lib/i18n';
 'use client';
 import { usePathname } from 'next/navigation';
 import { Sparkles } from 'lucide-react';
