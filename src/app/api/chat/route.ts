@@ -189,6 +189,23 @@ export async function POST(req: NextRequest) {
     } catch { /* graceful fallback */ }
   }
 
+  
+  // Load brand profile for persistent context
+  try {
+    const { data: bp } = await svc.from('brand_profile').select('*').eq('org_id', orgId).maybeSingle();
+    if (bp) {
+      const profile = bp as { brand_name?: string; description?: string; vibe?: string; user_role?: string };
+      const lines: string[] = ['<brand_profile>'];
+      if (profile.brand_name) lines.push('Brand: ' + profile.brand_name);
+      if (profile.description) lines.push('Description: ' + profile.description);
+      if (profile.vibe) lines.push('Tone: ' + profile.vibe);
+      if (profile.user_role) lines.push('User role: ' + profile.user_role);
+      lines.push('Use this context to personalize every response. Match the tone.');
+      lines.push('</brand_profile>');
+      systemAdditions.push({ role: 'system', content: lines.join('\n') });
+    }
+  } catch { /* non-fatal */ }
+
   if (selectedAgent && selectedAgent.systemPromptAddition) {
     systemAdditions.push({ role: 'system', content: selectedAgent.systemPromptAddition });
   }

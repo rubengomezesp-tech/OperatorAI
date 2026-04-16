@@ -9,6 +9,15 @@ export default async function ChatLayout({ children }: { children: React.ReactNo
   const ssr = await createSupabaseServerClient();
   const { data: { user } } = await ssr.auth.getUser();
   if (!user) redirect('/login');
+  // Onboarding guard — redirect to welcome if not completed
+  try {
+    const svc = createSupabaseServiceClient();
+    const { data: onboard } = await svc.from('onboarding_state').select('completed').eq('user_id', user.id).maybeSingle();
+    if (!onboard || !onboard.completed) {
+      redirect('/welcome');
+    }
+  } catch { /* non-fatal — let user through */ }
+
 
   const svc = createSupabaseServiceClient();
   let orgId: string;

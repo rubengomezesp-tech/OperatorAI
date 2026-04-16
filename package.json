@@ -12,7 +12,8 @@
     "stripe:setup": "node scripts/stripe-setup.mjs",
     "db:generate": "supabase gen types typescript --project-id $SUPABASE_PROJECT_ID > src/types/db.ts",
     "db:migrate": "supabase db push",
-    "format": "prettier --write \"src/**/*.{ts,tsx,css,md}\""
+    "format": "prettier --write \"src/**/*.{ts,tsx,css,md}\"",
+    "audit:routes": "node scripts/audit-routes.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.32.1",
