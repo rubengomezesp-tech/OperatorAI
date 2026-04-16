@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
 
   const svc = createSupabaseServiceClient();
 
-  await (svc.from('conversation_shares').update as any)({
+  await ((svc.from as any)('conversation_shares').update as any)({
     revoked_at: new Date().toISOString(),
   }).eq('slug', parsed.data.slug).eq('user_id', user.id);
 

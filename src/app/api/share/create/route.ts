@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
     const row = existing as { id: string; slug: string; visibility: string };
     // Update visibility if different
     if (parsed.data.visibility && parsed.data.visibility !== row.visibility) {
-      await (svc.from('conversation_shares').update as any)({
+      await ((svc.from as any)('conversation_shares').update as any)({
         visibility: parsed.data.visibility,
         updated_at: new Date().toISOString(),
       }).eq('id', row.id);

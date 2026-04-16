@@ -35,7 +35,7 @@ export async function GET(_req: Request, context: { params: Promise<{ slug: stri
   }
 
   // Increment view count (fire-and-forget)
-  (svc.from('conversation_shares').update as any)({
+  ((svc.from as any)('conversation_shares').update as any)({
     view_count: row.view_count + 1,
     last_viewed_at: new Date().toISOString(),
   }).eq('id', row.id).then(() => {}).catch(() => {});
