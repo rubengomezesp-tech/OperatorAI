@@ -31,10 +31,10 @@ export function StepTour({
       <div className="text-center">
         <div className="text-[11px] uppercase tracking-[0.18em] text-gold mb-3">Step 5 of 5</div>
         <h2 className="font-display text-[36px] lg:text-[44px] leading-tight mb-3">
-          You're all set, <span className="text-gold-grad">{name}</span>.
+          You&apos;re all set, <span className="text-gold-grad">{name}</span>.
         </h2>
         <p className="text-[14.5px] text-fg-muted max-w-[440px] mx-auto">
-          Your studio is ready. Here's what you can do next.
+          Your studio is ready. Here&apos;s what you can do next.
         </p>
       </div>
 

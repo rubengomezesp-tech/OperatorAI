@@ -16,7 +16,7 @@ export function StepBrand({
       <div>
         <div className="text-[11px] uppercase tracking-[0.18em] text-gold mb-2">Step 2 of 5</div>
         <h2 className="font-display text-[32px] lg:text-[38px] leading-tight mb-2">
-          What's your <span className="text-gold-grad">brand</span>?
+          What&apos;s your <span className="text-gold-grad">brand</span>?
         </h2>
         <p className="text-[14px] text-fg-muted">
           Operator will keep this context in every conversation.
