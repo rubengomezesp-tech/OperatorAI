@@ -4,9 +4,9 @@ import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import {
-  LayoutDashboard, MessageSquare, FolderOpen, ImageIcon, Video, Mic,
-  FileText, Brain, Sparkles, Plug, CreditCard, Settings,
-  ChevronDown,
+  LayoutDashboard, MessageSquare, FolderOpen, ImageIcon, Video,
+  Mic, Zap, FileSpreadsheet, FileText, Brain, Sparkles, Plug,
+  CreditCard, Settings, ChevronDown,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -38,10 +38,16 @@ const nav: Section[] = [
     ],
   },
   {
+    group: 'Automate',
+    items: [
+      { href: '/workflows', label: 'Workflows', icon: Zap },
+      { href: '/files', label: 'Files & Analysis', icon: FileSpreadsheet },
+    ],
+  },
+  {
     group: 'Intelligence',
     items: [
       { href: '/knowledge', label: 'Knowledge', icon: FileText },
-      { href: '/settings/memory', label: 'Memory', icon: Brain },
     ],
   },
   {
@@ -119,18 +125,12 @@ export function Sidebar() {
                           <span className="absolute left-0 top-1.5 bottom-1.5 w-[2px] rounded-full gold-grad" />
                         )}
                         <Icon
-                          className={cn(
-                            'h-4 w-4 shrink-0',
-                            someChildActive && 'text-gold',
-                          )}
+                          className={cn('h-4 w-4 shrink-0', someChildActive && 'text-gold')}
                           aria-hidden
                         />
                         <span className="flex-1 truncate text-left">{item.label}</span>
                         <ChevronDown
-                          className={cn(
-                            'h-3.5 w-3.5 transition-transform',
-                            expanded && 'rotate-180',
-                          )}
+                          className={cn('h-3.5 w-3.5 transition-transform', expanded && 'rotate-180')}
                         />
                       </button>
                       {expanded && (
@@ -194,11 +194,9 @@ export function Sidebar() {
       <div className="p-4 border-t border-border">
         <div className="surface-raised p-3.5">
           <div className="text-[10.5px] uppercase tracking-[0.16em] text-gold mb-1">Plan</div>
-          <div className="text-[12.5px] text-fg-muted leading-snug">
-            Explore Operator AI.
-          </div>
+          <div className="text-[12.5px] text-fg-muted leading-snug">Explore Operator AI.</div>
           <Link
-            href="/settings/billing"
+            href="/pricing"
             className="mt-2 inline-block text-[12px] text-fg hover:text-gold transition-colors"
           >
             Upgrade
