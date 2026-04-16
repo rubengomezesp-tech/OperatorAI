@@ -288,6 +288,66 @@ export type Database = {
           },
         ]
       }
+      conversation_shares: {
+        Row: {
+          conversation_id: string
+          created_at: string
+          id: string
+          last_viewed_at: string | null
+          org_id: string
+          revoked_at: string | null
+          slug: string
+          title: string | null
+          updated_at: string
+          user_id: string
+          view_count: number
+          visibility: string
+        }
+        Insert: {
+          conversation_id: string
+          created_at?: string
+          id?: string
+          last_viewed_at?: string | null
+          org_id: string
+          revoked_at?: string | null
+          slug?: string
+          title?: string | null
+          updated_at?: string
+          user_id: string
+          view_count?: number
+          visibility?: string
+        }
+        Update: {
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          last_viewed_at?: string | null
+          org_id?: string
+          revoked_at?: string | null
+          slug?: string
+          title?: string | null
+          updated_at?: string
+          user_id?: string
+          view_count?: number
+          visibility?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversation_shares_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversation_shares_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       conversations: {
         Row: {
           agent_type: string | null
