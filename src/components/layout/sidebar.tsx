@@ -7,8 +7,7 @@ import {
   LayoutDashboard, MessageSquare, FolderOpen, ImageIcon, Video,
   Mic, Zap, FileSpreadsheet, FileText, Brain, Sparkles, Plug,
   CreditCard, Settings, ChevronDown,
-  type LucideIcon,
-} from 'lucide-react';
+  type LucideIcon,, Rocket, Target} from 'lucide-react';
 
 type SubItem = { href: string; label: string; icon: LucideIcon };
 type Item = {
@@ -24,6 +23,7 @@ const nav: Section[] = [
   {
     group: 'Workspace',
     items: [
+      { href: '/missions', label: 'Missions', icon: Rocket, badge: 'NEW' },
       { href: '/dashboard', label: 'Overview', icon: LayoutDashboard },
       { href: '/projects', label: 'Projects', icon: FolderOpen },
       { href: '/chat', label: 'Creative Agent', icon: MessageSquare, badge: 'AI' },
