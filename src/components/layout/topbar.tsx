@@ -36,7 +36,8 @@ export function Topbar({ email, fullName }: { email: string; fullName: string | 
           <h1 className="font-display text-[18px] truncate">{title}</h1>
         </div>
         <div className="flex items-center gap-2">
-          <UserMenu email={email} fullName={fullName} />
+          <LanguageToggle />
+              <UserMenu email={email} fullName={fullName} />
         </div>
       </div>
     </header>
