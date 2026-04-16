@@ -1,15 +1,22 @@
 'use client';
-import { LanguageToggle } from '@/lib/i18n';
+import { useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { Sparkles } from 'lucide-react';
 import { UserMenu } from './user-menu';
+import { LanguageToggle } from '@/lib/i18n';
+import { MobileMenu, MobileMenuButton } from './mobile-menu';
 
 const TITLES: Record<string, string> = {
   '/dashboard': 'Studio',
   '/chat': 'Creative Agent',
   '/studio/image': 'Image Studio',
+  '/studio/video': 'Video Studio',
   '/studio/campaign': 'Campaigns',
   '/studio/copy': 'Copywriter',
+  '/voice': 'Voice Mode',
+  '/workflows': 'Workflows',
+  '/files': 'Files & Analysis',
+  '/projects': 'Projects',
   '/knowledge': 'Knowledge',
   '/memory': 'Memory',
   '/library': 'Library',
@@ -17,29 +24,42 @@ const TITLES: Record<string, string> = {
   '/team': 'Team',
   '/analytics': 'Analytics',
   '/settings': 'Settings',
-  '/billing': 'Billing',
+  '/settings/profile': 'Profile',
+  '/settings/integrations': 'Integrations',
+  '/settings/memory': 'Memory',
+  '/settings/billing': 'Billing',
 };
 
 export function Topbar({ email, fullName }: { email: string; fullName: string | null }) {
   const pathname = usePathname();
+  const [menuOpen, setMenuOpen] = useState(false);
   const key = Object.keys(TITLES).find((k) => pathname === k || pathname.startsWith(k + '/'));
   const title = key ? TITLES[key] : '';
+
   return (
-    <header className="sticky top-0 z-20 glass border-b border-border">
-      <div className="flex items-center justify-between h-14 px-5 lg:px-8">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.16em] text-fg-subtle">
-            <Sparkles className="h-3 w-3 text-gold" />
-            Operator
+    <>
+      <header className="sticky top-0 z-20 glass border-b border-border">
+        <div className="flex items-center justify-between h-14 px-5 lg:px-8">
+          <div className="flex items-center gap-3 min-w-0">
+            {/* Mobile: logo + menu button */}
+            <MobileMenuButton onClick={() => setMenuOpen(true)} />
+
+            {/* Desktop: breadcrumb */}
+            <div className="hidden lg:flex items-center gap-2 text-[11px] uppercase tracking-[0.16em] text-fg-muted">
+              <Sparkles className="h-3 w-3 text-gold" />
+              Operator
+            </div>
+            <span className="hidden lg:inline text-fg-subtle">/</span>
+            <h1 className="font-display text-[18px] truncate">{title}</h1>
           </div>
-          <span className="text-fg-subtle">/</span>
-          <h1 className="font-display text-[18px] truncate">{title}</h1>
+          <div className="flex items-center gap-2">
+            <LanguageToggle />
+            <UserMenu email={email} fullName={fullName} />
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <LanguageToggle />
-              <UserMenu email={email} fullName={fullName} />
-        </div>
-      </div>
-    </header>
+      </header>
+
+      <MobileMenu open={menuOpen} onClose={() => setMenuOpen(false)} />
+    </>
   );
 }

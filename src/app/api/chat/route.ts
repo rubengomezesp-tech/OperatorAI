@@ -27,6 +27,8 @@ const BodySchema = z.object({
   model: z.string().optional(),
   agentType: z.enum(['creative','brand','copy','research','analyst','social']).optional(),
   webBrowse: z.boolean().optional(),
+  imageBase64: z.string().optional(),
+  imageMimeType: z.string().optional(),
   projectId: z.string().optional().nullable(),
 });
 

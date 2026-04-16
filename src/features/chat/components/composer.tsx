@@ -1,6 +1,6 @@
 'use client';
 import { useState, useRef, useEffect, type KeyboardEvent } from 'react';
-import { ArrowUp, Square } from 'lucide-react';
+import { ArrowUp, Square, Paperclip, X as XIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { MicButton } from '@/features/voice/components/mic-button';
 

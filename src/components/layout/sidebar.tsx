@@ -78,9 +78,7 @@ export function Sidebar() {
     <aside className="hidden lg:flex flex-col w-[260px] shrink-0 h-screen sticky top-0 border-r border-border bg-bg">
       <div className="px-5 py-5 border-b border-border">
         <Link href="/dashboard" className="flex items-center gap-2.5">
-          <span className="h-8 w-8 rounded-md gold-grad flex items-center justify-center">
-            <span className="font-display text-[17px] text-bg leading-none">O</span>
-          </span>
+          <img src="/logo.png" alt="Operator AI" className="h-9 w-9 rounded-md" />
           <span className="flex flex-col leading-none">
             <span className="font-display text-[17px] tracking-tight">Operator</span>
             <span className="text-[10.5px] uppercase tracking-[0.2em] text-fg-muted mt-1">AI</span>
