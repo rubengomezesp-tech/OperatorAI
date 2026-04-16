@@ -4,14 +4,14 @@ import { createContext, useContext, useState, useEffect, type ReactNode } from '
 export type Locale = 'en' | 'es';
 
 const translations = {
-  // Sidebar groups
+  // ── Sidebar groups ──
   'nav.workspace': { en: 'Workspace', es: 'Espacio' },
   'nav.studio': { en: 'Studio', es: 'Estudio' },
   'nav.automate': { en: 'Automate', es: 'Automatizar' },
   'nav.intelligence': { en: 'Intelligence', es: 'Inteligencia' },
   'nav.manage': { en: 'Manage', es: 'Gestión' },
 
-  // Sidebar items
+  // ── Sidebar items ──
   'nav.overview': { en: 'Overview', es: 'Inicio' },
   'nav.projects': { en: 'Projects', es: 'Proyectos' },
   'nav.creative_agent': { en: 'Creative Agent', es: 'Agente Creativo' },
@@ -27,15 +27,18 @@ const translations = {
   'nav.memory': { en: 'Memory', es: 'Memoria' },
   'nav.billing': { en: 'Billing', es: 'Facturación' },
 
-  // Dashboard
+  // ── Dashboard ──
   'dash.title': { en: 'Operator Studio', es: 'Operator Studio' },
   'dash.headline': { en: 'Run your brand like a', es: 'Gestiona tu marca como un' },
   'dash.headline_accent': { en: 'studio', es: 'estudio' },
-  'dash.subtitle': { en: 'Chat, imagery, video, voice, workflows, and data analysis — unified under one AI that knows your brand.', es: 'Chat, imágenes, video, voz, automatizaciones y análisis de datos — todo bajo una IA que conoce tu marca.' },
+  'dash.subtitle': {
+    en: 'Chat, imagery, video, voice, workflows, and data analysis — unified under one AI that knows your brand.',
+    es: 'Chat, imágenes, video, voz, automatizaciones y análisis de datos — todo bajo una IA que conoce tu marca.',
+  },
   'dash.modules': { en: 'Modules', es: 'Módulos' },
   'dash.tools': { en: 'tools', es: 'herramientas' },
 
-  // Dashboard tile descriptions
+  // ── Dashboard tile descriptions ──
   'tile.creative_agent': { en: 'Chat, imagery, campaigns, and research.', es: 'Chat, imágenes, campañas e investigación.' },
   'tile.image_studio': { en: 'Editorial-grade imagery with Flux 2 Pro.', es: 'Imágenes profesionales con Flux 2 Pro.' },
   'tile.video_studio': { en: 'Cinematic AI video powered by Veo 3.1.', es: 'Video cinematográfico con Veo 3.1.' },
@@ -49,7 +52,7 @@ const translations = {
   'tile.campaigns': { en: 'Multi-tone launch kits.', es: 'Kits de lanzamiento multi-tono.' },
   'tile.copywriter': { en: 'Taglines, emails, stories.', es: 'Eslóganes, emails, historias.' },
 
-  // Common
+  // ── Common ──
   'plan': { en: 'Plan', es: 'Plan' },
   'upgrade': { en: 'Upgrade', es: 'Mejorar plan' },
   'explore': { en: 'Explore Operator AI.', es: 'Explora Operator AI.' },
@@ -62,11 +65,39 @@ const translations = {
   'no_files': { en: 'No files yet', es: 'Sin archivos aún' },
   'from_template': { en: 'From template', es: 'Desde plantilla' },
   'no_workflows': { en: 'No workflows yet', es: 'Sin flujos aún' },
+
+  // ── Settings ──
   'settings.title': { en: 'Settings', es: 'Ajustes' },
   'settings.subtitle': { en: 'Manage your workspace, integrations, and account.', es: 'Gestiona tu espacio, integraciones y cuenta.' },
   'settings.integrations_desc': { en: 'Connect Gmail, Calendar, Notion, Slack, Drive and more.', es: 'Conecta Gmail, Calendar, Notion, Slack, Drive y más.' },
   'settings.memory_desc': { en: 'What Operator knows about you. Your voice fingerprint.', es: 'Lo que Operator sabe de ti. Tu huella de voz.' },
   'settings.billing_desc': { en: 'Plan, invoices, payment method.', es: 'Plan, facturas, método de pago.' },
+
+  // ── Auth (login + signup) ──
+  'auth.welcome_back': { en: 'Welcome back', es: 'Bienvenido de nuevo' },
+  'auth.sign_in_subtitle': { en: 'Sign in to Operator AI.', es: 'Inicia sesión en Operator AI.' },
+  'auth.create_account_title': { en: 'Create your account', es: 'Crea tu cuenta' },
+  'auth.sign_up_subtitle': { en: 'Start with Operator AI in minutes.', es: 'Empieza con Operator AI en minutos.' },
+  'auth.continue_with_google': { en: 'Continue with Google', es: 'Continuar con Google' },
+  'auth.continue_with_apple': { en: 'Continue with Apple', es: 'Continuar con Apple' },
+  'auth.or': { en: 'or', es: 'o' },
+  'auth.email': { en: 'Email', es: 'Correo electrónico' },
+  'auth.password': { en: 'Password', es: 'Contraseña' },
+  'auth.forgot': { en: 'Forgot?', es: '¿Olvidada?' },
+  'auth.sign_in': { en: 'Sign in', es: 'Iniciar sesión' },
+  'auth.sign_up': { en: 'Sign up', es: 'Registrarse' },
+  'auth.new_here': { en: 'New here?', es: '¿Eres nuevo?' },
+  'auth.create_account_link': { en: 'Create an account', es: 'Crear una cuenta' },
+  'auth.full_name': { en: 'Full name', es: 'Nombre completo' },
+  'auth.already_have_account': { en: 'Already have an account?', es: '¿Ya tienes cuenta?' },
+  'auth.check_email': { en: 'Check your email to confirm your account', es: 'Revisa tu correo para confirmar tu cuenta' },
+  'auth.create_account_btn': { en: 'Create account', es: 'Crear cuenta' },
+
+  // ── Topbar ──
+  'topbar.sign_out': { en: 'Sign out', es: 'Cerrar sesión' },
+  'topbar.account': { en: 'Account', es: 'Cuenta' },
+  'topbar.notifications': { en: 'Notifications', es: 'Notificaciones' },
+  'topbar.search': { en: 'Search or ask anything…', es: 'Busca o pregunta lo que quieras…' },
 } as const;
 
 type TranslationKey = keyof typeof translations;
@@ -121,6 +152,7 @@ export function LanguageToggle() {
       onClick={() => setLocale(locale === 'en' ? 'es' : 'en')}
       className="h-8 px-2.5 rounded-md border border-border bg-surface-2 text-[11px] font-medium uppercase tracking-wider text-fg-muted hover:text-gold hover:border-gold/40 transition-colors flex items-center gap-1.5"
       title={locale === 'en' ? 'Cambiar a español' : 'Switch to English'}
+      aria-label={locale === 'en' ? 'Cambiar a español' : 'Switch to English'}
     >
       {locale === 'en' ? '🇪🇸 ES' : '🇬🇧 EN'}
     </button>
