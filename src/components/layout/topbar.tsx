@@ -1,5 +1,5 @@
-import { LanguageToggle } from '@/lib/i18n';
 'use client';
+import { LanguageToggle } from '@/lib/i18n';
 import { usePathname } from 'next/navigation';
 import { Sparkles } from 'lucide-react';
 import { UserMenu } from './user-menu';
