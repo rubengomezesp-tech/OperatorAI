@@ -59,7 +59,7 @@ export async function POST(req: NextRequest) {
 
   if (!workflow) return NextResponse.json({ error: 'Workflow not found' }, { status: 404 });
 
-  const wf = workflow as { id: string; name: string; steps: Step[]; trigger_type: string };
+  const wf = workflow as unknown as { id: string; name: string; steps: Step[]; trigger_type: string };
   const variables = parsed.data.variables ?? {};
   const results: StepResult[] = [];
 
@@ -135,7 +135,7 @@ export async function POST(req: NextRequest) {
           completed_at: new Date().toISOString(),
         } as never).eq('id', runId);
       }
-      try { await svc.rpc('increment_failure_count', { wf_id: wf.id }); } catch { /* ignore */ }
+      try { await (svc.rpc as any)('increment_failure_count', { wf_id: wf.id }); } catch { /* ignore */ }
       await svc.from('workflows').update({
         last_run_at: new Date().toISOString(),
         last_run_status: 'failed',
