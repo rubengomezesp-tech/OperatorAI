@@ -7,7 +7,7 @@ import {
   LayoutDashboard, MessageSquare, FolderOpen, ImageIcon, Video,
   Mic, Zap, FileSpreadsheet, FileText, Brain, Sparkles, Plug,
   CreditCard, Settings, ChevronDown,
-  type LucideIcon,, Rocket, Target} from 'lucide-react';
+  type LucideIcon, Rocket, Target} from 'lucide-react';
 
 type SubItem = { href: string; label: string; icon: LucideIcon };
 type Item = {
