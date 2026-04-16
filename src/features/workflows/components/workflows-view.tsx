@@ -81,7 +81,7 @@ export function WorkflowsView() {
       });
       const body = await res.json();
       if (!res.ok) throw new Error(body?.error ?? 'Run failed');
-      toast.success('Workflow ran successfully \u2014 ' + (body.results?.length ?? 0) + ' steps');
+      toast.success('Workflow ran successfully — ' + (body.results?.length ?? 0) + ' steps');
       fetchWorkflows();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed');
@@ -147,7 +147,7 @@ export function WorkflowsView() {
             </div>
             <div>
               <p className="font-display text-[18px]">No workflows yet</p>
-              <p className="text-[13px] text-fg-muted mt-1">Start with a template \u2014 ready to use in 30 seconds.</p>
+              <p className="text-[13px] text-fg-muted mt-1">Start with a template — ready to use in 30 seconds.</p>
             </div>
             <Button onClick={() => setShowTemplates(true)}>
               <Sparkles className="h-4 w-4" />

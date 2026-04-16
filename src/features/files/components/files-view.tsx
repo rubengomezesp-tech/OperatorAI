@@ -113,7 +113,7 @@ export function FilesView() {
           <div className="text-[11px] uppercase tracking-[0.18em] text-gold mb-1">Operator</div>
           <h1 className="font-display text-[32px]">Files & Analysis</h1>
           <p className="text-[13.5px] text-fg-muted mt-1.5 max-w-[640px]">
-            Upload CSV, Excel, JSON. Ask questions in plain language. Get insights, summaries, comparisons \u2014 powered by GPT-4o.
+            Upload CSV, Excel, JSON. Ask questions in plain language. Get insights, summaries, comparisons — powered by GPT-4o.
           </p>
         </div>
         <Button onClick={() => inputRef.current?.click()} loading={uploading}>

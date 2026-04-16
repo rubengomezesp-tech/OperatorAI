@@ -76,7 +76,7 @@ export const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
   {
     id: 'weekly-competitor-watch',
     name: 'Weekly competitor watch',
-    description: 'Every Monday, research 3 named competitors\u2014what they posted, what they launched, what changed on their site.',
+    description: 'Every Monday, research 3 named competitors—what they posted, what they launched, what changed on their site.',
     icon: 'Radar',
     category: 'research',
     triggerType: 'schedule',

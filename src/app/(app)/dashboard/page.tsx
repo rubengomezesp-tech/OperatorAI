@@ -1,13 +1,26 @@
 import Link from 'next/link';
-import { ArrowUpRight, ImageIcon, Megaphone, MessageSquare, Search, Type } from 'lucide-react';
 import { Card, CardBody } from '@/components/ui/card';
+import {
+  MessageSquare, ImageIcon, Video, Mic, Zap, FileSpreadsheet,
+  FolderOpen, Brain, Plug, Megaphone, Type, Search, ArrowUpRight,
+  type LucideIcon,
+} from 'lucide-react';
 
-const tiles = [
-  { href: '/chat', label: 'Creative Agent', icon: MessageSquare, accent: true, desc: 'One brain for chat, imagery, campaigns, and research.' },
-  { href: '/studio/image', label: 'Image Studio', icon: ImageIcon, desc: 'Editorial-grade imagery.' },
+type Tile = { href: string; label: string; icon: LucideIcon; desc: string; accent?: boolean };
+
+const tiles: Tile[] = [
+  { href: '/chat', label: 'Creative Agent', icon: MessageSquare, desc: 'Chat, imagery, campaigns, and research.', accent: true },
+  { href: '/studio/image', label: 'Image Studio', icon: ImageIcon, desc: 'Editorial-grade imagery with Flux 2 Pro.' },
+  { href: '/studio/video', label: 'Video Studio', icon: Video, desc: 'Cinematic AI video powered by Veo 3.1.', accent: true },
+  { href: '/voice', label: 'Voice Mode', icon: Mic, desc: 'Talk to your AI. Push-to-talk with memory.' },
+  { href: '/workflows', label: 'Workflows', icon: Zap, desc: 'Multi-step automations powered by AI.' },
+  { href: '/files', label: 'Files & Analysis', icon: FileSpreadsheet, desc: 'Upload CSV, Excel, JSON — get AI insights.' },
+  { href: '/projects', label: 'Projects', icon: FolderOpen, desc: 'Workspaces per brand or client.' },
+  { href: '/knowledge', label: 'Knowledge', icon: Search, desc: 'Your business docs, searchable.' },
+  { href: '/settings/memory', label: 'Memory', icon: Brain, desc: 'What Operator knows about you.' },
+  { href: '/settings/integrations', label: 'Integrations', icon: Plug, desc: 'Gmail, Calendar, Notion, Slack and more.' },
   { href: '/studio/campaign', label: 'Campaigns', icon: Megaphone, desc: 'Multi-tone launch kits.' },
   { href: '/studio/copy', label: 'Copywriter', icon: Type, desc: 'Taglines, emails, stories.' },
-  { href: '/knowledge', label: 'Knowledge', icon: Search, desc: 'Your business docs, searchable.' },
 ];
 
 export default function DashboardPage() {
@@ -21,7 +34,7 @@ export default function DashboardPage() {
             Run your brand like a <span className="text-gold-grad">studio</span>.
           </h2>
           <p className="text-[15px] text-fg-muted mt-4 max-w-xl">
-            Chat, imagery, campaigns, research, and voice unified under one AI that knows your brand.
+            Chat, imagery, video, voice, workflows, and data analysis — unified under one AI that knows your brand.
           </p>
         </div>
       </section>
@@ -29,7 +42,9 @@ export default function DashboardPage() {
       <section>
         <div className="flex items-end justify-between mb-4">
           <h3 className="font-display text-[20px]">Modules</h3>
-          <span className="text-[11px] uppercase tracking-[0.16em] text-fg-subtle">05 tools</span>
+          <span className="text-[11px] uppercase tracking-[0.16em] text-fg-subtle">
+            {String(tiles.length).padStart(2, '0')} tools
+          </span>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {tiles.map((t) => {
@@ -38,14 +53,14 @@ export default function DashboardPage() {
               <Link key={t.href} href={t.href} className="group">
                 <Card className="h-full transition-all group-hover:border-gold/50 group-hover:-translate-y-0.5">
                   <CardBody className="flex gap-5">
-                    <div className={'h-12 w-12 rounded-md shrink-0 flex items-center justify-center border border-border ' + (t.accent ? 'gold-grad' : 'bg-surface-2')}>
-                      <Icon className={'h-5 w-5 ' + (t.accent ? 'text-bg' : 'text-gold')} />
+                    <div className={'h-12 w-12 rounded-md shrink-0 flex items-center justify-center border border-border ' + (t.accent ? 'text-bg gold-grad' : 'text-gold')}>
+                      <Icon className="h-5 w-5" />
                     </div>
                     <div className="min-w-0 flex-1">
                       <h4 className="text-[16px] font-medium tracking-tight">{t.label}</h4>
                       <p className="text-[13.5px] text-fg-muted leading-relaxed mt-1.5">{t.desc}</p>
                     </div>
-                    <ArrowUpRight className="h-4 w-4 text-fg-subtle group-hover:text-gold -rotate-12 group-hover:rotate-0 transition-all" />
+                    <ArrowUpRight className="h-4 w-4 text-fg-subtle group-hover:text-gold -rotate-12 group-hover:rotate-0 transition" />
                   </CardBody>
                 </Card>
               </Link>
