@@ -14,6 +14,68 @@ export type Database = {
   }
   public: {
     Tables: {
+      analysis_files: {
+        Row: {
+          column_count: number | null
+          columns: Json | null
+          created_at: string
+          deleted_at: string | null
+          id: string
+          last_analyzed_at: string | null
+          metadata: Json | null
+          mime_type: string
+          name: string
+          org_id: string
+          preview: Json | null
+          row_count: number | null
+          size_bytes: number
+          storage_path: string
+          user_id: string
+        }
+        Insert: {
+          column_count?: number | null
+          columns?: Json | null
+          created_at?: string
+          deleted_at?: string | null
+          id?: string
+          last_analyzed_at?: string | null
+          metadata?: Json | null
+          mime_type: string
+          name: string
+          org_id: string
+          preview?: Json | null
+          row_count?: number | null
+          size_bytes: number
+          storage_path: string
+          user_id: string
+        }
+        Update: {
+          column_count?: number | null
+          columns?: Json | null
+          created_at?: string
+          deleted_at?: string | null
+          id?: string
+          last_analyzed_at?: string | null
+          metadata?: Json | null
+          mime_type?: string
+          name?: string
+          org_id?: string
+          preview?: Json | null
+          row_count?: number | null
+          size_bytes?: number
+          storage_path?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "analysis_files_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       analytics_events: {
         Row: {
           created_at: string
@@ -2035,6 +2097,125 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workflow_runs: {
+        Row: {
+          completed_at: string | null
+          error_message: string | null
+          id: string
+          org_id: string
+          started_at: string
+          status: string
+          step_results: Json | null
+          trigger_data: Json | null
+          workflow_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          error_message?: string | null
+          id?: string
+          org_id: string
+          started_at?: string
+          status: string
+          step_results?: Json | null
+          trigger_data?: Json | null
+          workflow_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          error_message?: string | null
+          id?: string
+          org_id?: string
+          started_at?: string
+          status?: string
+          step_results?: Json | null
+          trigger_data?: Json | null
+          workflow_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workflow_runs_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workflow_runs_workflow_id_fkey"
+            columns: ["workflow_id"]
+            isOneToOne: false
+            referencedRelation: "workflows"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workflows: {
+        Row: {
+          archived_at: string | null
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          last_run_at: string | null
+          last_run_status: string | null
+          name: string
+          org_id: string
+          steps: Json
+          total_failures: number
+          total_runs: number
+          total_successes: number
+          trigger_config: Json
+          trigger_type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          archived_at?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          last_run_at?: string | null
+          last_run_status?: string | null
+          name: string
+          org_id: string
+          steps?: Json
+          total_failures?: number
+          total_runs?: number
+          total_successes?: number
+          trigger_config?: Json
+          trigger_type: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          archived_at?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          last_run_at?: string | null
+          last_run_status?: string | null
+          name?: string
+          org_id?: string
+          steps?: Json
+          total_failures?: number
+          total_runs?: number
+          total_successes?: number
+          trigger_config?: Json
+          trigger_type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workflows_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]
