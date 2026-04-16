@@ -9,6 +9,8 @@ export interface AgentDefinition {
   systemPromptAddition: string;
   starterPrompts: string[];
   recommendedIntegrations: string[];
+  emoji?: string;
+  provider?: string;
 }
 
 export const AGENTS: AgentDefinition[] = [
@@ -170,3 +172,5 @@ export const AGENTS: AgentDefinition[] = [
 export function findAgent(id: string): AgentDefinition | undefined {
   return AGENTS.find((a) => a.id === id);
 }
+
+export type AgentId = 'creative' | 'brand' | 'copy' | 'research' | 'analyst' | 'social';
