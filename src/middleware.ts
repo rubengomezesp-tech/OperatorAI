@@ -1,46 +1,42 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { createServerClient, type CookieOptions } from '@supabase/ssr';
-import { nanoid } from 'nanoid';
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|public/).*)'],
+  matcher: ['/api/:path*'],
 };
 
-const PUBLIC_ROUTES = ['/', '/login', '/signup', '/forgot-password', '/reset-password', '/auth/callback', '/pricing', '/legal'];
-const API_PUBLIC_PREFIXES = ['/api/health', '/api/webhooks', '/api/inngest'];
+export function middleware(req: NextRequest) {
+  const res = NextResponse.next();
 
-export async function middleware(req: NextRequest) {
-  const requestId = req.headers.get('x-request-id') ?? nanoid(12);
-  const res = NextResponse.next({ request: { headers: new Headers(req.headers) } });
-  res.headers.set('x-request-id', requestId);
+  // CORS — only allow our domains
+  const origin = req.headers.get('origin') ?? '';
+  const allowed = [
+    'https://operatoraiapp.com',
+    'https://www.operatoraiapp.com',
+    'https://operator-ai-delta.vercel.app',
+    'http://localhost:3000',
+  ];
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll: () => req.cookies.getAll(),
-        setAll: (toSet: { name: string; value: string; options: CookieOptions }[]) =>
-          toSet.forEach(({ name, value, options }) => res.cookies.set(name, value, options)),
-      },
-    },
-  );
-
-  const { data: { user } } = await supabase.auth.getUser();
-  const path = req.nextUrl.pathname;
-
-  const isPublic =
-    PUBLIC_ROUTES.some((r) => path === r || path.startsWith(r + '/')) ||
-    API_PUBLIC_PREFIXES.some((p) => path.startsWith(p));
-
-  if (!user && !isPublic) {
-    const loginUrl = new URL('/login', req.url);
-    loginUrl.searchParams.set('next', path);
-    return NextResponse.redirect(loginUrl);
+  if (allowed.includes(origin)) {
+    res.headers.set('Access-Control-Allow-Origin', origin);
   }
 
-  if (user && (path === '/login' || path === '/signup')) {
-    return NextResponse.redirect(new URL('/dashboard', req.url));
+  res.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.headers.set('Access-Control-Max-Age', '86400');
+
+  // Block non-browser automated requests without proper headers
+  if (req.nextUrl.pathname.startsWith('/api/')) {
+    // Rate limit header for clients
+    res.headers.set('X-RateLimit-Policy', '60 per minute');
+
+    // Prevent caching of API responses
+    res.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+    res.headers.set('Pragma', 'no-cache');
+  }
+
+  // Handle preflight
+  if (req.method === 'OPTIONS') {
+    return new NextResponse(null, { status: 200, headers: res.headers });
   }
 
   return res;

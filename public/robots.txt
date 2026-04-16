@@ -1,0 +1,16 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /dashboard
+Disallow: /chat
+Disallow: /studio/
+Disallow: /voice
+Disallow: /workflows
+Disallow: /files
+Disallow: /projects
+Disallow: /knowledge
+Disallow: /memory
+Disallow: /assistants
+Disallow: /settings/
+
+Sitemap: https://operatoraiapp.com/sitemap.xml
