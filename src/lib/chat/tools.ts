@@ -103,7 +103,7 @@ async function generateMultipleImages(
         aspectRatio: (input.aspect_ratio as any) || '1:1',
         seed: Math.floor(Math.random() * 999999),
       });
-      if (result.url) allUrls.push(result.url);
+      
       if (result.urls) allUrls.push(...result.urls);
     } catch (e) {
       console.error('Image generation error:', e);
