@@ -3,65 +3,66 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
+import { useI18n } from '@/lib/i18n';
 import {
   LayoutDashboard, MessageSquare, FolderOpen, ImageIcon, Video,
   Mic, Zap, FileSpreadsheet, FileText, Brain, Sparkles, Plug,
   CreditCard, Settings, ChevronDown,
   type LucideIcon, Rocket, Target} from 'lucide-react';
 
-type SubItem = { href: string; label: string; icon: LucideIcon };
+type SubItem = { href: string; labelKey: string; icon: LucideIcon };
 type Item = {
   href: string;
-  label: string;
+  labelKey: string;
   icon: LucideIcon;
   badge?: string;
   children?: SubItem[];
 };
-type Section = { group: string; items: Item[] };
+type Section = { groupKey: string; items: Item[] };
 
 const nav: Section[] = [
   {
-    group: 'Workspace',
+    groupKey: 'nav.workspace',
     items: [
-      { href: '/missions', label: 'Missions', icon: Rocket, badge: 'NEW' },
-      { href: '/dashboard', label: 'Overview', icon: LayoutDashboard },
-      { href: '/projects', label: 'Projects', icon: FolderOpen },
-      { href: '/chat', label: 'Creative Agent', icon: MessageSquare, badge: 'AI' },
+      { href: '/missions', labelKey: 'nav.overview', icon: Rocket, badge: 'NEW' },
+      { href: '/dashboard', labelKey: 'nav.overview', icon: LayoutDashboard },
+      { href: '/projects', labelKey: 'nav.projects', icon: FolderOpen },
+      { href: '/chat', labelKey: 'nav.creative_agent', icon: MessageSquare, badge: 'AI' },
     ],
   },
   {
-    group: 'Studio',
+    groupKey: 'nav.studio',
     items: [
-      { href: '/studio/image', label: 'Image Studio', icon: ImageIcon },
-      { href: '/studio/video', label: 'Video Studio', icon: Video, badge: 'NEW' },
-      { href: '/voice', label: 'Voice Mode', icon: Mic },
+      { href: '/studio/image', labelKey: 'nav.image_studio', icon: ImageIcon },
+      { href: '/studio/video', labelKey: 'nav.video_studio', icon: Video, badge: 'NEW' },
+      { href: '/voice', labelKey: 'nav.voice_mode', icon: Mic },
     ],
   },
   {
-    group: 'Automate',
+    groupKey: 'nav.automate',
     items: [
-      { href: '/workflows', label: 'Workflows', icon: Zap },
-      { href: '/files', label: 'Files & Analysis', icon: FileSpreadsheet },
+      { href: '/workflows', labelKey: 'nav.workflows', icon: Zap },
+      { href: '/files', labelKey: 'nav.files', icon: FileSpreadsheet },
     ],
   },
   {
-    group: 'Intelligence',
+    groupKey: 'nav.intelligence',
     items: [
-      { href: '/knowledge', label: 'Knowledge', icon: FileText },
+      { href: '/knowledge', labelKey: 'nav.knowledge', icon: FileText },
     ],
   },
   {
-    group: 'Manage',
+    groupKey: 'nav.manage',
     items: [
-      { href: '/assistants', label: 'Assistants', icon: Sparkles },
+      { href: '/assistants', labelKey: 'nav.assistants', icon: Sparkles },
       {
         href: '/settings',
-        label: 'Settings',
+        labelKey: 'nav.settings',
         icon: Settings,
         children: [
-          { href: '/settings/integrations', label: 'Integrations', icon: Plug },
-          { href: '/settings/memory', label: 'Memory', icon: Brain },
-          { href: '/settings/billing', label: 'Billing', icon: CreditCard },
+          { href: '/settings/integrations', labelKey: 'nav.integrations', icon: Plug },
+          { href: '/settings/memory', labelKey: 'nav.memory', icon: Brain },
+          { href: '/settings/billing', labelKey: 'nav.billing', icon: CreditCard },
         ],
       },
     ],
@@ -70,6 +71,7 @@ const nav: Section[] = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const { t } = useI18n();
   const [openSettings, setOpenSettings] = useState(
     pathname.startsWith('/settings'),
   );
@@ -88,9 +90,9 @@ export function Sidebar() {
 
       <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-5">
         {nav.map((section) => (
-          <div key={section.group}>
+          <div key={section.groupKey}>
             <div className="px-3 mb-1.5 text-[10.5px] uppercase tracking-[0.18em] text-fg-subtle">
-              {section.group}
+              {t(section.groupKey as any)}
             </div>
             <ul className="space-y-0.5">
               {section.items.map((item) => {
@@ -126,7 +128,7 @@ export function Sidebar() {
                           className={cn('h-4 w-4 shrink-0', someChildActive && 'text-gold')}
                           aria-hidden
                         />
-                        <span className="flex-1 truncate text-left">{item.label}</span>
+                        <span className="flex-1 truncate text-left">{t(item.labelKey as any)}</span>
                         <ChevronDown
                           className={cn('h-3.5 w-3.5 transition-transform', expanded && 'rotate-180')}
                         />
@@ -148,7 +150,7 @@ export function Sidebar() {
                                   )}
                                 >
                                   <SubIcon className="h-3.5 w-3.5 shrink-0" />
-                                  <span className="truncate">{c.label}</span>
+                                  <span className="truncate">{t(c.labelKey as any)}</span>
                                 </Link>
                               </li>
                             );
@@ -174,7 +176,7 @@ export function Sidebar() {
                         <span className="absolute left-0 top-1.5 bottom-1.5 w-[2px] rounded-full gold-grad" />
                       )}
                       <Icon className={cn('h-4 w-4 shrink-0', active && 'text-gold')} aria-hidden />
-                      <span className="flex-1 truncate">{item.label}</span>
+                      <span className="flex-1 truncate">{t(item.labelKey as any)}</span>
                       {item.badge && (
                         <span className="px-1.5 h-4 text-[9.5px] tracking-[0.12em] uppercase rounded bg-gold/15 text-gold flex items-center">
                           {item.badge}
@@ -191,13 +193,13 @@ export function Sidebar() {
 
       <div className="p-4 border-t border-border">
         <div className="surface-raised p-3.5">
-          <div className="text-[10.5px] uppercase tracking-[0.16em] text-gold mb-1">Plan</div>
-          <div className="text-[12.5px] text-fg-muted leading-snug">Explore Operator AI.</div>
+          <div className="text-[10.5px] uppercase tracking-[0.16em] text-gold mb-1">{t('plan')}</div>
+          <div className="text-[12.5px] text-fg-muted leading-snug">{t('explore')}</div>
           <Link
             href="/pricing"
             className="mt-2 inline-block text-[12px] text-fg hover:text-gold transition-colors"
           >
-            Upgrade
+            {t('upgrade')}
           </Link>
         </div>
       </div>
