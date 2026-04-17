@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
+import { useI18n } from '@/lib/i18n';
 import {
   LayoutDashboard, MessageSquare, FolderOpen, ImageIcon, Video,
   Mic, Zap, FileSpreadsheet, FileText, Brain, Sparkles, Plug,
@@ -12,39 +13,39 @@ import {
 
 interface NavItem {
   href: string;
-  label: string;
+  labelKey: string;
   icon: LucideIcon;
   badge?: string;
 }
 
 interface NavSection {
-  group: string;
+  groupKey: string;
   items: NavItem[];
 }
 
 const nav: NavSection[] = [
-  { group: 'Workspace', items: [
-    { href: '/dashboard', label: 'Overview', icon: LayoutDashboard },
-    { href: '/projects', label: 'Projects', icon: FolderOpen },
-    { href: '/chat', label: 'Creative Agent', icon: MessageSquare, badge: 'AI' },
+  { groupKey: 'nav.workspace', items: [
+    { href: '/dashboard', labelKey: 'nav.overview', icon: LayoutDashboard },
+    { href: '/projects', labelKey: 'nav.projects', icon: FolderOpen },
+    { href: '/chat', labelKey: 'nav.creative_agent', icon: MessageSquare, badge: 'AI' },
   ]},
-  { group: 'Studio', items: [
-    { href: '/studio/image', label: 'Image Studio', icon: ImageIcon },
-    { href: '/studio/video', label: 'Video Studio', icon: Video, badge: 'NEW' },
-    { href: '/voice', label: 'Voice Mode', icon: Mic },
+  { groupKey: 'nav.studio', items: [
+    { href: '/studio/image', labelKey: 'nav.image_studio', icon: ImageIcon },
+    { href: '/studio/video', labelKey: 'nav.video_studio', icon: Video, badge: 'NEW' },
+    { href: '/voice', labelKey: 'nav.voice_mode', icon: Mic },
   ]},
-  { group: 'Automate', items: [
-    { href: '/workflows', label: 'Workflows', icon: Zap },
-    { href: '/files', label: 'Files & Analysis', icon: FileSpreadsheet },
+  { groupKey: 'nav.automate', items: [
+    { href: '/workflows', labelKey: 'nav.workflows', icon: Zap },
+    { href: '/files', labelKey: 'nav.files', icon: FileSpreadsheet },
   ]},
-  { group: 'Intelligence', items: [
-    { href: '/knowledge', label: 'Knowledge', icon: FileText },
+  { groupKey: 'nav.intelligence', items: [
+    { href: '/knowledge', labelKey: 'nav.knowledge', icon: FileText },
   ]},
-  { group: 'Manage', items: [
-    { href: '/assistants', label: 'Assistants', icon: Sparkles },
-    { href: '/settings/integrations', label: 'Integrations', icon: Plug },
-    { href: '/settings/memory', label: 'Memory', icon: Brain },
-    { href: '/settings/billing', label: 'Billing', icon: CreditCard },
+  { groupKey: 'nav.manage', items: [
+    { href: '/assistants', labelKey: 'nav.assistants', icon: Sparkles },
+    { href: '/settings/integrations', labelKey: 'nav.integrations', icon: Plug },
+    { href: '/settings/memory', labelKey: 'nav.memory', icon: Brain },
+    { href: '/settings/billing', labelKey: 'nav.billing', icon: CreditCard },
   ]},
 ];
 
@@ -67,6 +68,7 @@ export function MobileMenuButton({ onClick }: { onClick: () => void }) {
 
 export function MobileMenu({ open, onClose }: { open: boolean; onClose: () => void }) {
   const pathname = usePathname();
+  const { t } = useI18n();
 
   useEffect(() => {
     if (open) {
@@ -77,7 +79,6 @@ export function MobileMenu({ open, onClose }: { open: boolean; onClose: () => vo
     return () => { document.body.style.overflow = ''; };
   }, [open]);
 
-  // Close menu on route change
   useEffect(() => {
     onClose();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -87,7 +88,6 @@ export function MobileMenu({ open, onClose }: { open: boolean; onClose: () => vo
 
   return (
     <div className="lg:hidden fixed inset-0 z-50 flex">
-      {/* Backdrop */}
       <button
         type="button"
         onClick={onClose}
@@ -95,7 +95,6 @@ export function MobileMenu({ open, onClose }: { open: boolean; onClose: () => vo
         aria-label="Close menu"
       />
 
-      {/* Panel */}
       <div className="relative w-[85%] max-w-[320px] h-full bg-bg border-r border-border shadow-2xl overflow-y-auto flex flex-col animate-slideInLeft">
         <div className="px-5 py-5 border-b border-border flex items-center justify-between">
           <Link href="/dashboard" className="flex items-center gap-2.5" onClick={onClose}>
@@ -116,9 +115,9 @@ export function MobileMenu({ open, onClose }: { open: boolean; onClose: () => vo
 
         <nav className="flex-1 px-3 py-4 space-y-5">
           {nav.map((section) => (
-            <div key={section.group}>
+            <div key={section.groupKey}>
               <div className="px-3 mb-1.5 text-[10.5px] uppercase tracking-[0.18em] text-fg-subtle">
-                {section.group}
+                {t(section.groupKey as any)}
               </div>
               <ul className="space-y-0.5">
                 {section.items.map((item) => {
@@ -137,7 +136,7 @@ export function MobileMenu({ open, onClose }: { open: boolean; onClose: () => vo
                       >
                         {active && <span className="absolute left-0 top-1.5 bottom-1.5 w-[2px] rounded-full gold-grad" />}
                         <Icon className={cn('h-4 w-4 shrink-0', active && 'text-gold')} aria-hidden />
-                        <span className="flex-1 truncate">{item.label}</span>
+                        <span className="flex-1 truncate">{t(item.labelKey as any)}</span>
                         {item.badge && (
                           <span className="px-1.5 h-4 text-[9.5px] tracking-[0.12em] uppercase rounded bg-gold/15 text-gold flex items-center">
                             {item.badge}
