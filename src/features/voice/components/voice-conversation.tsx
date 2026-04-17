@@ -153,10 +153,10 @@ export function VoiceConversation() {
 
   const phaseLabel =
     phase === 'idle' ? 'Tap to talk' :
-    phase === 'listening' ? 'Listening...' :
-    phase === 'transcribing' ? 'Transcribing...' :
-    phase === 'thinking' ? 'Thinking...' :
-    phase === 'speaking' ? 'Speaking...' :
+    phase === 'listening' ? t('voice.listening') :
+    phase === 'transcribing' ? t('voice.transcribing') :
+    phase === 'thinking' ? t('voice.thinking') :
+    phase === 'speaking' ? t('voice.speaking') :
     'Ready';
 
   const isActive = phase !== 'idle';
