@@ -1,18 +1,71 @@
+"use client";
 import Link from 'next/link';
-import { ArrowRight, Rocket, Target, Zap, Sparkles, ChevronDown } from 'lucide-react';
+import { ArrowRight, Rocket, Target, Zap } from 'lucide-react';
+import { useI18n, LanguageToggle } from '@/lib/i18n';
 
-export const metadata = {
-  title: 'Operator AI — Deploy missions. Not prompts.',
-  description: 'The autonomous operations platform for brands. Deploy missions, enforce your brand, track outcomes.',
+const t_landing: Record<string, Record<string, string>> = {
+  badge: { en: 'Operator AI v4.0', es: 'Operator AI v4.0' },
+  h1_1: { en: 'Deploy missions.', es: 'Despliega misiones.' },
+  h1_2: { en: 'Not prompts.', es: 'No prompts.' },
+  hero_p: {
+    en: 'Operator AI is the autonomous operations platform for brands. Define an objective. Deploy a mission. Agents orchestrate the work. You review outcomes, not prompts.',
+    es: 'Operator AI es la plataforma de operaciones autónomas para marcas. Define un objetivo. Despliega una misión. Los agentes orquestan el trabajo. Tú revisas resultados, no prompts.',
+  },
+  cta_trial: { en: 'Start 7-day free trial', es: 'Prueba gratis 7 días' },
+  cta_pricing: { en: 'View pricing', es: 'Ver precios' },
+  no_card: { en: 'No card required', es: 'Sin tarjeta' },
+  from: { en: 'Starter from $29/mo', es: 'Starter desde 29 $/mes' },
+  shift: { en: 'The shift', es: 'El cambio' },
+  shift_h2_1: { en: 'From prompts to ', es: 'De prompts a ' },
+  shift_h2_2: { en: 'operations', es: 'operaciones' },
+  old_way: { en: 'The old way', es: 'La forma antigua' },
+  old_title: { en: 'Write prompt. Copy. Edit. Repeat.', es: 'Escribe prompt. Copia. Edita. Repite.' },
+  old_1: { en: 'Open 5 AI tools', es: 'Abrir 5 herramientas IA' },
+  old_2: { en: 'Craft prompts for each', es: 'Escribir prompts para cada una' },
+  old_3: { en: 'Manually copy outputs', es: 'Copiar resultados manualmente' },
+  old_4: { en: 'Check every output for brand consistency', es: 'Revisar cada salida por consistencia de marca' },
+  old_5: { en: 'No memory of what worked', es: 'Sin memoria de lo que funcionó' },
+  new_way: { en: 'With Operator', es: 'Con Operator' },
+  new_title: { en: 'Deploy mission. Review outcomes.', es: 'Despliega misión. Revisa resultados.' },
+  new_1: { en: 'One objective, one click', es: 'Un objetivo, un click' },
+  new_2: { en: 'Agents orchestrate automatically', es: 'Los agentes orquestan automáticamente' },
+  new_3: { en: 'Brand OS enforces every output', es: 'Brand OS controla cada salida' },
+  new_4: { en: 'Outcomes tracked, learning applied', es: 'Resultados medidos, aprendizaje aplicado' },
+  new_5: { en: 'You approve. It executes.', es: 'Tú apruebas. Él ejecuta.' },
+  pillars: { en: 'Three pillars', es: 'Tres pilares' },
+  pillars_h2_1: { en: 'Everything runs on ', es: 'Todo funciona sobre ' },
+  pillars_h2_2: { en: 'your brand', es: 'tu marca' },
+  p_missions: { en: 'Missions', es: 'Misiones' },
+  p_missions_d: { en: 'Deploy autonomous objectives. Agents generate, execute, and track for you.', es: 'Despliega objetivos autónomos. Los agentes generan, ejecutan y miden por ti.' },
+  p_brand: { en: 'Brand OS', es: 'Brand OS' },
+  p_brand_d: { en: 'Your colors, words, tone — enforced on every output. On-brand by default.', es: 'Tus colores, palabras, tono — aplicados en cada salida. Fiel a tu marca.' },
+  p_workflows: { en: 'Workflows', es: 'Flujos' },
+  p_workflows_d: { en: 'Multi-step automations with real integrations. Schedule, trigger, chain.', es: 'Automatizaciones multi-paso con integraciones reales. Programa, dispara, encadena.' },
+  ready: { en: 'Ready when you are', es: 'Listo cuando tú lo estés' },
+  ready_h2_1: { en: 'Run your brand like a ', es: 'Gestiona tu marca como un ' },
+  ready_h2_2: { en: 'studio', es: 'estudio' },
+  ready_p: { en: 'Start free for 7 days. No card required. Cancel anytime. Plans from $29/month.', es: 'Empieza gratis 7 días. Sin tarjeta. Cancela cuando quieras. Desde 29 $/mes.' },
+  cta_free: { en: 'Start free trial', es: 'Prueba gratis' },
+  cta_plans: { en: 'See plans', es: 'Ver planes' },
+  nav_pricing: { en: 'Pricing', es: 'Precios' },
+  nav_changelog: { en: 'Changelog', es: 'Cambios' },
+  nav_login: { en: 'Log in', es: 'Entrar' },
+  privacy: { en: 'Privacy', es: 'Privacidad' },
+  terms: { en: 'Terms', es: 'Términos' },
+  support: { en: 'Support', es: 'Soporte' },
 };
 
 export default function LandingPage() {
+  const { locale } = useI18n();
+  const l = (key: string) => t_landing[key]?.[locale] ?? t_landing[key]?.en ?? key;
+
   return (
     <div className="min-h-screen bg-bg text-fg">
       {/* Nav */}
       <header className="sticky top-0 z-30 glass border-b border-border">
         <div className="max-w-[1100px] mx-auto flex items-center justify-between h-14 px-5 lg:px-8">
           <Link href="/" className="flex items-center gap-2.5">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/logo.png" alt="Operator AI" className="h-7 w-7 rounded-md" />
             <div className="flex items-center gap-2">
               <span className="font-display text-[16px] tracking-tight">Operator</span>
@@ -20,16 +73,19 @@ export default function LandingPage() {
             </div>
           </Link>
           <nav className="hidden md:flex items-center gap-6 text-[13px] text-fg-muted">
-            <Link href="/pricing" className="hover:text-gold transition-colors">Pricing</Link>
-            <Link href="/changelog" className="hover:text-gold transition-colors">Changelog</Link>
-            <Link href="/login" className="hover:text-gold transition-colors">Log in</Link>
+            <Link href="/pricing" className="hover:text-gold transition-colors">{l('nav_pricing')}</Link>
+            <Link href="/login" className="hover:text-gold transition-colors">{l('nav_login')}</Link>
+            <LanguageToggle />
           </nav>
-          <Link
-            href="/signup"
-            className="inline-flex items-center gap-1.5 h-8 px-3.5 rounded-md gold-grad text-bg text-[12px] font-medium hover:brightness-110 transition"
-          >
-            <span>Start 7-day free trial</span>
-          </Link>
+          <div className="flex md:hidden items-center gap-2">
+            <LanguageToggle />
+            <Link
+              href="/signup"
+              className="inline-flex items-center gap-1.5 h-8 px-3.5 rounded-md gold-grad text-bg text-[12px] font-medium hover:brightness-110 transition"
+            >
+              <span>{l('cta_trial')}</span>
+            </Link>
+          </div>
         </div>
       </header>
 
@@ -39,33 +95,32 @@ export default function LandingPage() {
         <div className="relative max-w-[920px] mx-auto text-center">
           <div className="inline-flex items-center gap-2 rounded-full border border-gold/20 bg-gold/5 px-3.5 py-1 text-[11px] uppercase tracking-[0.14em] text-gold mb-6">
             <span className="h-1.5 w-1.5 rounded-full bg-gold animate-pulse" />
-            <span>Operator AI v4.0</span>
+            <span>{l('badge')}</span>
           </div>
           <h1 className="font-display text-[52px] lg:text-[80px] leading-[0.98] mb-6">
-            Deploy missions.<br />
-            <span className="text-gold-grad">Not prompts.</span>
+            {l('h1_1')}<br />
+            <span className="text-gold-grad">{l('h1_2')}</span>
           </h1>
           <p className="text-[16px] lg:text-[18px] text-fg-muted max-w-[620px] mx-auto leading-relaxed mb-10">
-            Operator AI is the autonomous operations platform for brands. Define an objective. Deploy a mission.
-            Agents orchestrate the work. You review outcomes, not prompts.
+            {l('hero_p')}
           </p>
           <div className="flex items-center justify-center gap-3 mb-4">
             <Link
               href="/signup"
               className="inline-flex items-center gap-2 h-12 px-6 rounded-md gold-grad text-bg text-[14px] font-medium hover:brightness-110 transition"
             >
-              <span>Start 7-day free trial</span>
+              <span>{l('cta_trial')}</span>
               <ArrowRight className="h-4 w-4" />
             </Link>
             <Link
               href="/pricing"
               className="inline-flex items-center gap-2 h-12 px-5 rounded-md border border-border bg-surface-2 text-fg text-[14px] hover:border-gold/40 transition"
             >
-              View pricing
+              {l('cta_pricing')}
             </Link>
           </div>
           <p className="text-[11.5px] text-fg-subtle uppercase tracking-[0.14em]">
-            No card required &middot; Starter from $29/mo
+            {l('no_card')} &middot; {l('from')}
           </p>
         </div>
       </section>
@@ -74,34 +129,34 @@ export default function LandingPage() {
       <section className="px-5 lg:px-8 pb-20">
         <div className="max-w-[920px] mx-auto">
           <div className="text-center mb-12">
-            <div className="text-[11px] uppercase tracking-[0.18em] text-gold mb-2">The shift</div>
+            <div className="text-[11px] uppercase tracking-[0.18em] text-gold mb-2">{l('shift')}</div>
             <h2 className="font-display text-[32px] lg:text-[40px] leading-tight">
-              From prompts to <span className="text-gold-grad">operations</span>.
+              {l('shift_h2_1')}<span className="text-gold-grad">{l('shift_h2_2')}</span>.
             </h2>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="rounded-xl border border-border bg-surface p-6 opacity-80">
-              <div className="text-[10.5px] uppercase tracking-[0.18em] text-fg-subtle mb-3">The old way</div>
-              <div className="text-[16px] font-display mb-4">Write prompt. Copy. Edit. Repeat.</div>
+              <div className="text-[10.5px] uppercase tracking-[0.18em] text-fg-subtle mb-3">{l('old_way')}</div>
+              <div className="text-[16px] font-display mb-4">{l('old_title')}</div>
               <ul className="space-y-2 text-[13px] text-fg-muted">
-                <li>&bull; Open 5 AI tools</li>
-                <li>&bull; Craft prompts for each</li>
-                <li>&bull; Manually copy outputs</li>
-                <li>&bull; Check every output for brand consistency</li>
-                <li>&bull; No memory of what worked</li>
+                <li>&bull; {l('old_1')}</li>
+                <li>&bull; {l('old_2')}</li>
+                <li>&bull; {l('old_3')}</li>
+                <li>&bull; {l('old_4')}</li>
+                <li>&bull; {l('old_5')}</li>
               </ul>
             </div>
             <div className="rounded-xl border border-gold/30 bg-gradient-to-br from-surface to-surface-2 p-6 relative overflow-hidden">
               <div className="absolute -top-12 -right-12 h-40 w-40 rounded-full gold-grad opacity-[0.12] blur-3xl pointer-events-none" />
               <div className="relative">
-                <div className="text-[10.5px] uppercase tracking-[0.18em] text-gold mb-3">With Operator</div>
-                <div className="text-[16px] font-display mb-4">Deploy mission. Review outcomes.</div>
-                <ul className="space-y-2 text-[13px] text-fg-muted">
-                  <li className="text-fg">&bull; One objective, one click</li>
-                  <li className="text-fg">&bull; Agents orchestrate automatically</li>
-                  <li className="text-fg">&bull; Brand OS enforces every output</li>
-                  <li className="text-fg">&bull; Outcomes tracked, learning applied</li>
-                  <li className="text-fg">&bull; You approve. It executes.</li>
+                <div className="text-[10.5px] uppercase tracking-[0.18em] text-gold mb-3">{l('new_way')}</div>
+                <div className="text-[16px] font-display mb-4">{l('new_title')}</div>
+                <ul className="space-y-2 text-[13px] text-fg">
+                  <li>&bull; {l('new_1')}</li>
+                  <li>&bull; {l('new_2')}</li>
+                  <li>&bull; {l('new_3')}</li>
+                  <li>&bull; {l('new_4')}</li>
+                  <li>&bull; {l('new_5')}</li>
                 </ul>
               </div>
             </div>
@@ -113,28 +168,15 @@ export default function LandingPage() {
       <section className="px-5 lg:px-8 pb-24">
         <div className="max-w-[1020px] mx-auto">
           <div className="text-center mb-14">
-            <div className="text-[11px] uppercase tracking-[0.18em] text-gold mb-2">Three pillars</div>
+            <div className="text-[11px] uppercase tracking-[0.18em] text-gold mb-2">{l('pillars')}</div>
             <h2 className="font-display text-[32px] lg:text-[44px] leading-tight">
-              Everything runs on <span className="text-gold-grad">your brand</span>.
+              {l('pillars_h2_1')}<span className="text-gold-grad">{l('pillars_h2_2')}</span>.
             </h2>
           </div>
-
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Pillar
-              icon={Rocket}
-              title="Missions"
-              description="Deploy autonomous objectives. Agents generate, execute, and track for you."
-            />
-            <Pillar
-              icon={Target}
-              title="Brand OS"
-              description="Your colors, words, tone &mdash; enforced on every output. On-brand by default."
-            />
-            <Pillar
-              icon={Zap}
-              title="Workflows"
-              description="Multi-step automations with real integrations. Schedule, trigger, chain."
-            />
+            <Pillar icon={Rocket} title={l('p_missions')} description={l('p_missions_d')} />
+            <Pillar icon={Target} title={l('p_brand')} description={l('p_brand_d')} />
+            <Pillar icon={Zap} title={l('p_workflows')} description={l('p_workflows_d')} />
           </div>
         </div>
       </section>
@@ -143,26 +185,24 @@ export default function LandingPage() {
       <section className="relative px-5 lg:px-8 py-24 border-t border-border">
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-72 w-[500px] rounded-full gold-grad opacity-[0.05] blur-3xl pointer-events-none" />
         <div className="relative max-w-[720px] mx-auto text-center">
-          <div className="text-[11px] uppercase tracking-[0.18em] text-gold mb-3">Ready when you are</div>
+          <div className="text-[11px] uppercase tracking-[0.18em] text-gold mb-3">{l('ready')}</div>
           <h2 className="font-display text-[40px] lg:text-[56px] leading-tight mb-5">
-            Run your brand like a <span className="text-gold-grad">studio</span>.
+            {l('ready_h2_1')}<span className="text-gold-grad">{l('ready_h2_2')}</span>.
           </h2>
-          <p className="text-[15px] text-fg-muted max-w-[500px] mx-auto mb-8">
-            Start free for 7 days. No card required. Cancel anytime. Plans from $29/month.
-          </p>
+          <p className="text-[15px] text-fg-muted max-w-[500px] mx-auto mb-8">{l('ready_p')}</p>
           <div className="flex items-center justify-center gap-3">
             <Link
               href="/signup"
               className="inline-flex items-center gap-2 h-12 px-6 rounded-md gold-grad text-bg text-[14px] font-medium hover:brightness-110 transition"
             >
-              <span>Start free trial</span>
+              <span>{l('cta_free')}</span>
               <ArrowRight className="h-4 w-4" />
             </Link>
             <Link
               href="/pricing"
               className="inline-flex items-center gap-2 h-12 px-5 rounded-md border border-border bg-surface-2 text-fg text-[14px] hover:border-gold/40 transition"
             >
-              See plans
+              {l('cta_plans')}
             </Link>
           </div>
         </div>
@@ -172,14 +212,15 @@ export default function LandingPage() {
       <footer className="border-t border-border py-10 px-5">
         <div className="max-w-[1020px] mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2.5">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/logo.png" alt="Operator AI" className="h-6 w-6 rounded" />
             <span className="text-[12px] text-fg-muted">&copy; {new Date().getFullYear()} Operator AI</span>
           </div>
           <div className="flex items-center gap-5 text-[12px] text-fg-muted">
-            <Link href="/pricing" className="hover:text-gold">Pricing</Link>
-            <Link href="/changelog" className="hover:text-gold">Changelog</Link>
-            <Link href="/privacy" className="hover:text-gold">Privacy</Link>
-            <Link href="/terms" className="hover:text-gold">Terms</Link>
+            <Link href="/pricing" className="hover:text-gold">{l('nav_pricing')}</Link>
+            <Link href="/privacy" className="hover:text-gold">{l('privacy')}</Link>
+            <Link href="/terms" className="hover:text-gold">{l('terms')}</Link>
+            <Link href="/support" className="hover:text-gold">{l('support')}</Link>
           </div>
         </div>
       </footer>
