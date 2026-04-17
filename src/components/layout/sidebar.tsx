@@ -8,7 +8,7 @@ import {
   LayoutDashboard, MessageSquare, FolderOpen, ImageIcon, Video,
   Mic, Zap, FileSpreadsheet, FileText, Brain, Sparkles, Plug,
   CreditCard, Settings, ChevronDown,
-  type LucideIcon, Rocket, Target} from 'lucide-react';
+  type LucideIcon, Rocket, Target, Shield} from 'lucide-react';
 
 type SubItem = { href: string; labelKey: string; icon: LucideIcon };
 type Item = {
@@ -68,6 +68,9 @@ const nav: Section[] = [
     ],
   },
 ];
+
+// Admin-only nav
+const adminNav = { href: '/admin', labelKey: 'Admin', icon: Shield };
 
 export function Sidebar() {
   const pathname = usePathname();

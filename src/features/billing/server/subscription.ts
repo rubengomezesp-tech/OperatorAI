@@ -1,4 +1,5 @@
 import 'server-only';
+import { hasLifetimeAccess } from '@/lib/admin';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { findPlan } from '../data/plans';
 
@@ -71,4 +72,19 @@ export function planDisplayName(planId: string | null, status: string): string {
   if (status === 'trialing') return (planId ? findPlan(planId)?.name : 'Pro') + ' Trial';
   if (!planId) return 'No plan';
   return findPlan(planId)?.name ?? planId;
+}
+
+
+/**
+ * Check if org has unlimited access (CEO lifetime pass)
+ */
+export async function hasUnlimitedAccess(svc: import('@supabase/supabase-js').SupabaseClient, orgId: string): Promise<boolean> {
+  const { data } = await svc
+    .from('organization_members')
+    .select('users!inner(email)')
+    .eq('org_id', orgId)
+    .limit(10);
+  
+  if (!data) return false;
+  return data.some((m: any) => hasLifetimeAccess(m.users?.email));
 }
