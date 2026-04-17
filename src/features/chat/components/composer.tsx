@@ -4,7 +4,6 @@ import { useState, useRef, useEffect, type KeyboardEvent, type ChangeEvent } fro
 import { ArrowUp, Square, Paperclip, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { MicButton } from '@/features/voice/components/mic-button';
-import { useI18n } from '@/lib/i18n';
 
 interface Attachment {
   file: File;
@@ -21,7 +20,6 @@ interface Props {
 }
 
 export function Composer({ onSend, onCancel, loading, disabled }: Props) {
-  const { t } = useI18n();
   const [value, setValue] = useState('');
   const [agentType, setAgentType] = useState<'creative' | 'brand' | 'copy' | 'research' | 'analyst' | 'social'>('creative');
   const [attachment, setAttachment] = useState<Attachment | null>(null);
@@ -124,7 +122,7 @@ export function Composer({ onSend, onCancel, loading, disabled }: Props) {
             value={value}
             onChange={(e) => setValue(e.target.value)}
             onKeyDown={onKeyDown}
-            placeholder={t('chat.message_placeholder')}
+            placeholder="Message Operator..."
             rows={1}
             disabled={disabled}
             className={cn(
