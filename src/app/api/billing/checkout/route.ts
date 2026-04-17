@@ -11,9 +11,28 @@ export const runtime = 'nodejs';
 
 const BodySchema = z.object({ planId: z.enum(['starter', 'pro', 'studio', 'agency']) });
 
+// Map plan IDs to env var price IDs
+function getPriceId(planId: string): string | null {
+  const map: Record<string, string | undefined> = {
+    starter: process.env.STRIPE_PRICE_STARTER,
+    pro: process.env.STRIPE_PRICE_PRO,
+    studio: process.env.STRIPE_PRICE_STUDIO,
+    agency: process.env.STRIPE_PRICE_AGENCY,
+  };
+  return map[planId] ?? null;
+}
+
 export async function POST(req: NextRequest) {
   const parsed = BodySchema.safeParse(await req.json().catch(() => ({})));
   if (!parsed.success) return NextResponse.json({ error: 'Invalid body' }, { status: 400 });
+
+  const planId = parsed.data.planId;
+
+  // Studio and Agency without price → contact sales
+  const priceId = getPriceId(planId);
+  if (!priceId) {
+    return NextResponse.json({ error: 'This plan requires contacting sales. Email sales@operatorai.app' }, { status: 400 });
+  }
 
   const ssr = await createSupabaseServerClient();
   const { data: { user } } = await ssr.auth.getUser();
@@ -27,15 +46,6 @@ export async function POST(req: NextRequest) {
   } catch {
     return NextResponse.json({ error: 'No active workspace' }, { status: 403 });
   }
-
-  const { data: planRow } = await svc
-    .from('plans')
-    .select('stripe_price_monthly_id')
-    .eq('id', parsed.data.planId)
-    .maybeSingle();
-
-  const priceId = (planRow as { stripe_price_monthly_id: string | null } | null)?.stripe_price_monthly_id;
-  if (!priceId) return NextResponse.json({ error: 'Price not configured' }, { status: 500 });
 
   const stripe = getStripe();
   const sub = await getActiveSubscription(svc, orgId);
@@ -53,15 +63,15 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const appUrl = serverEnv.NEXT_PUBLIC_APP_URL;
+  const appUrl = serverEnv.NEXT_PUBLIC_APP_URL ?? 'https://www.operatoraiapp.com';
   const session = await stripe.checkout.sessions.create({
     customer: customerId,
     mode: 'subscription',
     line_items: [{ price: priceId, quantity: 1 }],
     success_url: appUrl + '/billing/success?session_id={CHECKOUT_SESSION_ID}',
-    cancel_url: appUrl + '/pricing?canceled=1',
-    subscription_data: { metadata: { org_id: orgId, plan_id: parsed.data.planId } },
-    metadata: { org_id: orgId, plan_id: parsed.data.planId },
+    cancel_url: appUrl + '/billing?canceled=1',
+    subscription_data: { metadata: { org_id: orgId, plan_id: planId } },
+    metadata: { org_id: orgId, plan_id: planId },
     allow_promotion_codes: true,
     billing_address_collection: 'auto',
   });
