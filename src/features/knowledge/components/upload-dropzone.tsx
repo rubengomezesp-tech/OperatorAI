@@ -2,6 +2,7 @@
 import { useState, useCallback, type ChangeEvent, type DragEvent } from 'react';
 import { UploadCloud, FileText, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useI18n } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 
 const ACCEPT = '.pdf,.docx,.txt,.md,.markdown,.csv,.json';
@@ -13,6 +14,7 @@ interface Props {
 
 export function UploadDropzone({ onUploaded }: Props) {
   const [dragOver, setDragOver] = useState(false);
+  const { t } = useI18n();
   const [uploading, setUploading] = useState(0);
 
   const handleFiles = useCallback(async (files: File[]) => {
@@ -84,7 +86,7 @@ export function UploadDropzone({ onUploaded }: Props) {
         {uploading > 0 ? (
           <>
             <Loader2 className="h-8 w-8 text-gold animate-spin" />
-            <div className="text-[14px] text-fg">Uploading {uploading} file{uploading !== 1 ? 's' : ''}...</div>
+            <div className="text-[14px] text-fg">{t("kb.uploading")} {uploading} {uploading !== 1 ? 's' : ''}...</div>
           </>
         ) : (
           <>
@@ -101,7 +103,7 @@ export function UploadDropzone({ onUploaded }: Props) {
             </div>
             <div className="flex items-center gap-1.5 text-[11px] text-fg-subtle mt-1">
               <FileText className="h-3 w-3" />
-              <span>Files are extracted, chunked, and indexed for semantic search.</span>
+              <span>{t("kb.upload_hint")}</span>
             </div>
           </>
         )}

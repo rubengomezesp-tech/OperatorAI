@@ -225,6 +225,22 @@ const translations: Record<string, { en: string; es: string }> = {
   'dash.bos_d': { en: 'The rules your brand runs on. Colors, tone, words.', es: 'Las reglas de tu marca. Colores, tono, palabras.' },
   'dash.new': { en: 'New', es: 'Nuevo' },
   'file': { en: 'file', es: 'archivo' },
+  'kb.upload_title': { en: 'Upload documents', es: 'Sube documentos' },
+  'kb.upload_hint': { en: 'Files are extracted, chunked, and indexed for semantic search.', es: 'Los archivos se extraen, fragmentan e indexan para búsqueda semántica.' },
+  'kb.uploading': { en: 'Uploading', es: 'Subiendo' },
+  'kb.drop_here': { en: 'Drop files here or click to browse', es: 'Suelta archivos aquí o haz clic para buscar' },
+  'missions.title': { en: 'Missions', es: 'Misiones' },
+  'missions.subtitle': { en: 'Define objectives. Operator executes.', es: 'Define objetivos. Operator ejecuta.' },
+  'missions.new': { en: 'New mission', es: 'Nueva misión' },
+  'missions.none': { en: 'No missions yet', es: 'Sin misiones aún' },
+  'legal.privacy': { en: 'Privacy Policy', es: 'Política de Privacidad' },
+  'legal.terms': { en: 'Terms of Service', es: 'Términos de Servicio' },
+  'legal.support': { en: 'Support', es: 'Soporte' },
+  'legal.contact': { en: 'Contact', es: 'Contacto' },
+  'legal.back': { en: 'Back to app', es: 'Volver a la app' },
+  'footer.privacy': { en: 'Privacy', es: 'Privacidad' },
+  'footer.terms': { en: 'Terms', es: 'Términos' },
+  'footer.support': { en: 'Support', es: 'Soporte' },
 };
 
 type TranslationKey = string;

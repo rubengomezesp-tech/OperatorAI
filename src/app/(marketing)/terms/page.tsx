@@ -1,84 +1,93 @@
-export const metadata = {
-  title: 'Terms of Service — Operator AI',
-  description: 'Terms governing your use of Operator AI.',
-};
+'use client';
+import Link from 'next/link';
+import { useI18n } from '@/lib/i18n';
+import { LanguageToggle } from '@/lib/i18n';
 
 export default function TermsPage() {
-  const updated = 'April 15, 2026';
+  const { t, locale } = useI18n();
   return (
-    <div className="min-h-screen bg-bg">
-      <div className="max-w-[780px] mx-auto px-6 py-16 lg:py-24">
-        <div className="text-[11px] uppercase tracking-[0.18em] text-gold mb-2">Legal</div>
-        <h1 className="font-display text-[36px] lg:text-[44px] leading-tight mb-2">Terms of Service</h1>
-        <p className="text-[13px] text-fg-muted mb-10">Last updated: {updated}</p>
+    <div className="min-h-screen bg-bg text-fg">
+      <nav className="border-b border-border px-6 py-4 flex items-center justify-between max-w-[860px] mx-auto">
+        <Link href="/" className="flex items-center gap-2">
+          <img src="/logo.png" alt="Operator AI" className="h-7 w-7 rounded-md" />
+          <span className="font-display text-[15px]">Operator AI</span>
+        </Link>
+        <LanguageToggle />
+      </nav>
+      <main className="max-w-[860px] mx-auto px-6 py-12">
+        <h1 className="font-display text-[36px] mb-2">{t('legal.terms')}</h1>
+        <p className="text-[12px] text-fg-muted mb-8">Last updated: April 2026</p>
 
-        <div className="prose-gold space-y-8 text-[14.5px] text-fg-soft leading-relaxed">
-          <section>
-            <h2 className="font-display text-[20px] text-fg mb-3">1. Acceptance of Terms</h2>
-            <p>By accessing or using Operator AI (&quot;the Service&quot;), you agree to be bound by these Terms of Service. If you do not agree to these terms, do not use the Service.</p>
-          </section>
+        {locale === 'es' ? (
+          <div className="prose prose-invert max-w-none text-[14px] text-fg-soft leading-relaxed space-y-6">
+            <h2 className="font-display text-[20px] text-fg">1. Aceptación de los Términos</h2>
+            <p>Al acceder o utilizar Operator AI, usted acepta estar sujeto a estos Términos de Servicio. Si no está de acuerdo, no utilice nuestros servicios.</p>
 
-          <section>
-            <h2 className="font-display text-[20px] text-fg mb-3">2. Description of Service</h2>
-            <p>Operator AI is an AI-powered business platform that provides: AI chat with multiple language models; AI image and video generation; voice interaction capabilities; workflow automation; document analysis; third-party integrations. The Service is provided on a subscription basis with multiple plan tiers.</p>
-          </section>
+            <h2 className="font-display text-[20px] text-fg">2. Descripción del Servicio</h2>
+            <p>Operator AI es una plataforma de operaciones autónomas impulsada por inteligencia artificial que proporciona herramientas de generación de contenido, automatización de flujos de trabajo, análisis de datos y gestión de marca.</p>
 
-          <section>
-            <h2 className="font-display text-[20px] text-fg mb-3">3. Account Registration</h2>
-            <p>To use the Service, you must create an account with a valid email address. You are responsible for maintaining the confidentiality of your account credentials. You must be at least 16 years old to use the Service. You are responsible for all activities under your account.</p>
-          </section>
+            <h2 className="font-display text-[20px] text-fg">3. Cuentas de Usuario</h2>
+            <p>Usted es responsable de mantener la confidencialidad de su cuenta y contraseña. Notifíquenos inmediatamente sobre cualquier uso no autorizado.</p>
 
-          <section>
-            <h2 className="font-display text-[20px] text-fg mb-3">4. Subscription and Billing</h2>
-            <p>The Service offers free trials and paid subscription plans. Paid plans are billed monthly through Stripe. You can cancel your subscription at any time; access continues until the end of the current billing period. Refunds are handled on a case-by-case basis within 14 days of purchase. We reserve the right to change pricing with 30 days&apos; notice.</p>
-          </section>
+            <h2 className="font-display text-[20px] text-fg">4. Uso Aceptable</h2>
+            <p>Usted se compromete a no utilizar nuestros servicios para:</p>
+            <ul className="list-disc pl-6 space-y-1">
+              <li>Actividades ilegales o fraudulentas.</li>
+              <li>Generar contenido dañino, abusivo o engañoso.</li>
+              <li>Violar derechos de propiedad intelectual de terceros.</li>
+              <li>Intentar acceder sin autorización a nuestros sistemas.</li>
+            </ul>
 
-          <section>
-            <h2 className="font-display text-[20px] text-fg mb-3">5. Acceptable Use</h2>
-            <p>You agree not to: use the Service for any illegal purpose; generate content that violates the rights of others; attempt to reverse-engineer, hack, or compromise the Service; use automated systems to access the Service beyond normal usage; resell or redistribute the Service without authorization; generate harmful, abusive, or deceptive content.</p>
-          </section>
+            <h2 className="font-display text-[20px] text-fg">5. Propiedad Intelectual</h2>
+            <p>El contenido generado por usted a través de nuestras herramientas de IA le pertenece. Operator AI retiene los derechos sobre la plataforma, marca, código y tecnología subyacente.</p>
 
-          <section>
-            <h2 className="font-display text-[20px] text-fg mb-3">6. AI-Generated Content</h2>
-            <p>Content generated by AI models (text, images, videos) through the Service is provided &quot;as is&quot;. You retain ownership of prompts you provide. For generated content, you receive a non-exclusive license to use it for personal and commercial purposes, subject to the underlying AI provider terms. We do not guarantee the accuracy, completeness, or appropriateness of AI-generated content. You are responsible for reviewing and verifying AI-generated content before use.</p>
-          </section>
+            <h2 className="font-display text-[20px] text-fg">6. Pagos y Suscripciones</h2>
+            <p>Algunos servicios requieren una suscripción de pago. Los precios están sujetos a cambios con notificación previa. Las cancelaciones se pueden realizar en cualquier momento desde la configuración de su cuenta.</p>
 
-          <section>
-            <h2 className="font-display text-[20px] text-fg mb-3">7. Your Content</h2>
-            <p>You retain all rights to content you upload to the Service (documents, images, data). By uploading content, you grant us a limited license to process it for providing the Service. We do not sell or share your content with third parties except as needed to operate the Service (e.g., sending documents to AI models for analysis).</p>
-          </section>
+            <h2 className="font-display text-[20px] text-fg">7. Limitación de Responsabilidad</h2>
+            <p>Operator AI se proporciona "tal cual". No garantizamos que el servicio sea ininterrumpido o libre de errores. En la máxima medida permitida por la ley, no seremos responsables por daños indirectos o consecuentes.</p>
 
-          <section>
-            <h2 className="font-display text-[20px] text-fg mb-3">8. Intellectual Property</h2>
-            <p>The Service, including its design, code, and branding, is owned by Operator AI. The Operator AI name, logo, and visual identity are our trademarks. You may not copy, modify, or distribute the Service without permission.</p>
-          </section>
+            <h2 className="font-display text-[20px] text-fg">8. Contacto</h2>
+            <p>Para preguntas sobre estos términos: <a href="mailto:legal@operatorai.app" className="text-gold hover:underline">legal@operatorai.app</a></p>
+          </div>
+        ) : (
+          <div className="prose prose-invert max-w-none text-[14px] text-fg-soft leading-relaxed space-y-6">
+            <h2 className="font-display text-[20px] text-fg">1. Acceptance of Terms</h2>
+            <p>By accessing or using Operator AI, you agree to be bound by these Terms of Service. If you disagree, do not use our services.</p>
 
-          <section>
-            <h2 className="font-display text-[20px] text-fg mb-3">9. Limitation of Liability</h2>
-            <p>THE SERVICE IS PROVIDED &quot;AS IS&quot; WITHOUT WARRANTIES OF ANY KIND. WE ARE NOT LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, OR CONSEQUENTIAL DAMAGES. OUR TOTAL LIABILITY SHALL NOT EXCEED THE AMOUNT YOU PAID IN THE LAST 12 MONTHS. We are not responsible for outages, data loss due to third-party service failures, or AI model availability changes.</p>
-          </section>
+            <h2 className="font-display text-[20px] text-fg">2. Service Description</h2>
+            <p>Operator AI is an autonomous operations platform powered by artificial intelligence that provides content generation, workflow automation, data analysis, and brand management tools.</p>
 
-          <section>
-            <h2 className="font-display text-[20px] text-fg mb-3">10. Termination</h2>
-            <p>We may suspend or terminate your account for violation of these terms. You may delete your account at any time. Upon termination, your data will be deleted per our Privacy Policy.</p>
-          </section>
+            <h2 className="font-display text-[20px] text-fg">3. User Accounts</h2>
+            <p>You are responsible for maintaining the confidentiality of your account and password. Notify us immediately of any unauthorized use.</p>
 
-          <section>
-            <h2 className="font-display text-[20px] text-fg mb-3">11. Changes to Terms</h2>
-            <p>We may modify these Terms at any time. Material changes will be communicated via email or in-app notification at least 30 days in advance. Continued use after changes constitutes acceptance.</p>
-          </section>
+            <h2 className="font-display text-[20px] text-fg">4. Acceptable Use</h2>
+            <p>You agree not to use our services for:</p>
+            <ul className="list-disc pl-6 space-y-1">
+              <li>Illegal or fraudulent activities.</li>
+              <li>Generating harmful, abusive, or misleading content.</li>
+              <li>Violating third-party intellectual property rights.</li>
+              <li>Attempting unauthorized access to our systems.</li>
+            </ul>
 
-          <section>
-            <h2 className="font-display text-[20px] text-fg mb-3">12. Governing Law</h2>
-            <p>These Terms are governed by the laws of the European Union and the Kingdom of Spain. Any disputes shall be resolved in the courts of Spain.</p>
-          </section>
+            <h2 className="font-display text-[20px] text-fg">5. Intellectual Property</h2>
+            <p>Content you generate through our AI tools belongs to you. Operator AI retains rights to the platform, brand, code, and underlying technology.</p>
 
-          <section>
-            <h2 className="font-display text-[20px] text-fg mb-3">13. Contact</h2>
-            <p>For questions about these Terms, contact us at <a href="mailto:legal@operatoraiapp.com" className="text-gold hover:underline">legal@operatoraiapp.com</a>.</p>
-          </section>
+            <h2 className="font-display text-[20px] text-fg">6. Payments and Subscriptions</h2>
+            <p>Some services require a paid subscription. Prices are subject to change with prior notice. Cancellations can be made at any time from your account settings.</p>
+
+            <h2 className="font-display text-[20px] text-fg">7. Limitation of Liability</h2>
+            <p>Operator AI is provided "as is." We do not guarantee the service will be uninterrupted or error-free. To the maximum extent permitted by law, we shall not be liable for indirect or consequential damages.</p>
+
+            <h2 className="font-display text-[20px] text-fg">8. Contact</h2>
+            <p>For questions about these terms: <a href="mailto:legal@operatorai.app" className="text-gold hover:underline">legal@operatorai.app</a></p>
+          </div>
+        )}
+
+        <div className="mt-12 pt-6 border-t border-border">
+          <Link href="/" className="text-[13px] text-gold hover:underline">&larr; {t('legal.back')}</Link>
         </div>
-      </div>
+      </main>
     </div>
   );
 }
