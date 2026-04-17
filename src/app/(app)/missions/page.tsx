@@ -19,7 +19,7 @@ export default async function MissionsPage() {
     redirect('/create-organization');
   }
 
-  const { data: missions } = await svc
+  const { data: missions } = await (svc as any)
     .from('missions')
     .select('id, title, objective, category, status, progress, created_at, due_at')
     .eq('org_id', orgId)

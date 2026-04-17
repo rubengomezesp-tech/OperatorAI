@@ -1,6 +1,7 @@
+
 import { createClient } from '@supabase/supabase-js';
 import { serverEnv } from '@/lib/env';
-import type { Database } from '@/types/db';
+import type { Database } from '@/types/supabase';
 
 export function createSupabaseServiceClient() {
   return createClient<Database>(
