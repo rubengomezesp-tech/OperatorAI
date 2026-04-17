@@ -35,4 +35,5 @@ export function RootProviders({ children }: { children: React.ReactNode }) {
       {process.env.NODE_ENV === 'development' && <ReactQueryDevtools />}
     </QueryClientProvider>
   );
+}  );
 }
