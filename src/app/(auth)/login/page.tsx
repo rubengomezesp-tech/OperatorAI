@@ -73,7 +73,13 @@ export default function LoginPage() {
 
         <div className="text-center text-[13px] text-fg-muted">
           New here? <Link href="/signup" className="text-gold hover:underline">Create an account</Link>
-        </div>
+        
+      <div className="mt-4 flex justify-center gap-4 text-[10.5px] text-fg-subtle">
+        <a href="/privacy" className="hover:text-gold transition-colors">Privacy</a>
+        <a href="/terms" className="hover:text-gold transition-colors">Terms</a>
+        <a href="/support" className="hover:text-gold transition-colors">Support</a>
+      </div>
+</div>
       </CardBody>
     </Card>
   );

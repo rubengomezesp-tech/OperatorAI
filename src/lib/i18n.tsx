@@ -241,6 +241,12 @@ const translations: Record<string, { en: string; es: string }> = {
   'footer.privacy': { en: 'Privacy', es: 'Privacidad' },
   'footer.terms': { en: 'Terms', es: 'Términos' },
   'footer.support': { en: 'Support', es: 'Soporte' },
+  'settings.delete_account': { en: 'Delete account', es: 'Eliminar cuenta' },
+  'settings.delete_desc': { en: 'Permanently remove your account and all data.', es: 'Elimina tu cuenta y todos tus datos permanentemente.' },
+  'settings.profile': { en: 'Profile', es: 'Perfil' },
+  'settings.profile_desc': { en: 'Your name, email, and preferences.', es: 'Tu nombre, email y preferencias.' },
+  'footer.made_with': { en: 'Made with', es: 'Hecho con' },
+  'footer.by': { en: 'by Operator AI', es: 'por Operator AI' },
 };
 
 type TranslationKey = string;
