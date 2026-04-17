@@ -9,7 +9,7 @@ import { serverEnv } from '@/lib/env';
 
 export const runtime = 'nodejs';
 
-const BodySchema = z.object({ planId: z.enum(['starter', 'pro', 'agency']) });
+const BodySchema = z.object({ planId: z.enum(['starter', 'pro', 'studio', 'agency']) });
 
 export async function POST(req: NextRequest) {
   const parsed = BodySchema.safeParse(await req.json().catch(() => ({})));
