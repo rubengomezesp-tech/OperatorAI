@@ -18,6 +18,17 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={inter.variable + ' ' + serif.variable + ' ' + mono.variable} suppressHydrationWarning>
+      <head>
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="apple-mobile-web-app-title" content="Operator AI" />
+        <link rel="apple-touch-icon" href="/icons/icon-180x180.png" />
+        <link rel="apple-touch-icon" sizes="152x152" href="/icons/icon-152x152.png" />
+        <link rel="apple-touch-icon" sizes="167x167" href="/icons/icon-167x167.png" />
+        <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-180x180.png" />
+        <link rel="manifest" href="/manifest.json" />
+        <meta name="theme-color" content="#C9A863" />
+      </head>
       <body className="min-h-screen bg-bg text-fg antialiased">
         <RootProviders><I18nProvider>{children}</I18nProvider></RootProviders>
       
