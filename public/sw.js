@@ -1,5 +1,5 @@
-// Operator AI Service Worker v2
-const CACHE_NAME = 'operator-v2';
+// Operator AI Service Worker v3 — with Push Notifications
+const CACHE_NAME = 'operator-v3';
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -31,4 +31,35 @@ self.addEventListener('fetch', (event) => {
       fetch(event.request).catch(() => caches.match('/dashboard'))
     );
   }
+});
+
+// Push Notification handler
+self.addEventListener('push', (event) => {
+  const data = event.data ? event.data.json() : {};
+  const title = data.title || 'Operator AI';
+  const options = {
+    body: data.body || '',
+    icon: '/icons/icon-192x192.png',
+    badge: '/icons/icon-96x96.png',
+    vibrate: [100, 50, 100],
+    data: {
+      url: data.url || '/dashboard',
+    },
+    actions: data.actions || [],
+  };
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+// Click handler — open the app
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const url = event.notification.data?.url || '/dashboard';
+  event.waitUntil(
+    clients.matchAll({ type: 'window' }).then((windowClients) => {
+      for (const client of windowClients) {
+        if (client.url.includes(url) && 'focus' in client) return client.focus();
+      }
+      return clients.openWindow(url);
+    })
+  );
 });
