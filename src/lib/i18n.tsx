@@ -298,6 +298,12 @@ const translations: Record<string, { en: string; es: string }> = {
   'dash.files': { en: 'Files', es: 'Archivos' },
   'dash.voice': { en: 'Voice', es: 'Voz' },
   'dash.agents': { en: 'Agents', es: 'Agentes' },
+  'chat.quick_image': { en: "Generate an image", es: "Genera una imagen" },
+  'chat.quick_campaign': { en: "Create a campaign", es: "Crea una campaña" },
+  'chat.quick_copy': { en: "Write copy for me", es: "Escribe copy" },
+  'chat.quick_strategy': { en: "Brand strategy", es: "Estrategia de marca" },
+  'chat.quick_analyze': { en: "Analyze my data", es: "Analiza mis datos" },
+  'chat.quick_video': { en: "Create a video", es: "Crea un vídeo" },
 };
 
 type TranslationKey = string;

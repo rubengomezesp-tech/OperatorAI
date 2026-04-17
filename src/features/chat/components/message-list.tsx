@@ -30,6 +30,29 @@ export function MessageList({ messages, onRegenerate, regenDisabled }: Props) {
           <p className="text-[14px] text-fg-muted">
             {t('chat.empty_desc')}
           </p>
+          <div className="flex flex-wrap justify-center gap-2 mt-8">
+            {[
+              { key: 'chat.quick_image', emoji: '🎨' },
+              { key: 'chat.quick_campaign', emoji: '🚀' },
+              { key: 'chat.quick_copy', emoji: '✍️' },
+              { key: 'chat.quick_strategy', emoji: '🎯' },
+              { key: 'chat.quick_analyze', emoji: '📊' },
+              { key: 'chat.quick_video', emoji: '🎬' },
+            ].map((chip) => (
+              <button
+                key={chip.key}
+                type="button"
+                onClick={() => {
+                  const input = document.querySelector('textarea');
+                  if (input) { input.value = t(chip.key); input.focus(); input.dispatchEvent(new Event('input', { bubbles: true })); }
+                }}
+                className="inline-flex items-center gap-1.5 h-8 px-3 rounded-full border border-border bg-surface-2 text-[12px] text-fg-muted hover:text-gold hover:border-gold/40 hover:bg-gold/5 transition-all"
+              >
+                <span>{chip.emoji}</span>
+                <span>{t(chip.key)}</span>
+              </button>
+            ))}
+          </div>
         </div>
       </div>
     );
