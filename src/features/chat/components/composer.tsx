@@ -22,7 +22,7 @@ interface Props {
 export function Composer({ onSend, onCancel, loading, disabled }: Props) {
   const [value, setValue] = useState('');
   const [agentType, setAgentType] = useState<'creative' | 'brand' | 'copy' | 'research' | 'analyst' | 'social'>('creative');
-  const [attachment, setAttachment] = useState<Attachment | null>(null);
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
   const ref = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -34,14 +34,14 @@ export function Composer({ onSend, onCancel, loading, disabled }: Props) {
 
   function handle() {
     const trimmed = value.trim();
-    if ((!trimmed && !attachment) || loading || disabled) return;
+    if ((!trimmed && attachments.length === 0) || loading || disabled) return;
     const msg = trimmed || (attachment ? 'Analyze this file' : '');
     onSend(
       msg,
-      attachment ? { base64: attachment.base64, mimeType: attachment.mimeType, fileName: attachment.file.name } : undefined,
+      attachments.length > 0 ? { base64: attachments[0].base64, mimeType: attachments[0].mimeType, fileName: attachments[0].file.name } : undefined,
     );
     setValue('');
-    setAttachment(null);
+    setAttachments([]);
   }
 
   function onKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
@@ -70,15 +70,19 @@ export function Composer({ onSend, onCancel, loading, disabled }: Props) {
     const isImage = file.type.startsWith('image/');
     const preview = isImage ? URL.createObjectURL(file) : null;
 
-    setAttachment({ file, preview, base64, mimeType: file.type });
+    if (attachments.length >= 10) { alert('Max 10 files'); return; }
+    setAttachments(prev => [...prev, { file, preview, base64, mimeType: file.type }]);
 
     // Clear input so same file can be re-selected
     if (fileRef.current) fileRef.current.value = '';
   }
 
-  function removeAttachment() {
-    if (attachment?.preview) URL.revokeObjectURL(attachment.preview);
-    setAttachment(null);
+  function removeAttachment(index: number) {
+    setAttachments(prev => {
+      const item = prev[index];
+      if (item?.preview) URL.revokeObjectURL(item.preview);
+      return prev.filter((_, i) => i !== index);
+    });
   }
 
   return (
@@ -89,27 +93,30 @@ export function Composer({ onSend, onCancel, loading, disabled }: Props) {
         </div>
 
         {/* Attachment preview */}
-        {attachment && (
-          <div className="flex items-center gap-2 p-2 rounded-lg border border-border bg-surface-2">
-            {attachment.preview ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={attachment.preview} alt="" className="h-16 w-16 rounded-md object-cover" />
-            ) : (
-              <div className="h-16 w-16 rounded-md bg-surface-3 flex items-center justify-center text-[10px] text-fg-muted uppercase">
-                {attachment.file.name.split('.').pop()}
+        {attachments.length > 0 && (
+          <div className="flex gap-2 p-2 rounded-lg border border-border bg-surface-2 overflow-x-auto">
+            {attachments.map((att, i) => (
+              <div key={i} className="relative shrink-0 group">
+                {att.preview ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={att.preview} alt="" className="h-16 w-16 rounded-md object-cover" />
+                ) : (
+                  <div className="h-16 w-16 rounded-md bg-surface-3 flex items-center justify-center text-[10px] text-fg-muted uppercase">
+                    {att.file.name.split('.').pop()}
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onClick={() => removeAttachment(i)}
+                  className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-bg border border-border text-fg-muted hover:text-fg flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  <X className="h-2.5 w-2.5" />
+                </button>
               </div>
-            )}
-            <div className="flex-1 min-w-0">
-              <div className="text-[12.5px] text-fg truncate">{attachment.file.name}</div>
-              <div className="text-[10.5px] text-fg-muted">{formatFileSize(attachment.file.size)}</div>
+            ))}
+            <div className="shrink-0 flex items-center text-[10px] text-fg-subtle px-2">
+              {attachments.length}/10
             </div>
-            <button
-              type="button"
-              onClick={removeAttachment}
-              className="h-6 w-6 rounded-md hover:bg-surface-3 text-fg-muted hover:text-fg flex items-center justify-center"
-            >
-              <X className="h-3.5 w-3.5" />
-            </button>
           </div>
         )}
 
@@ -136,7 +143,7 @@ export function Composer({ onSend, onCancel, loading, disabled }: Props) {
             <button
               type="button"
               onClick={() => fileRef.current?.click()}
-              disabled={disabled || loading || !!attachment}
+              disabled={disabled || loading || attachments.length >= 10}
               className={cn(
                 'h-9 w-9 rounded-md flex items-center justify-center transition-colors',
                 attachment
@@ -171,10 +178,10 @@ export function Composer({ onSend, onCancel, loading, disabled }: Props) {
               <button
                 type="button"
                 onClick={handle}
-                disabled={(!value.trim() && !attachment) || disabled}
+                disabled={(!value.trim() && attachments.length === 0) || disabled}
                 className={cn(
                   'h-9 w-9 rounded-md flex items-center justify-center transition-all',
-                  (value.trim() || attachment) && !disabled
+                  (value.trim() || attachments.length > 0) && !disabled
                     ? 'gold-grad text-bg shadow-[0_6px_20px_-6px_rgb(201_168_99_/_0.5)] hover:brightness-110 active:scale-[.98]'
                     : 'bg-surface-3 text-fg-subtle cursor-not-allowed',
                 )}

@@ -13,12 +13,13 @@ export const TOOL_SPECS: ToolSpec[] = [
   {
     name: 'image',
     description:
-      'Generate a premium on-brand image from a text prompt. Use when the user asks for an image, visual, product shot, photo, illustration, or picture. Returns image URLs shown inline. Takes ~6 seconds. YOU write the full detailed prompt yourself — do not ask the user to refine it.',
+      'Generate premium on-brand images from a text prompt. Use when the user asks for an image, visual, product shot, photo, illustration, or picture. Returns image URLs shown inline. Takes ~6 seconds per image. YOU write the full detailed prompt yourself — do not ask the user to refine it. When user asks for variations, options, or multiple images, set num_images to 2-4. You can vary the prompt slightly for each to give real variety.',
     input_schema: {
       type: 'object',
       properties: {
-        prompt: { type: 'string', description: 'Detailed image description: subject, composition, lighting, mood, colors, style. Write at least 20 words.' },
+        prompt: { type: 'string', description: 'Detailed image description: subject, composition, lighting, mood, colors, style. Write at least 20 words. Be extremely specific and cinematic.' },
         aspect_ratio: { type: 'string', enum: ['1:1', '16:9', '9:16', '4:5', '3:2'], description: 'Aspect ratio. Default 1:1.' },
+        num_images: { type: 'number', enum: [1, 2, 3, 4], description: 'Number of image variations to generate. Default 1. Use 2-4 when user asks for options, variations, or multiple.' },
       },
       required: ['prompt'],
     },
@@ -83,6 +84,36 @@ export interface ToolResult {
     sources?: Array<{ title: string; id: string }>;
   };
   error?: string;
+}
+
+
+async function generateMultipleImages(
+  input: Record<string, unknown>,
+  ctx: ToolContext,
+): Promise<{ ok: boolean; result?: { urls: string[] }; error?: string }> {
+  const { generateWithFlux } = await import('@/features/image-studio/server/flux-client');
+  const numImages = Math.min(Math.max(Number(input.num_images) || 1, 1), 4);
+  const allUrls: string[] = [];
+  
+  for (let i = 0; i < numImages; i++) {
+    try {
+      // Vary the seed for each image to get different results
+      const result = await generateWithFlux({
+        prompt: String(input.prompt || ''),
+        aspectRatio: (input.aspect_ratio as any) || '1:1',
+        seed: Math.floor(Math.random() * 999999),
+      });
+      if (result.url) allUrls.push(result.url);
+      if (result.urls) allUrls.push(...result.urls);
+    } catch (e) {
+      console.error('Image generation error:', e);
+    }
+  }
+  
+  if (allUrls.length === 0) {
+    return { ok: false, error: 'Failed to generate images' };
+  }
+  return { ok: true, result: { urls: allUrls } };
 }
 
 export async function executeTool(
