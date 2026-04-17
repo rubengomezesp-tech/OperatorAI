@@ -1,3 +1,4 @@
+import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { NextResponse, type NextRequest } from 'next/server';
 
 export const config = {
