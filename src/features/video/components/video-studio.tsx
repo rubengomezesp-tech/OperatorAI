@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardBody } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
+import { useI18n } from '@/lib/i18n';
 import { VIDEO_MODELS, VIDEO_PRESETS, ASPECT_RATIOS } from '../data/presets';
 
 interface VideoRow {
@@ -23,6 +24,7 @@ interface VideoRow {
 
 export function VideoStudio() {
   const [prompt, setPrompt] = useState('');
+  const { t } = useI18n();
   const [model, setModel] = useState(VIDEO_MODELS[1].id);
   const [aspect, setAspect] = useState<'16:9' | '9:16'>('16:9');
   const [duration, setDuration] = useState<4 | 6 | 8>(8);
@@ -108,7 +110,7 @@ export function VideoStudio() {
   }
 
   async function handleDelete(id: string) {
-    if (!confirm('Delete this video?')) return;
+    if (!confirm(t('video.delete_confirm'))) return;
     try {
       await fetch('/api/video/delete', {
         method: 'POST',
@@ -164,7 +166,7 @@ export function VideoStudio() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <label className="text-[10.5px] uppercase tracking-[0.14em] text-fg-subtle">Model</label>
+              <label className="text-[10.5px] uppercase tracking-[0.14em] text-fg-subtle">{t('video.model')}</label>
               <select
                 value={model}
                 onChange={(e) => setModel(e.target.value as typeof model)}
@@ -180,7 +182,7 @@ export function VideoStudio() {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-[10.5px] uppercase tracking-[0.14em] text-fg-subtle">Aspect ratio</label>
+              <label className="text-[10.5px] uppercase tracking-[0.14em] text-fg-subtle">{t('video.aspect')}</label>
               <select
                 value={aspect}
                 onChange={(e) => setAspect(e.target.value as '16:9' | '9:16')}
@@ -195,7 +197,7 @@ export function VideoStudio() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <label className="text-[10.5px] uppercase tracking-[0.14em] text-fg-subtle">Duration</label>
+              <label className="text-[10.5px] uppercase tracking-[0.14em] text-fg-subtle">{t('video.duration')}</label>
               <div className="flex gap-1.5">
                 {[4, 6, 8].map((d) => (
                   <button
@@ -250,7 +252,7 @@ export function VideoStudio() {
             </div>
             <Button onClick={handleGenerate} loading={generating} disabled={!prompt.trim()}>
               <Sparkles className="h-4 w-4" />
-              <span>Generate video</span>
+              <span>{t('video.generate')}</span>
             </Button>
           </div>
         </CardBody>
@@ -258,7 +260,7 @@ export function VideoStudio() {
 
       <div>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="font-display text-[20px]">Your videos</h2>
+          <h2 className="font-display text-[20px]">{t('video.your_videos')}</h2>
           {polling && (
             <div className="flex items-center gap-1.5 text-[11px] text-fg-muted">
               <Loader2 className="h-3 w-3 animate-spin" />
@@ -270,7 +272,7 @@ export function VideoStudio() {
         {videos.length === 0 ? (
           <div className="rounded-lg border border-dashed border-border bg-surface-2/30 py-16 text-center">
             <Video className="h-8 w-8 text-fg-subtle mx-auto mb-3" />
-            <p className="text-[13.5px] text-fg-muted">No videos yet. Generate your first.</p>
+            <p className="text-[13.5px] text-fg-muted">{t('video.none')}. Generate your first.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -320,7 +322,7 @@ export function VideoStudio() {
                         className="flex-1 h-7 rounded-md border border-border bg-surface-2 text-[11.5px] text-fg-muted hover:text-fg flex items-center justify-center gap-1.5"
                       >
                         <Download className="h-3 w-3" />
-                        <span>Download</span>
+                        <span>{t('video.download')}</span>
                       </a>
                     )}
                     <button
