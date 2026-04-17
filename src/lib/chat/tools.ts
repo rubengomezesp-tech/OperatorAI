@@ -163,21 +163,26 @@ async function execImage(input: Record<string, unknown>, ctx: ToolContext): Prom
     return { ok: false, error: 'Flux returned no images' };
   }
 
-  // Save to DB + storage (fire-and-forget, don't block on errors)
+  // Save to DB + storage — return permanent Supabase URLs
   try {
     const imageId = crypto.randomUUID();
     const storagePaths: string[] = [];
+    const permanentUrls: string[] = [];
 
     for (let i = 0; i < result.urls.length; i++) {
       try {
-        const res = await fetch(result.urls[i]);
-        if (!res.ok) continue;
-        const buffer = Buffer.from(await res.arrayBuffer());
+        const imgRes = await fetch(result.urls[i]);
+        if (!imgRes.ok) continue;
+        const buffer = Buffer.from(await imgRes.arrayBuffer());
         const path = ctx.orgId + '/' + imageId + '-' + i + '.png';
         const { error: upErr } = await ctx.svc.storage
           .from('image-outputs')
-          .upload(path, buffer, { contentType: 'image/png', cacheControl: '3600', upsert: true });
-        if (!upErr) storagePaths.push(path);
+          .upload(path, buffer, { contentType: 'image/png', cacheControl: '31536000', upsert: true });
+        if (!upErr) {
+          storagePaths.push(path);
+          const { data: pubUrl } = ctx.svc.storage.from('image-outputs').getPublicUrl(path);
+          if (pubUrl?.publicUrl) permanentUrls.push(pubUrl.publicUrl);
+        }
       } catch { /* continue */ }
     }
 
@@ -211,7 +216,7 @@ async function execImage(input: Record<string, unknown>, ctx: ToolContext): Prom
     console.error('[tools.image] DB save failed (image still returned):', e);
   }
 
-  return { ok: true, result: { urls: result.urls } };
+  return { ok: true, result: { urls: permanentUrls.length > 0 ? permanentUrls : result.urls } };
 }
 
 // ── VIDEO ─────────────────────────────────────────────────────────
