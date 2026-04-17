@@ -45,7 +45,7 @@ export default function TermsPage() {
             <p>Algunos servicios requieren una suscripción de pago. Los precios están sujetos a cambios con notificación previa. Las cancelaciones se pueden realizar en cualquier momento desde la configuración de su cuenta.</p>
 
             <h2 className="font-display text-[20px] text-fg">7. Limitación de Responsabilidad</h2>
-            <p>Operator AI se proporciona "tal cual". No garantizamos que el servicio sea ininterrumpido o libre de errores. En la máxima medida permitida por la ley, no seremos responsables por daños indirectos o consecuentes.</p>
+            <p>Operator AI se proporciona &ldquo;tal cual&rdquo;. No garantizamos que el servicio sea ininterrumpido o libre de errores. En la máxima medida permitida por la ley, no seremos responsables por daños indirectos o consecuentes.</p>
 
             <h2 className="font-display text-[20px] text-fg">8. Contacto</h2>
             <p>Para preguntas sobre estos términos: <a href="mailto:legal@operatorai.app" className="text-gold hover:underline">legal@operatorai.app</a></p>
