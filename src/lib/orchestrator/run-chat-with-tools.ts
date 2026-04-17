@@ -37,6 +37,10 @@ interface RunArgs {
   assistantId: string;
   origin: string;
   cookieHeader: string;
+  /** Base64-encoded image attached by the user */
+  imageBase64?: string;
+  /** MIME type of attached image, e.g. image/jpeg */
+  imageMimeType?: string;
   signal?: AbortSignal;
 }
 
@@ -53,12 +57,38 @@ export async function* runChatWithTools(args: RunArgs): AsyncIterable<ToolStream
 
   const systemText =
     systemBlocks.map((m) => m.content).join('\n\n') +
-    '\n\n<agent_behavior>\nYou are the Operator agent. When the user asks for visual output (image, video, illustration, photo), or to analyze their files, or to look up their knowledge base — YOU execute the tool yourself. Do NOT tell the user to go to another page, use another tool, or visit any external service. Briefly say what you are about to do, then call the tool. After the result appears inline, continue naturally. Match the user language (Spanish or English). ALWAYS use your tools when the user asks for images, videos, file analysis, or knowledge search. You HAVE the capability.\n</agent_behavior>';
+    '\n\n<agent_behavior>\nYou are the Operator agent. When the user asks for visual output (image, video, illustration, photo), or to analyze their files, or to look up their knowledge base — YOU execute the tool yourself. Do NOT tell the user to go to another page, use another tool, or visit any external service. Briefly say what you are about to do, then call the tool. After the tool result, describe what was generated and ask if they want changes. Match the user language (Spanish or English). ALWAYS use your tools when the user asks for images, videos, file analysis, or knowledge search. You HAVE the capability. IMPORTANT: After the tool executes, do NOT include image URLs or links in your text. The images are already displayed to the user automatically by the system.\nIf the user attaches an image, analyze it and respond about what you see. You can also use the image as context for generating new images or content.\n</agent_behavior>';
 
-  const convo: Anthropic.MessageParam[] = chatBlocks.map((m) => ({
-    role: m.role === 'assistant' ? 'assistant' : 'user',
-    content: m.content,
-  }));
+  // Build conversation. The last user message may include an image attachment.
+  const convo: Anthropic.MessageParam[] = [];
+
+  for (let i = 0; i < chatBlocks.length; i++) {
+    const m = chatBlocks[i];
+    const isLastUser = m.role === 'user' && i === chatBlocks.length - 1;
+
+    if (isLastUser && args.imageBase64 && args.imageMimeType) {
+      // Attach image to the last user message as a vision content block
+      convo.push({
+        role: 'user',
+        content: [
+          {
+            type: 'image',
+            source: {
+              type: 'base64',
+              media_type: args.imageMimeType as 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp',
+              data: args.imageBase64,
+            },
+          },
+          { type: 'text', text: m.content },
+        ],
+      });
+    } else {
+      convo.push({
+        role: m.role === 'assistant' ? 'assistant' : 'user',
+        content: m.content,
+      });
+    }
+  }
 
   let totalInputTokens = 0;
   let totalOutputTokens = 0;
@@ -133,6 +163,10 @@ export async function* runChatWithTools(args: RunArgs): AsyncIterable<ToolStream
 
     const toolResultBlocks: Anthropic.ToolResultBlockParam[] = [];
     for (const use of pendingToolUses) {
+      const toolLabel = use.name === 'image' ? '🎨' : use.name === 'video' ? '🎬' : use.name === 'file_analysis' ? '📊' : '📚';
+      const toolAction = use.name === 'image' ? 'Generating image' : use.name === 'video' ? 'Rendering video' : use.name === 'file_analysis' ? 'Analyzing file' : 'Searching knowledge';
+      yield { type: 'text', value: '\n\n> ' + toolLabel + ' *' + toolAction + '...*\n\n' };
+
       const execResult = await executeTool(use.name as ToolKind, use.input, {
         svc: args.svc,
         orgId: args.orgId,
@@ -152,11 +186,29 @@ export async function* runChatWithTools(args: RunArgs): AsyncIterable<ToolStream
         error: execResult.error,
       };
 
+      // Inject result as markdown into the text stream
+      if (execResult.ok) {
+        if (use.name === 'image' && execResult.result?.urls) {
+          for (const url of execResult.result.urls) {
+            yield { type: 'text', value: '\n\n![Generated image](' + url + ')\n\n' };
+          }
+          yield { type: 'text', value: '[⬇ Download image](' + execResult.result.urls[0] + ')\n\n' };
+        } else if (use.name === 'video' && execResult.result?.videoUrl) {
+          yield { type: 'text', value: '\n\n🎬 **Video generated:** [▶ Watch / Download](' + execResult.result.videoUrl + ')\n\n' };
+        } else if (use.name === 'file_analysis' && execResult.result?.text) {
+          yield { type: 'text', value: '\n\n> 📊 **Analysis result:**\n>\n> ' + execResult.result.text.split('\n').join('\n> ') + '\n\n' };
+        } else if (use.name === 'knowledge_search' && execResult.result?.text) {
+          yield { type: 'text', value: '\n\n> 📚 **From your knowledge base:**\n>\n> ' + execResult.result.text.split('\n').join('\n> ') + '\n\n' };
+        }
+      } else {
+        yield { type: 'text', value: '\n\n> ⚠️ *' + (execResult.error ?? 'Tool execution failed') + '*\n\n' };
+      }
+
       toolResultBlocks.push({
         type: 'tool_result',
         tool_use_id: use.id,
         content: execResult.ok
-          ? JSON.stringify({ success: true, ...(execResult.result ?? {}), note: 'Result shown to user inline. Continue naturally.' })
+          ? JSON.stringify({ success: true, ...(execResult.result ?? {}), note: 'Result already displayed inline to the user. Do NOT repeat URLs or embed images. Continue naturally.' })
           : JSON.stringify({ success: false, error: execResult.error ?? 'Failed' }),
         is_error: !execResult.ok,
       });

@@ -1,7 +1,7 @@
 'use client';
 import { useCallback, useRef, useState } from 'react';
 import { parseSSEStream } from '@/lib/chat/sse-client';
-import type { ToolKind, ToolPart } from '@/lib/chat/types';
+import type { ToolPart, ToolKind } from '@/features/chat/components/tool-result';
 
 interface SendOptions {
   conversationId: string | null;
@@ -9,16 +9,12 @@ interface SendOptions {
   provider?: 'openai' | 'anthropic' | 'google';
   model?: string;
   regenerate?: boolean;
+  imageBase64?: string;
+  imageMimeType?: string;
   onAssistantStart?: (meta: { conversationId: string; assistantMessageId: string; isNewConversation: boolean }) => void;
   onDelta?: (chunk: string) => void;
   onToolStart?: (part: ToolPart) => void;
-  onToolResult?: (update: {
-    toolUseId: string;
-    tool: ToolKind;
-    ok: boolean;
-    result?: ToolPart['result'];
-    error?: string;
-  }) => void;
+  onToolResult?: (update: { toolUseId: string; tool: ToolKind; ok: boolean; result?: ToolPart['result']; error?: string }) => void;
   onDone?: (meta: { latencyMs: number; inputTokens: number; outputTokens: number; costUsd: number }) => void;
   onError?: (message: string) => void;
 }
@@ -43,6 +39,8 @@ export function useSendMessage() {
           regenerate: isRegen,
           provider: opts.provider,
           model: opts.model,
+          imageBase64: opts.imageBase64,
+          imageMimeType: opts.imageMimeType,
         }),
         signal: controller.signal,
       });
@@ -56,48 +54,20 @@ export function useSendMessage() {
 
       for await (const event of parseSSEStream(res.body)) {
         if (event.event === 'meta') {
-          try {
-            const meta = JSON.parse(event.data);
-            opts.onAssistantStart?.(meta);
-          } catch {}
+          try { opts.onAssistantStart?.(JSON.parse(event.data)); } catch {}
         } else if (event.event === 'delta') {
-          try {
-            const { text } = JSON.parse(event.data);
-            opts.onDelta?.(text);
-          } catch {}
+          try { const { text } = JSON.parse(event.data); opts.onDelta?.(text); } catch {}
         } else if (event.event === 'tool_start') {
           try {
-            const data = JSON.parse(event.data) as {
-              toolUseId: string;
-              tool: ToolKind;
-              input: Record<string, unknown>;
-            };
-            const part: ToolPart = {
-              id: data.toolUseId,
-              kind: data.tool,
-              status: 'running',
-              input: data.input,
-              createdAt: new Date().toISOString(),
-            };
-            opts.onToolStart?.(part);
+            const data = JSON.parse(event.data) as { toolUseId: string; tool: ToolKind; input: Record<string, unknown> };
+            opts.onToolStart?.({ id: data.toolUseId, kind: data.tool, status: 'running', input: data.input, createdAt: new Date().toISOString() });
           } catch {}
         } else if (event.event === 'tool_result') {
-          try {
-            const data = JSON.parse(event.data);
-            opts.onToolResult?.(data);
-          } catch {}
+          try { opts.onToolResult?.(JSON.parse(event.data)); } catch {}
         } else if (event.event === 'done') {
-          try {
-            const meta = JSON.parse(event.data);
-            opts.onDone?.(meta);
-          } catch {}
+          try { opts.onDone?.(JSON.parse(event.data)); } catch {}
         } else if (event.event === 'error') {
-          try {
-            const { message } = JSON.parse(event.data);
-            opts.onError?.(message);
-          } catch {
-            opts.onError?.('Unknown error');
-          }
+          try { const { message } = JSON.parse(event.data); opts.onError?.(message); } catch { opts.onError?.('Unknown error'); }
         }
       }
     } catch (err) {

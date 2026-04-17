@@ -8,7 +8,8 @@ import { Composer } from './composer';
 import { ChatTopbar } from './chat-topbar';
 import { useSendMessage } from '../hooks/use-send-message';
 import { useChatStore, MODEL_OPTIONS } from '../stores/chat-store';
-import type { UiMessage, ToolPart } from '@/lib/chat/types';
+import type { UiMessage } from './message-bubble';
+import type { ToolPart } from './tool-result';
 
 interface Props {
   initialConversationId: string | null;
@@ -30,12 +31,11 @@ export function ChatView({ initialConversationId, initialMessages = [], initialT
   }, [selectedModel]);
 
   const streamInto = useCallback(
-    (userText: string | null, regenOfAssistantId: string | null) => {
+    (userText: string | null, regenOfAssistantId: string | null, attachment?: { base64: string; mimeType: string; fileName: string }) => {
       const assistantPlaceholderId = nanoid();
 
       setMessages((prev) => {
         let next = prev;
-
         if (regenOfAssistantId) {
           next = prev.map((m) =>
             m.id === regenOfAssistantId
@@ -44,26 +44,15 @@ export function ChatView({ initialConversationId, initialMessages = [], initialT
           );
         } else {
           if (userText) {
-            const userMsg: UiMessage = {
-              id: nanoid(),
-              role: 'user',
-              content: userText,
-              createdAt: new Date().toISOString(),
-              status: 'complete',
-            };
+            const displayText = attachment
+              ? userText + '\n\n📎 ' + attachment.fileName
+              : userText;
+            const userMsg: UiMessage = { id: nanoid(), role: 'user', content: displayText, createdAt: new Date().toISOString(), status: 'complete' };
             next = [...prev, userMsg];
           }
-          const assistantMsg: UiMessage = {
-            id: assistantPlaceholderId,
-            role: 'assistant',
-            content: '',
-            createdAt: new Date().toISOString(),
-            status: 'streaming',
-            toolParts: [],
-          };
+          const assistantMsg: UiMessage = { id: assistantPlaceholderId, role: 'assistant', content: '', createdAt: new Date().toISOString(), status: 'streaming', toolParts: [] };
           next = [...next, assistantMsg];
         }
-
         return next;
       });
 
@@ -72,13 +61,15 @@ export function ChatView({ initialConversationId, initialMessages = [], initialT
         message: userText ?? '__regenerate__',
         provider: providerForModel,
         model: selectedModel,
+        imageBase64: attachment?.base64,
+        imageMimeType: attachment?.mimeType,
         onAssistantStart: (meta) => {
           setMessages((prev) =>
             prev.map((m) => (m.id === assistantPlaceholderId ? { ...m, id: meta.assistantMessageId } : m)),
           );
           if (meta.isNewConversation) {
             setConversationId(meta.conversationId);
-            window.history.replaceState(null, '', `/chat/${meta.conversationId}`);
+            window.history.replaceState(null, '', '/chat/' + meta.conversationId);
           }
         },
         onDelta: (chunk) => {
@@ -105,12 +96,7 @@ export function ChatView({ initialConversationId, initialMessages = [], initialT
               if (m.role !== 'assistant' || m.status !== 'streaming') return m;
               const parts = (m.toolParts ?? []).map((p) =>
                 p.id === update.toolUseId
-                  ? {
-                      ...p,
-                      status: update.ok ? ('done' as const) : ('failed' as const),
-                      result: update.result,
-                      error: update.error,
-                    }
+                  ? { ...p, status: update.ok ? ('done' as const) : ('failed' as const), result: update.result, error: update.error }
                   : p,
               );
               return { ...m, toolParts: parts };
@@ -136,7 +122,11 @@ export function ChatView({ initialConversationId, initialMessages = [], initialT
     [conversationId, providerForModel, selectedModel, send, router],
   );
 
-  const handleSend = useCallback((text: string) => streamInto(text, null), [streamInto]);
+  const handleSend = useCallback(
+    (text: string, attachment?: { base64: string; mimeType: string; fileName: string }) =>
+      streamInto(text, null, attachment),
+    [streamInto],
+  );
 
   const handleRegenerate = useCallback(() => {
     const lastAssistant = [...messages].reverse().find((m) => m.role === 'assistant');
@@ -150,11 +140,7 @@ export function ChatView({ initialConversationId, initialMessages = [], initialT
   return (
     <div className="h-[calc(100vh-56px)] flex flex-col">
       <ChatTopbar title={initialTitle} />
-      <MessageList
-        messages={messages}
-        onRegenerate={handleRegenerate}
-        regenDisabled={loading}
-      />
+      <MessageList messages={messages} onRegenerate={handleRegenerate} regenDisabled={loading} />
       <Composer onSend={handleSend} onCancel={cancel} loading={loading} />
     </div>
   );

@@ -2,13 +2,11 @@
 import { useState, useCallback, type ComponentPropsWithoutRef } from 'react';
 import ReactMarkdown, { type Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import rehypeSanitize from 'rehype-sanitize';
-import { Check, Copy } from 'lucide-react';
+import { Check, Copy, Download } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 function CodeBlock({ children, ...props }: ComponentPropsWithoutRef<'pre'>) {
   const [copied, setCopied] = useState(false);
-
   const copy = useCallback(() => {
     const el = (props as { 'data-original-ref'?: unknown })['data-original-ref'];
     void el;
@@ -43,8 +41,40 @@ function CodeBlock({ children, ...props }: ComponentPropsWithoutRef<'pre'>) {
   );
 }
 
+function InlineImage(props: ComponentPropsWithoutRef<'img'>) {
+  const [loaded, setLoaded] = useState(false);
+  return (
+    <span className="block my-3 relative rounded-xl overflow-hidden border border-border bg-surface-2 group max-w-[520px]">
+      {!loaded && (
+        <span className="absolute inset-0 flex items-center justify-center text-fg-muted text-[12px]">Loading…</span>
+      )}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        {...props}
+        alt={props.alt ?? 'Generated image'}
+        onLoad={() => setLoaded(true)}
+        className="w-full h-auto block rounded-xl"
+        loading="lazy"
+      />
+      {props.src && (
+        <a
+          href={props.src}
+          target="_blank"
+          rel="noopener noreferrer"
+          download
+          className="absolute bottom-2 right-2 h-8 w-8 rounded-md bg-black/60 backdrop-blur text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center hover:bg-black/80"
+          aria-label="Download"
+        >
+          <Download className="h-3.5 w-3.5" />
+        </a>
+      )}
+    </span>
+  );
+}
+
 const components: Components = {
   pre: (props) => <CodeBlock {...props} />,
+  img: (props) => <InlineImage {...props} />,
 };
 
 export function MarkdownBody({ content, className }: { content: string; className?: string }) {
@@ -65,11 +95,11 @@ export function MarkdownBody({ content, className }: { content: string; classNam
       'prose-table:text-[13.5px]',
       'prose-th:text-fg prose-th:border-border',
       'prose-td:text-fg-soft prose-td:border-border',
+      'prose-img:rounded-xl prose-img:border prose-img:border-border prose-img:my-3',
       className,
     )}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
-        rehypePlugins={[rehypeSanitize]}
         components={components}
       >
         {content}
