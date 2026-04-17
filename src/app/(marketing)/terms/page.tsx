@@ -77,7 +77,7 @@ export default function TermsPage() {
             <p>Some services require a paid subscription. Prices are subject to change with prior notice. Cancellations can be made at any time from your account settings.</p>
 
             <h2 className="font-display text-[20px] text-fg">7. Limitation of Liability</h2>
-            <p>Operator AI is provided "as is." We do not guarantee the service will be uninterrupted or error-free. To the maximum extent permitted by law, we shall not be liable for indirect or consequential damages.</p>
+            <p>Operator AI is provided &ldquo;as is.&rdquo; We do not guarantee the service will be uninterrupted or error-free. To the maximum extent permitted by law, we shall not be liable for indirect or consequential damages.</p>
 
             <h2 className="font-display text-[20px] text-fg">8. Contact</h2>
             <p>For questions about these terms: <a href="mailto:legal@operatorai.app" className="text-gold hover:underline">legal@operatorai.app</a></p>
