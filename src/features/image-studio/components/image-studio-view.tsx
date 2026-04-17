@@ -9,9 +9,11 @@ import { AspectPicker } from './aspect-picker';
 import { ImageCard, type ImageItem } from './image-card';
 import { ReferenceUploader, type ReferenceImage } from './reference-uploader';
 import type { AspectRatioId } from '../data/presets';
+import { useI18n } from '@/lib/i18n';
 
 export function ImageStudioView() {
   const [prompt, setPrompt] = useState('');
+  const { t } = useI18n();
   const [preset, setPreset] = useState<string | null>('editorial');
   const [aspect, setAspect] = useState<AspectRatioId>('1:1');
   const [enhance, setEnhance] = useState(true);
@@ -88,7 +90,7 @@ export function ImageStudioView() {
   }
 
   async function onDelete(id: string) {
-    if (!confirm('Delete this image?')) return;
+    if (!confirm(t('img.delete_confirm'))) return;
     setImages((prev) => prev.filter((i) => i.id !== id));
     await fetch('/api/images/delete', {
       method: 'POST',
@@ -103,7 +105,7 @@ export function ImageStudioView() {
     <div className="space-y-8">
       <div className="surface-raised p-6 space-y-5">
         <div>
-          <Label htmlFor="prompt">What to generate</Label>
+          <Label htmlFor="prompt">{t("img.what_to_generate")}</Label>
           <textarea
             id="prompt"
             value={prompt}
@@ -131,7 +133,7 @@ export function ImageStudioView() {
 
         <div>
           <Label>
-            Reference images <span className="text-fg-subtle normal-case tracking-normal">(optional)</span>
+            Reference images <span className="text-fg-subtle normal-case tracking-normal">{t("img.optional")}</span>
           </Label>
           <ReferenceUploader
             value={references}
@@ -141,12 +143,12 @@ export function ImageStudioView() {
         </div>
 
         <div>
-          <Label>Preset</Label>
+          <Label>{t("img.preset")}</Label>
           <PresetPicker value={preset} onChange={setPreset} />
         </div>
 
         <div>
-          <Label>Aspect ratio</Label>
+          <Label>{t("img.aspect_ratio")}</Label>
           <AspectPicker value={aspect} onChange={setAspect} />
         </div>
 
@@ -168,7 +170,7 @@ export function ImageStudioView() {
       </div>
 
       <div className="flex items-center justify-between">
-        <h2 className="font-display text-[20px]">Library</h2>
+        <h2 className="font-display text-[20px]">{t("img.library")}</h2>
         <div className="flex items-center gap-1 p-1 rounded-md border border-border bg-surface-2">
           {(['all', 'starred'] as const).map((f) => (
             <button

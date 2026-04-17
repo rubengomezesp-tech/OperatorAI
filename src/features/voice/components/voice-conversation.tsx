@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { useVoiceRecorder } from '../hooks/use-voice-recorder';
 import { useTTS } from '../hooks/use-tts';
 import { cn } from '@/lib/utils';
+import { useI18n } from '@/lib/i18n';
 
 type Phase = 'idle' | 'listening' | 'transcribing' | 'thinking' | 'speaking' | 'error';
 
@@ -20,6 +21,7 @@ export function VoiceConversation() {
   const [turns, setTurns] = useState<Turn[]>([]);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [autoMode, setAutoMode] = useState(true);
+  const { t } = useI18n();
   const phaseRef = useRef<Phase>(phase);
   phaseRef.current = phase;
 
