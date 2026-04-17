@@ -295,6 +295,9 @@ const translations: Record<string, { en: string; es: string }> = {
   'chat.empty_title_2': { en: "building", es: "creamos" },
   'chat.empty_title_3': { en: " today?", es: " hoy?" },
   'chat.empty_desc': { en: "Ask me anything about your brand, strategy, campaigns, or writing. I know your business and adapt to your voice.", es: "Pregúntame lo que quieras sobre tu marca, estrategia, campañas o textos. Conozco tu negocio y me adapto a tu voz." },
+  'dash.files': { en: 'Files', es: 'Archivos' },
+  'dash.voice': { en: 'Voice', es: 'Voz' },
+  'dash.agents': { en: 'Agents', es: 'Agentes' },
 };
 
 type TranslationKey = string;
