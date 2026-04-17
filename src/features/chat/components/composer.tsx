@@ -35,7 +35,7 @@ export function Composer({ onSend, onCancel, loading, disabled }: Props) {
   function handle() {
     const trimmed = value.trim();
     if ((!trimmed && attachments.length === 0) || loading || disabled) return;
-    const msg = trimmed || (attachment ? 'Analyze this file' : '');
+    const msg = trimmed || (attachments.length > 0 ? 'Analyze this file' : '');
     onSend(
       msg,
       attachments.length > 0 ? { base64: attachments[0].base64, mimeType: attachments[0].mimeType, fileName: attachments[0].file.name } : undefined,
