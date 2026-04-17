@@ -1,6 +1,6 @@
 'use client';
 import Link from 'next/link';
-import { User, Plug, Brain, CreditCard, ChevronRight, Trash2, Shield, FileText, HelpCircle, BarChart3 } from 'lucide-react';
+import { User, Plug, Brain, CreditCard, ChevronRight, Trash2, Shield, FileText, HelpCircle } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
 
 export default function SettingsPage() {
@@ -28,7 +28,6 @@ export default function SettingsPage() {
           <SettingsLink href="/privacy" icon={Shield} label={t('legal.privacy')} desc="" />
           <SettingsLink href="/terms" icon={FileText} label={t('legal.terms')} desc="" />
           <SettingsLink href="/support" icon={HelpCircle} label={t('legal.support')} desc="" />
-        <SettingsLink href="/settings/feedback" icon={BarChart3} label="Feedback" desc={locale === 'es' ? 'Reacciones y reportes' : 'Reactions and reports'} />
         </div>
       </div>
 
