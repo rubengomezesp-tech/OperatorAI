@@ -69,3 +69,20 @@
     animation: shimmer 2s linear infinite;
   }
 }
+
+/* Splash screen animations */
+@keyframes fade-in-up {
+  0% { opacity: 0; transform: translateY(12px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+@keyframes loading-bar {
+  0% { width: 0%; }
+  50% { width: 70%; }
+  100% { width: 100%; }
+}
+.animate-fade-in-up {
+  animation: fade-in-up 0.6s ease-out both;
+}
+.animate-loading-bar {
+  animation: loading-bar 1.6s ease-in-out;
+}

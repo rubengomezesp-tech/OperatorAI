@@ -3,6 +3,7 @@ import { useEffect, useRef } from 'react';
 import { MessageBubble } from './message-bubble';
 import type { UiMessage } from '@/lib/chat/types';
 import { SpeakButton } from '@/features/voice/components/speak-button';
+import { useI18n } from '@/lib/i18n';
 
 interface Props {
   messages: UiMessage[];
@@ -11,6 +12,7 @@ interface Props {
 }
 
 export function MessageList({ messages, onRegenerate, regenDisabled }: Props) {
+  const { t } = useI18n();
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -21,13 +23,12 @@ export function MessageList({ messages, onRegenerate, regenDisabled }: Props) {
     return (
       <div className="flex-1 flex items-center justify-center px-6">
         <div className="max-w-[520px] text-center">
-          <div className="text-[11px] uppercase tracking-[0.18em] text-gold mb-3">Creative Agent</div>
+          <div className="text-[11px] uppercase tracking-[0.18em] text-gold mb-3">{t('chat.kicker')}</div>
           <h2 className="font-display text-[36px] leading-[1.1] mb-4">
-            What are we <span className="text-gold-grad">building</span> today?
+            {t('chat.empty_title_1')}<span className="text-gold-grad">{t('chat.empty_title_2')}</span>{t('chat.empty_title_3')}
           </h2>
           <p className="text-[14px] text-fg-muted">
-            Ask me anything about your brand, strategy, campaigns, or writing.
-            I know your business and adapt to your voice.
+            {t('chat.empty_desc')}
           </p>
         </div>
       </div>

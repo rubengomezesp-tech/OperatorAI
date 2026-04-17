@@ -290,6 +290,11 @@ const translations: Record<string, { en: string; es: string }> = {
   'missions.status_active': { en: 'Active', es: 'Activa' },
   'missions.status_completed': { en: 'Completed', es: 'Completada' },
   'missions.status_paused': { en: 'Paused', es: 'Pausada' },
+  'chat.kicker': { en: "Creative Agent", es: "Agente Creativo" },
+  'chat.empty_title_1': { en: "What are we ", es: "¿Qué " },
+  'chat.empty_title_2': { en: "building", es: "creamos" },
+  'chat.empty_title_3': { en: " today?", es: " hoy?" },
+  'chat.empty_desc': { en: "Ask me anything about your brand, strategy, campaigns, or writing. I know your business and adapt to your voice.", es: "Pregúntame lo que quieras sobre tu marca, estrategia, campañas o textos. Conozco tu negocio y me adapto a tu voz." },
 };
 
 type TranslationKey = string;
