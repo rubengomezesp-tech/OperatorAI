@@ -182,7 +182,7 @@ export function MessageBubble({ message, isLastAssistant, onRegenerate, regenDis
         )}
         {showActions && (
           <MessageActions
-            content={message.content}
+            content={message.content} messageId={message.id}
             onRegenerate={isLastAssistant ? onRegenerate : undefined}
             disabled={regenDisabled}
           />

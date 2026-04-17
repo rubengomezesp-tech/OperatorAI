@@ -59,7 +59,7 @@ export function MissionsContent({ missions }: { missions: Mission[] }) {
           <h1 className="font-display text-[32px]">{t('missions.title')}</h1>
           <p className="text-[13.5px] text-fg-muted mt-1.5">{t('missions.subtitle')}</p>
         </div>
-        <Button size="md"><Plus className="h-4 w-4" /><span>{t('missions.new')}</span></Button>
+        <Button size="md" onClick={() => window.location.href = '/chat'}><Plus className="h-4 w-4" /><span>{t('missions.new')}</span></Button>
       </div>
 
       {/* Active missions */}
@@ -107,7 +107,7 @@ export function MissionsContent({ missions }: { missions: Mission[] }) {
         <div className="text-[10.5px] uppercase tracking-[0.18em] text-fg-subtle mb-3">{t('missions.templates')}</div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {templates.map((tmpl) => (
-            <button
+            <button onClick={() => window.location.href = "/chat?prompt=" + encodeURIComponent(locale === "es" ? tmpl.title_es : tmpl.title_en)}
               key={tmpl.id}
               type="button"
               className="text-left p-4 rounded-lg border border-border bg-surface hover:border-gold/40 hover:bg-surface-2 transition-all group"
