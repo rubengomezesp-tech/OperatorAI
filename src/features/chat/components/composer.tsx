@@ -146,7 +146,7 @@ export function Composer({ onSend, onCancel, loading, disabled }: Props) {
               disabled={disabled || loading || attachments.length >= 10}
               className={cn(
                 'h-9 w-9 rounded-md flex items-center justify-center transition-colors',
-                attachment
+                attachments.length > 0
                   ? 'bg-gold/15 text-gold'
                   : 'text-fg-muted hover:text-fg hover:bg-surface-3',
                 (disabled || loading) && 'opacity-40 cursor-not-allowed',
