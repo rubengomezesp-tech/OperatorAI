@@ -1,4 +1,2 @@
 import { redirect } from 'next/navigation';
-export default function SettingsBillingRedirect() {
-  redirect('/billing');
-}
+export default function R() { redirect('/billing'); }
