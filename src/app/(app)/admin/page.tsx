@@ -12,8 +12,6 @@ export default async function AdminPage() {
   if (!user || !isAdmin(user.email)) redirect('/dashboard');
 
   const svc = createSupabaseServiceClient();
-
-  // Fetch stats
   const [
     { count: userCount },
     { count: convCount },
@@ -28,15 +26,5 @@ export default async function AdminPage() {
     svc.from('users').select('id, email, full_name, created_at').order('created_at', { ascending: false }).limit(20),
   ]);
 
-  return (
-    <AdminDashboard
-      stats={{
-        users: userCount ?? 0,
-        conversations: convCount ?? 0,
-        images: imageCount ?? 0,
-      }}
-      feedback={feedback ?? []}
-      recentUsers={recentUsers ?? []}
-    />
-  );
+  return <AdminDashboard stats={{ users: userCount ?? 0, conversations: convCount ?? 0, images: imageCount ?? 0 }} feedback={feedback ?? []} recentUsers={recentUsers ?? []} />;
 }
