@@ -291,6 +291,8 @@ export async function POST(req: NextRequest) {
           assistantId,
           origin: toolFetchCtx.origin,
           cookieHeader: toolFetchCtx.cookieHeader,
+          imageBase64: body.imageBase64,
+          imageMimeType: body.imageMimeType,
           signal: req.signal,
         })) {
           if (event.type === 'text') {
