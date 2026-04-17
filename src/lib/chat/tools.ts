@@ -164,10 +164,10 @@ async function execImage(input: Record<string, unknown>, ctx: ToolContext): Prom
   }
 
   // Save to DB + storage — return permanent Supabase URLs
+  const permanentUrls: string[] = [];
   try {
     const imageId = crypto.randomUUID();
     const storagePaths: string[] = [];
-    const permanentUrls: string[] = [];
 
     for (let i = 0; i < result.urls.length; i++) {
       try {
