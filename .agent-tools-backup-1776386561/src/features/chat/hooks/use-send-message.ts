@@ -1,7 +1,6 @@
 'use client';
 import { useCallback, useRef, useState } from 'react';
 import { parseSSEStream } from '@/lib/chat/sse-client';
-import type { ToolKind, ToolPart } from '@/lib/chat/types';
 
 interface SendOptions {
   conversationId: string | null;
@@ -11,14 +10,6 @@ interface SendOptions {
   regenerate?: boolean;
   onAssistantStart?: (meta: { conversationId: string; assistantMessageId: string; isNewConversation: boolean }) => void;
   onDelta?: (chunk: string) => void;
-  onToolStart?: (part: ToolPart) => void;
-  onToolResult?: (update: {
-    toolUseId: string;
-    tool: ToolKind;
-    ok: boolean;
-    result?: ToolPart['result'];
-    error?: string;
-  }) => void;
   onDone?: (meta: { latencyMs: number; inputTokens: number; outputTokens: number; costUsd: number }) => void;
   onError?: (message: string) => void;
 }
@@ -64,27 +55,6 @@ export function useSendMessage() {
           try {
             const { text } = JSON.parse(event.data);
             opts.onDelta?.(text);
-          } catch {}
-        } else if (event.event === 'tool_start') {
-          try {
-            const data = JSON.parse(event.data) as {
-              toolUseId: string;
-              tool: ToolKind;
-              input: Record<string, unknown>;
-            };
-            const part: ToolPart = {
-              id: data.toolUseId,
-              kind: data.tool,
-              status: 'running',
-              input: data.input,
-              createdAt: new Date().toISOString(),
-            };
-            opts.onToolStart?.(part);
-          } catch {}
-        } else if (event.event === 'tool_result') {
-          try {
-            const data = JSON.parse(event.data);
-            opts.onToolResult?.(data);
           } catch {}
         } else if (event.event === 'done') {
           try {

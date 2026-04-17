@@ -8,7 +8,7 @@ import { Composer } from './composer';
 import { ChatTopbar } from './chat-topbar';
 import { useSendMessage } from '../hooks/use-send-message';
 import { useChatStore, MODEL_OPTIONS } from '../stores/chat-store';
-import type { UiMessage, ToolPart } from '@/lib/chat/types';
+import type { UiMessage } from '@/lib/chat/types';
 
 interface Props {
   initialConversationId: string | null;
@@ -37,9 +37,10 @@ export function ChatView({ initialConversationId, initialMessages = [], initialT
         let next = prev;
 
         if (regenOfAssistantId) {
+          // Replace the existing assistant message with a fresh streaming one
           next = prev.map((m) =>
             m.id === regenOfAssistantId
-              ? { ...m, id: assistantPlaceholderId, content: '', status: 'streaming' as const, error: undefined, toolParts: [] }
+              ? { ...m, id: assistantPlaceholderId, content: '', status: 'streaming' as const, error: undefined }
               : m,
           );
         } else {
@@ -59,7 +60,6 @@ export function ChatView({ initialConversationId, initialMessages = [], initialT
             content: '',
             createdAt: new Date().toISOString(),
             status: 'streaming',
-            toolParts: [],
           };
           next = [...next, assistantMsg];
         }
@@ -90,33 +90,6 @@ export function ChatView({ initialConversationId, initialMessages = [], initialT
             ),
           );
         },
-        onToolStart: (part: ToolPart) => {
-          setMessages((prev) =>
-            prev.map((m) =>
-              m.role === 'assistant' && m.status === 'streaming'
-                ? { ...m, toolParts: [...(m.toolParts ?? []), part] }
-                : m,
-            ),
-          );
-        },
-        onToolResult: (update) => {
-          setMessages((prev) =>
-            prev.map((m) => {
-              if (m.role !== 'assistant' || m.status !== 'streaming') return m;
-              const parts = (m.toolParts ?? []).map((p) =>
-                p.id === update.toolUseId
-                  ? {
-                      ...p,
-                      status: update.ok ? ('done' as const) : ('failed' as const),
-                      result: update.result,
-                      error: update.error,
-                    }
-                  : p,
-              );
-              return { ...m, toolParts: parts };
-            }),
-          );
-        },
         onDone: () => {
           setMessages((prev) =>
             prev.map((m) => (m.status === 'streaming' ? { ...m, status: 'complete' } : m)),
@@ -139,6 +112,7 @@ export function ChatView({ initialConversationId, initialMessages = [], initialT
   const handleSend = useCallback((text: string) => streamInto(text, null), [streamInto]);
 
   const handleRegenerate = useCallback(() => {
+    // Find the last assistant message to replace
     const lastAssistant = [...messages].reverse().find((m) => m.role === 'assistant');
     if (!lastAssistant) return;
     streamInto(null, lastAssistant.id);

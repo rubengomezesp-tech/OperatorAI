@@ -1,10 +1,9 @@
 'use client';
 import { AgentPicker } from '@/features/agents/components/agent-picker';
 import { useState, useRef, useEffect, type KeyboardEvent } from 'react';
-import { ArrowUp, Square } from 'lucide-react';
+import { ArrowUp, Square, Paperclip, X as XIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { MicButton } from '@/features/voice/components/mic-button';
-import { useI18n } from '@/lib/i18n';
 
 interface Props {
   onSend: (text: string) => void;
@@ -14,7 +13,6 @@ interface Props {
 }
 
 export function Composer({ onSend, onCancel, loading, disabled }: Props) {
-  const { t } = useI18n();
   const [value, setValue] = useState('');
   const [agentType, setAgentType] = useState<'creative' | 'brand' | 'copy' | 'research' | 'analyst' | 'social'>('creative');
   const ref = useRef<HTMLTextAreaElement>(null);
@@ -59,7 +57,7 @@ export function Composer({ onSend, onCancel, loading, disabled }: Props) {
             value={value}
             onChange={(e) => setValue(e.target.value)}
             onKeyDown={onKeyDown}
-            placeholder={t('chat.message_placeholder')}
+            placeholder="Message Operator..."
             rows={1}
             disabled={disabled}
             className={cn(
@@ -98,7 +96,7 @@ export function Composer({ onSend, onCancel, loading, disabled }: Props) {
           </div>
         </div>
         <div className="mt-2 text-[10.5px] uppercase tracking-[0.14em] text-fg-subtle text-center">
-          {t('chat.footer_hint')}
+          Operator AI — Enter to send, Shift+Enter for new line
         </div>
       </div>
     </div>

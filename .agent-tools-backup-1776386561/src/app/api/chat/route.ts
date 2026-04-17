@@ -3,8 +3,7 @@ import { z } from 'zod';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { createSupabaseServiceClient } from '@/lib/supabase/service';
 import { sseEncode, sseComment } from '@/lib/sse/encoder';
-import { runChatWithTools } from '@/lib/orchestrator/run-chat-with-tools';
-import { buildToolFetchContext } from '@/lib/chat/tools';
+import { runChat } from '@/lib/orchestrator/run-chat';
 import { resolveOrgContext } from '@/features/chat/server/resolve-org-context';
 import { ensureDefaultAssistant } from '@/features/chat/server/ensure-assistant';
 import { getOrCreateConversation } from '@/features/chat/server/get-or-create-conversation';
@@ -18,7 +17,7 @@ import { webSearch, formatWebContext, shouldSearch } from '@/features/web-browse
 import type { ChatMessage } from '@/lib/providers';
 
 export const runtime = 'nodejs';
-export const maxDuration = 300;
+export const maxDuration = 60;
 
 const BodySchema = z.object({
   conversationId: z.string().optional().nullable(),
@@ -60,6 +59,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'No active workspace' }, { status: 403 });
   }
 
+  // Quota check
   const { data: quota } = await svc.rpc('check_quota', { p_org_id: orgId, p_kind: 'chat_message' });
   const q = quota as { allowed: boolean; used: number; limit: number } | null;
   if (q && !q.allowed) {
@@ -118,8 +118,12 @@ export async function POST(req: NextRequest) {
     userMessageId = (userMsgRow as { id: string }).id;
   }
 
+  // Specialized agent
   const selectedAgent = findAgent(body.agentType ?? 'creative');
+  const effectiveProvider = body.provider ?? selectedAgent?.preferredProvider ?? 'openai';
+  const effectiveModel = body.model ?? selectedAgent?.preferredModel;
 
+  // === RAG retrieval ===
   let retrieved: RetrievedChunk[] = [];
   let knowledgeBlock = '';
   if (queryText && queryText.trim().length > 0) {
@@ -134,6 +138,7 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // === MEMORY + VOICE ===
   let memoryBlock = '';
   let voiceSnippet = '';
   try {
@@ -159,6 +164,7 @@ export async function POST(req: NextRequest) {
     console.error('[memory/voice] load failed:', e);
   }
 
+  // Load history
   const { data: history } = await svc
     .from('messages')
     .select('role, content')
@@ -173,15 +179,18 @@ export async function POST(req: NextRequest) {
 
   const systemAdditions: ChatMessage[] = [];
 
+  // Web browse: explicit flag OR auto-detect for researcher agent
   const wantsWeb = body.webBrowse === true || (selectedAgent?.id === 'research' && shouldSearch(body.message ?? ''));
   if (wantsWeb) {
     try {
       const webResults = await webSearch(body.message ?? '', 5);
       const webBlock = formatWebContext(webResults);
       if (webBlock) systemAdditions.push({ role: 'system', content: webBlock });
-    } catch { /* graceful */ }
+    } catch { /* graceful fallback */ }
   }
 
+  
+  // Load brand profile for persistent context
   try {
     const { data: bp } = await svc.from('brand_profile').select('*').eq('org_id', orgId).maybeSingle();
     if (bp) {
@@ -203,29 +212,13 @@ export async function POST(req: NextRequest) {
   if (voiceSnippet) systemAdditions.push({ role: 'system', content: voiceSnippet });
   if (memoryBlock) systemAdditions.push({ role: 'system', content: memoryBlock });
   if (knowledgeBlock) systemAdditions.push({ role: 'system', content: knowledgeBlock });
-
-  try {
-    const { data: recentFiles } = await svc
-      .from('analysis_files')
-      .select('id, name')
-      .eq('org_id', orgId)
-      .order('created_at', { ascending: false })
-      .limit(10);
-    if (recentFiles && recentFiles.length > 0) {
-      const list = (recentFiles as Array<{ id: string; name: string }>)
-        .map((f) => `- ${f.name} (id: ${f.id})`)
-        .join('\n');
-      systemAdditions.push({
-        role: 'system',
-        content:
-          '<user_files>\nRecent uploaded files. Use these IDs with the file_analysis tool if the user mentions one:\n' +
-          list +
-          '\n</user_files>',
-      });
-    }
-  } catch { /* optional */ }
-
   const messages: ChatMessage[] = [...systemAdditions, ...baseMessages];
+
+  const { data: assistantRow } = await svc
+    .from('assistants')
+    .select('business_name, industry, audience, services, goals, tone, writing_style, languages, custom_instructions, banned_words')
+    .eq('id', assistantId)
+    .single();
 
   const pendingInsert = {
     org_id: orgId,
@@ -234,8 +227,8 @@ export async function POST(req: NextRequest) {
     role: 'assistant',
     content: '',
     status: 'streaming',
-    provider: 'anthropic',
-    model: 'claude-sonnet-4-5',
+    provider: effectiveProvider,
+    model: effectiveModel ?? null,
     parent_message_id: userMessageId,
     context_doc_chunks: retrieved.map((c) => c.id),
   } as never;
@@ -248,9 +241,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: pendingErr?.message ?? 'Failed to create pending message' }, { status: 500 });
   }
   const pendingMessageId = (pendingRow as { id: string }).id;
-
-  // Build per-request context the tools need: absolute origin + cookie header.
-  const toolFetchCtx = await buildToolFetchContext(req);
 
   const started = Date.now();
 
@@ -275,62 +265,25 @@ export async function POST(req: NextRequest) {
         let costUsd = 0;
         let failed = false;
         let errorMessage = '';
-        const toolParts: Array<{
-          id: string; kind: string; status: 'running'|'done'|'failed';
-          input: Record<string, unknown>;
-          result?: Record<string, unknown>;
-          error?: string;
-          createdAt: string;
-        }> = [];
 
-        for await (const event of runChatWithTools({
+        for await (const delta of runChat({
           messages,
-          svc,
-          orgId,
-          userId: user.id,
-          assistantId,
-          origin: toolFetchCtx.origin,
-          cookieHeader: toolFetchCtx.cookieHeader,
+          assistant: assistantRow as Parameters<typeof runChat>[0]['assistant'],
+          provider: effectiveProvider,
+          model: effectiveModel,
           signal: req.signal,
         })) {
-          if (event.type === 'text') {
-            fullText += event.value;
-            controller.enqueue(sseEncode('delta', { text: event.value }));
-          } else if (event.type === 'tool_start') {
-            toolParts.push({
-              id: event.toolUseId,
-              kind: event.tool,
-              status: 'running',
-              input: event.input,
-              createdAt: new Date().toISOString(),
-            });
-            controller.enqueue(sseEncode('tool_start', {
-              toolUseId: event.toolUseId,
-              tool: event.tool,
-              input: event.input,
-            }));
-          } else if (event.type === 'tool_result') {
-            const existing = toolParts.find((p) => p.id === event.toolUseId);
-            if (existing) {
-              existing.status = event.ok ? 'done' : 'failed';
-              existing.result = event.result as Record<string, unknown> | undefined;
-              existing.error = event.error;
-            }
-            controller.enqueue(sseEncode('tool_result', {
-              toolUseId: event.toolUseId,
-              tool: event.tool,
-              ok: event.ok,
-              result: event.result,
-              error: event.error,
-            }));
-          } else if (event.type === 'done') {
-            inputTokens = event.inputTokens;
-            outputTokens = event.outputTokens;
-            costUsd = event.costUsd;
-          } else if (event.type === 'error') {
+          if (delta.type === 'text') {
+            fullText += delta.value;
+            controller.enqueue(sseEncode('delta', { text: delta.value }));
+          } else if (delta.type === 'done') {
+            inputTokens = delta.inputTokens ?? 0;
+            outputTokens = delta.outputTokens ?? 0;
+            costUsd = delta.costUsd ?? 0;
+          } else if (delta.type === 'error') {
             failed = true;
-            errorMessage = event.message;
-            controller.enqueue(sseEncode('error', { message: event.message }));
+            errorMessage = delta.message;
+            controller.enqueue(sseEncode('error', { message: delta.message }));
           }
         }
 
@@ -346,7 +299,6 @@ export async function POST(req: NextRequest) {
             output_tokens: outputTokens,
             latency_ms: latencyMs,
             cost_usd: costUsd,
-            tool_parts: toolParts,
           } as never)
           .eq('id', pendingMessageId);
 
@@ -362,6 +314,7 @@ export async function POST(req: NextRequest) {
           p_cost: costUsd,
         });
 
+        // Memory extraction (fire-and-forget)
         if (!failed && queryText) {
           try {
             const mode: 'explicit' | 'auto' = isExplicitMemoryRequest(queryText) ? 'explicit' : 'auto';

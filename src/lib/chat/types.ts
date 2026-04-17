@@ -1,5 +1,24 @@
 export type UiMessageRole = 'user' | 'assistant';
 
+export type ToolKind = 'image' | 'video' | 'file_analysis' | 'knowledge_search';
+export type ToolStatus = 'running' | 'done' | 'failed';
+
+export interface ToolPart {
+  id: string;
+  kind: ToolKind;
+  status: ToolStatus;
+  input: Record<string, unknown>;
+  result?: {
+    urls?: string[];
+    videoUrl?: string;
+    thumbnailUrl?: string;
+    text?: string;
+    sources?: Array<{ title: string; id: string }>;
+  };
+  error?: string;
+  createdAt: string;
+}
+
 export interface UiMessage {
   id: string;
   role: UiMessageRole;
@@ -7,6 +26,8 @@ export interface UiMessage {
   createdAt: string;
   status?: 'streaming' | 'complete' | 'failed';
   error?: string;
+  /** Tool invocations attached to this assistant message, in order. */
+  toolParts?: ToolPart[];
 }
 
 export interface ConversationSummary {

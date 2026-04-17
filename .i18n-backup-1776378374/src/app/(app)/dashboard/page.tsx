@@ -1,26 +1,26 @@
-'use client';
 import Link from 'next/link';
 import { Rocket, MessageSquare, Sparkles, Zap, Target, ArrowRight } from 'lucide-react';
-import { useI18n } from '@/lib/i18n';
+
+export const dynamic = 'force-dynamic';
 
 export default function DashboardPage() {
-  const { t } = useI18n();
-
   return (
     <div className="min-h-screen">
+      {/* Hero section */}
       <section className="relative px-6 lg:px-10 pt-10 lg:pt-14 pb-10 overflow-hidden">
         <div className="absolute -top-24 left-1/2 -translate-x-1/2 h-72 w-[600px] rounded-full gold-grad opacity-[0.04] blur-3xl pointer-events-none" />
         <div className="relative max-w-[960px] mx-auto">
           <div className="text-[11px] uppercase tracking-[0.18em] text-gold mb-2">Operator AI</div>
           <h1 className="font-display text-[40px] lg:text-[52px] leading-[1.02] mb-4">
-            {t('dash.hero_line_1')} <span className="text-gold-grad">{t('dash.hero_line_2')}</span>
+            Deploy missions. <span className="text-gold-grad">Not prompts.</span>
           </h1>
           <p className="text-[15px] text-fg-muted max-w-[540px] leading-relaxed mb-8">
-            {t('dash.hero_subtitle')}
+            Your autonomous operations platform. Tell Operator what you want achieved &mdash; it orchestrates the work.
           </p>
         </div>
       </section>
 
+      {/* Missions — hero tile */}
       <section className="px-6 lg:px-10 pb-6">
         <div className="max-w-[960px] mx-auto">
           <Link
@@ -32,17 +32,17 @@ export default function DashboardPage() {
               <div className="flex-1 min-w-0">
                 <div className="inline-flex items-center gap-1.5 text-[10.5px] uppercase tracking-[0.18em] text-gold bg-gold/10 border border-gold/20 rounded px-2 py-0.5 mb-3">
                   <span className="h-1.5 w-1.5 rounded-full bg-gold animate-pulse" />
-                  <span>{t('dash.new_paradigm')}</span>
+                  <span>New paradigm</span>
                 </div>
                 <h2 className="font-display text-[28px] lg:text-[34px] leading-tight mb-2.5">
-                  {t('dash.mission_title_prefix')} <span className="text-gold-grad">{t('dash.mission_title_accent')}</span>.
+                  Your first <span className="text-gold-grad">Mission</span>.
                 </h2>
                 <p className="text-[14px] text-fg-muted leading-relaxed max-w-[440px] mb-5">
-                  {t('dash.mission_description')}
+                  Define an objective. Operator deploys agents, generates content, runs the workflow, and tracks outcomes. You approve. It executes.
                 </p>
                 <div className="inline-flex items-center gap-2 h-9 px-4 rounded-md gold-grad text-bg text-[13px] font-medium group-hover:brightness-110 transition">
                   <Rocket className="h-3.5 w-3.5" />
-                  <span>{t('dash.deploy_mission_cta')}</span>
+                  <span>Deploy a Mission</span>
                   <ArrowRight className="h-3 w-3 ml-1" />
                 </div>
               </div>
@@ -54,33 +54,64 @@ export default function DashboardPage() {
         </div>
       </section>
 
+      {/* Core modules — 4 tiles */}
       <section className="px-6 lg:px-10 pb-12">
         <div className="max-w-[960px] mx-auto">
-          <div className="text-[10.5px] uppercase tracking-[0.18em] text-fg-subtle mb-3">{t('dash.core_modules')}</div>
+          <div className="text-[10.5px] uppercase tracking-[0.18em] text-fg-subtle mb-3">Core modules</div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <ModuleTile href="/chat" icon={MessageSquare} label={t('dash.tile_chat_label')} description={t('dash.tile_chat_desc')} kbd="G+C" newLabel={t('dash.new_badge')} />
-            <ModuleTile href="/studio/image" icon={Sparkles} label={t('dash.tile_studio_label')} description={t('dash.tile_studio_desc')} kbd="G+I" newLabel={t('dash.new_badge')} />
-            <ModuleTile href="/workflows" icon={Zap} label={t('dash.tile_workflows_label')} description={t('dash.tile_workflows_desc')} kbd="G+W" newLabel={t('dash.new_badge')} />
-            <ModuleTile href="/brand-os" icon={Target} label={t('dash.tile_brandos_label')} description={t('dash.tile_brandos_desc')} kbd="G+B" isNew newLabel={t('dash.new_badge')} />
+            <ModuleTile
+              href="/chat"
+              icon={MessageSquare}
+              label="Chat"
+              description="Talk to your brand AI. Ask, generate, execute &mdash; in one conversation."
+              kbd="G+C"
+            />
+            <ModuleTile
+              href="/studio/image"
+              icon={Sparkles}
+              label="Studio"
+              description="Imagery and video, on-brand by default. Imagen 4, Flux 2 Pro, Veo 3.1."
+              kbd="G+I"
+            />
+            <ModuleTile
+              href="/workflows"
+              icon={Zap}
+              label="Workflows"
+              description="Multi-step automations. Chain agents, integrations, and schedules."
+              kbd="G+W"
+            />
+            <ModuleTile
+              href="/brand-os"
+              icon={Target}
+              label="Brand OS"
+              description="The rules your brand runs on. Colors, tone, words. Enforced on every output."
+              kbd="G+B"
+              isNew
+            />
           </div>
         </div>
       </section>
 
+      {/* Secondary — quick access */}
       <section className="px-6 lg:px-10 pb-16">
         <div className="max-w-[960px] mx-auto">
-          <div className="text-[10.5px] uppercase tracking-[0.18em] text-fg-subtle mb-3">{t('dash.also_here')}</div>
+          <div className="text-[10.5px] uppercase tracking-[0.18em] text-fg-subtle mb-3">Also here</div>
           <div className="flex flex-wrap gap-2">
             {[
-              { href: '/projects', label: t('nav.projects') },
-              { href: '/knowledge', label: t('nav.knowledge') },
-              { href: '/files', label: t('dash.quick_files') },
-              { href: '/voice', label: t('dash.quick_voice') },
-              { href: '/assistants', label: t('dash.quick_agents') },
-              { href: '/settings/integrations', label: t('nav.integrations') },
-              { href: '/settings/memory', label: t('nav.memory') },
-              { href: '/settings/billing', label: t('nav.billing') },
+              { href: '/projects', label: 'Projects' },
+              { href: '/knowledge', label: 'Knowledge' },
+              { href: '/files', label: 'Files' },
+              { href: '/voice', label: 'Voice' },
+              { href: '/assistants', label: 'Agents' },
+              { href: '/settings/integrations', label: 'Integrations' },
+              { href: '/settings/memory', label: 'Memory' },
+              { href: '/settings/billing', label: 'Billing' },
             ].map((link) => (
-              <Link key={link.href} href={link.href} className="inline-flex items-center gap-1.5 h-8 px-3 rounded-full border border-border bg-surface-2 text-[12px] text-fg-muted hover:text-gold hover:border-gold/40 transition">
+              <Link
+                key={link.href}
+                href={link.href}
+                className="inline-flex items-center gap-1.5 h-8 px-3 rounded-full border border-border bg-surface-2 text-[12px] text-fg-muted hover:text-gold hover:border-gold/40 transition"
+              >
                 <span>{link.label}</span>
               </Link>
             ))}
@@ -92,7 +123,7 @@ export default function DashboardPage() {
 }
 
 function ModuleTile({
-  href, icon: Icon, label, description, kbd, isNew, newLabel,
+  href, icon: Icon, label, description, kbd, isNew,
 }: {
   href: string;
   icon: React.ComponentType<{ className?: string }>;
@@ -100,10 +131,12 @@ function ModuleTile({
   description: string;
   kbd?: string;
   isNew?: boolean;
-  newLabel: string;
 }) {
   return (
-    <Link href={href} className="group relative rounded-xl border border-border bg-surface p-5 hover:border-gold/40 hover:bg-surface-2 transition-all">
+    <Link
+      href={href}
+      className="group relative rounded-xl border border-border bg-surface p-5 hover:border-gold/40 hover:bg-surface-2 transition-all"
+    >
       <div className="flex items-start gap-4">
         <div className="h-11 w-11 rounded-lg bg-gold/10 border border-gold/20 flex items-center justify-center shrink-0 group-hover:bg-gold/15 transition-colors">
           <Icon className="h-5 w-5 text-gold" />
@@ -112,7 +145,7 @@ function ModuleTile({
           <div className="flex items-center gap-2 mb-1">
             <span className="font-display text-[17px] group-hover:text-gold transition-colors">{label}</span>
             {isNew && (
-              <span className="text-[9px] px-1.5 py-0.5 rounded bg-gold text-bg font-bold uppercase tracking-[0.1em]">{newLabel}</span>
+              <span className="text-[9px] px-1.5 py-0.5 rounded bg-gold text-bg font-bold uppercase tracking-[0.1em]">New</span>
             )}
           </div>
           <p className="text-[12.5px] text-fg-muted leading-relaxed">{description}</p>
@@ -120,7 +153,12 @@ function ModuleTile({
         {kbd && (
           <div className="hidden lg:flex shrink-0 gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
             {kbd.split('+').map((k, i) => (
-              <kbd key={i} className="min-w-[18px] h-5 px-1 rounded bg-surface-3 border border-border text-[9.5px] font-mono text-fg-subtle flex items-center justify-center">{k}</kbd>
+              <kbd
+                key={i}
+                className="min-w-[18px] h-5 px-1 rounded bg-surface-3 border border-border text-[9.5px] font-mono text-fg-subtle flex items-center justify-center"
+              >
+                {k}
+              </kbd>
             ))}
           </div>
         )}

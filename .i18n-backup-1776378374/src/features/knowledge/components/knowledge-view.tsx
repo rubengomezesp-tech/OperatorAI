@@ -3,10 +3,8 @@ import { useEffect, useState, useCallback } from 'react';
 import { toast } from 'sonner';
 import { UploadDropzone } from './upload-dropzone';
 import { DocumentRow, type DocumentRow as DocType } from './document-row';
-import { useI18n } from '@/lib/i18n';
 
 export function KnowledgeView() {
-  const { t } = useI18n();
   const [docs, setDocs] = useState<DocType[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -24,6 +22,7 @@ export function KnowledgeView() {
     refresh();
   }, [refresh]);
 
+  // Poll when there are docs in progress
   useEffect(() => {
     const inProgress = docs.some((d) => d.status === 'uploading' || d.status === 'processing');
     if (!inProgress) return;
@@ -39,10 +38,10 @@ export function KnowledgeView() {
     });
     const body = await res.json().catch(() => ({}));
     if (!res.ok) {
-      toast.error(body?.error ?? t('kb.delete_failed'));
+      toast.error(body?.error ?? 'Delete failed');
       return;
     }
-    toast.success(t('kb.deleted'));
+    toast.success('Deleted');
     setDocs((prev) => prev.filter((d) => d.id !== id));
   }
 
@@ -52,18 +51,18 @@ export function KnowledgeView() {
 
       <div>
         <div className="flex items-center justify-between mb-3">
-          <h2 className="font-display text-[18px]">{t('kb.documents')}</h2>
+          <h2 className="font-display text-[18px]">Documents</h2>
           <span className="text-[11px] uppercase tracking-[0.16em] text-fg-subtle">
-            {docs.length} {docs.length === 1 ? t('kb.file_one') : t('kb.file_many')}
+            {docs.length} {docs.length === 1 ? 'file' : 'files'}
           </span>
         </div>
         {loading && (
-          <div className="text-[13px] text-fg-muted py-6 text-center">{t('kb.loading')}</div>
+          <div className="text-[13px] text-fg-muted py-6 text-center">Loading...</div>
         )}
         {!loading && docs.length === 0 && (
           <div className="rounded-lg border border-dashed border-border bg-surface-2/30 py-10 text-center">
             <p className="text-[13.5px] text-fg-muted">
-              {t('kb.empty')}
+              No documents yet. Upload your first file to start.
             </p>
           </div>
         )}
