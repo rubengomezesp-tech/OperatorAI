@@ -26,7 +26,7 @@ interface Props {
 // Matches URLs that likely point to images (Replicate, Supabase, common CDNs, or ending in image extension)
 const IMAGE_URL_REGEX = /https?:\/\/[^\s)]+\.(?:png|jpe?g|gif|webp|avif)(?:\?[^\s)]*)?/gi;
 // Matches Replicate delivery URLs which don't have extensions
-const REPLICATE_URL_REGEX = /https?:\/\/(?:replicate\.delivery|pbxt\.replicate\.com|[^\s)]+\.supabase\.co\/storage)[^\s)]+/gi;
+const REPLICATE_URL_REGEX = /https?:\/\/(?:replicate\.delivery|pbxt\.replicate\.com|[^\s)]+\.supabase\.co\/storage\/v1\/object\/public)[^\s)]+/gi;
 
 /**
  * Extract image URLs from text and return text with URLs stripped
@@ -83,10 +83,13 @@ function ImagePreview({ url }: { url: string }) {
 
   if (errored) {
     return (
-      <div className="my-3 inline-flex items-center gap-2 rounded-lg border border-border bg-surface-2 px-3 py-2">
-        <ImageIcon className="h-4 w-4 text-fg-muted" />
-        <a href={url} target="_blank" rel="noopener noreferrer" className="text-[12.5px] text-gold hover:underline">
-          Open image
+      <div className="my-3 inline-flex items-center gap-2 rounded-lg border border-gold/30 bg-gold/5 px-4 py-3 hover:bg-gold/10 transition-colors">
+        <ImageIcon className="h-4 w-4 text-gold" />
+        <a href={url} target="_blank" rel="noopener noreferrer" className="text-[13px] text-gold font-medium hover:underline">
+          View image
+        </a>
+        <a href={url} download className="text-[11px] text-fg-muted hover:text-gold ml-2">
+          Download
         </a>
       </div>
     );

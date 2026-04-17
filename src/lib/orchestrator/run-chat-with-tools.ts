@@ -163,9 +163,9 @@ export async function* runChatWithTools(args: RunArgs): AsyncIterable<ToolStream
 
     const toolResultBlocks: Anthropic.ToolResultBlockParam[] = [];
     for (const use of pendingToolUses) {
-      const toolLabel = use.name === 'image' ? '🎨' : use.name === 'video' ? '🎬' : use.name === 'file_analysis' ? '📊' : '📚';
-      const toolAction = use.name === 'image' ? 'Generating image' : use.name === 'video' ? 'Rendering video' : use.name === 'file_analysis' ? 'Analyzing file' : 'Searching knowledge';
-      yield { type: 'text', value: '\n\n> ' + toolLabel + ' *' + toolAction + '...*\n\n' };
+      const toolLabel = use.name === 'image' ? '◐' : use.name === 'video' ? '◐' : use.name === 'file_analysis' ? '◐' : '◐';
+      const toolAction = use.name === 'image' ? 'Generating image' : use.name === 'video' ? 'Rendering video' : use.name === 'file_analysis' ? 'Analyzing' : 'Searching';
+      yield { type: 'text', value: '\n\n---\n\n' };
 
       const execResult = await executeTool(use.name as ToolKind, use.input, {
         svc: args.svc,
