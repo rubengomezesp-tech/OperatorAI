@@ -186,8 +186,7 @@ export function Composer({ onSend, onCancel, loading, disabled }: Props) {
           </div>
         </div>
         <div className="mt-2 text-[10.5px] uppercase tracking-[0.14em] text-fg-subtle text-center">
-          {t('chat.footer_hint')}
-        </div>
+Operator AI — Enter to send, Shift+Enter for new line        </div>
       </div>
     </div>
   );
