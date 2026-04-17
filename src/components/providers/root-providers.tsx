@@ -4,6 +4,7 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { ThemeProvider } from 'next-themes';
 import { useState } from 'react';
 import { ToastProvider } from '@/components/ui/toast';
+import { I18nProvider } from '@/lib/i18n';
 
 export function RootProviders({ children }: { children: React.ReactNode }) {
   const [qc] = useState(
@@ -26,8 +27,10 @@ export function RootProviders({ children }: { children: React.ReactNode }) {
   return (
     <QueryClientProvider client={qc}>
       <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
-        {children}
-        <ToastProvider />
+        <I18nProvider>
+          {children}
+          <ToastProvider />
+        </I18nProvider>
       </ThemeProvider>
       {process.env.NODE_ENV === 'development' && <ReactQueryDevtools />}
     </QueryClientProvider>
