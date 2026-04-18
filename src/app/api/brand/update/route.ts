@@ -17,18 +17,18 @@ export async function POST(req: NextRequest) {
 
     const { error } = await svc.from('brand_profile').upsert({
       org_id: orgId,
-      brand_name: body.brand_name ?? null,
-      description: body.description ?? null,
-      vibe: body.vibe ?? null,
+      brand_name: body.brand_name || null,
+      description: body.description || null,
+      vibe: body.vibe || null,
       colors: body.colors ?? [],
       fonts: body.fonts ?? [],
-      target_audience: body.target_audience ?? null,
+      target_audience: body.target_audience || null,
       tone_keywords: body.tone_keywords ?? [],
-      visual_style: body.visual_style ?? null,
-      industry: body.industry ?? null,
+      visual_style: body.visual_style || null,
+      industry: body.industry || null,
       content_pillars: body.content_pillars ?? [],
       avoid_keywords: body.avoid_keywords ?? [],
-      instagram_handle: body.instagram_handle ?? null,
+      instagram_handle: body.instagram_handle || null,
       brand_values: body.brand_values ?? [],
       competitors: body.competitors ?? [],
       updated_at: new Date().toISOString(),
@@ -40,9 +40,9 @@ export async function POST(req: NextRequest) {
       if (error.message.includes('column')) {
         const { error: e2 } = await svc.from('brand_profile').upsert({
           org_id: orgId,
-          brand_name: body.brand_name ?? null,
-          description: body.description ?? null,
-          vibe: body.vibe ?? null,
+          brand_name: body.brand_name || null,
+          description: body.description || null,
+          vibe: body.vibe || null,
           updated_at: new Date().toISOString(),
         } as never, { onConflict: 'org_id' });
         if (e2) throw e2;
