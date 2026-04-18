@@ -132,6 +132,7 @@ export async function enhancePrompt(
   userPrompt: string,
   presetHint: string,
   hasReferences: boolean,
+  brandContext?: { name?: string; description?: string; vibe?: string; colors?: string[]; visualStyle?: string; audience?: string; avoid?: string[] },
 ): Promise<string> {
   if (!serverEnv.OPENAI_API_KEY) return userPrompt;
 
@@ -142,9 +143,21 @@ export async function enhancePrompt(
     ? ' The user has attached reference images - their style, subject, lighting, or composition should guide the output.'
     : '';
 
+  let brandHint = '';
+  if (brandContext) {
+    const parts: string[] = [];
+    if (brandContext.name) parts.push('Brand: ' + brandContext.name);
+    if (brandContext.vibe) parts.push('Vibe: ' + brandContext.vibe);
+    if (brandContext.colors && brandContext.colors.length > 0) parts.push('Brand colors: ' + brandContext.colors.join(', '));
+    if (brandContext.visualStyle) parts.push('Visual style: ' + brandContext.visualStyle);
+    if (brandContext.audience) parts.push('Target audience: ' + brandContext.audience);
+    if (brandContext.avoid && brandContext.avoid.length > 0) parts.push('AVOID: ' + brandContext.avoid.join(', '));
+    if (parts.length > 0) brandHint = ' Brand context: ' + parts.join('. ') + '.';
+  }
+
   const system =
-    'You are an expert visual art director. Rewrite the user\'s brief into a rich, descriptive image prompt for Flux 2 Pro. Be specific about subject details, lighting, color palette, texture, camera angle, composition, and mood. Keep it under 100 words. No preamble, only the prompt itself. Preset vibe: ' +
-    presetHint + '.' + refHint;
+    'You are an expert visual art director and brand designer. Rewrite the user\'s brief into a rich, descriptive image prompt for Flux 2 Pro. Be specific about subject details, lighting, color palette, texture, camera angle, composition, and mood. The output must feel cohesive with the brand identity. Keep it under 100 words. No preamble, only the prompt itself. Preset vibe: ' +
+    presetHint + '.' + refHint + brandHint;
 
   const res = await client.chat.completions.create({
     model: 'gpt-4o-mini',

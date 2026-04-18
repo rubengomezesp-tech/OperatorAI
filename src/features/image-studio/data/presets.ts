@@ -58,4 +58,52 @@ export const ASPECT_RATIOS = [
   { id: '3:2',  label: 'Landscape', w: 1216, h: 832 },
 ] as const;
 
-export type AspectRatioId = typeof ASPECT_RATIOS[number]['id'];
+export type AspectRatioId = typeof ASPECT_RATIOS[number]['id'  {
+    id: 'ig-feed',
+    label: 'Instagram Feed',
+    hint: 'Square, scroll-stopping, on-brand feed post',
+    promptPrefix: 'Instagram feed post, square format, scroll-stopping visual, ',
+    promptSuffix: '. Clean composition, vibrant but cohesive colors, modern aesthetic, high contrast, social media optimized, professional photography, lifestyle brand feel, 4K.',
+    negativePrompt: 'blurry, low quality, text overlay, watermark, amateur, cluttered',
+  },
+  {
+    id: 'ig-story',
+    label: 'Instagram Story',
+    hint: 'Vertical 9:16, immersive, full-screen impact',
+    promptPrefix: 'Instagram story format, vertical 9:16, immersive full-screen visual, ',
+    promptSuffix: '. Dynamic composition, bold colors, modern lifestyle aesthetic, cinematic lighting, engaging visual hierarchy, mobile-optimized, high resolution.',
+    negativePrompt: 'horizontal, landscape, low quality, blurry, amateur',
+  },
+  {
+    id: 'ig-reel',
+    label: 'Reel Cover',
+    hint: 'Vertical thumbnail, eye-catching, dynamic',
+    promptPrefix: 'Video thumbnail cover, vertical format, eye-catching dynamic composition, ',
+    promptSuffix: '. Bold visual impact, cinematic color grading, modern aesthetic, action moment frozen, professional quality, scroll-stopping.',
+    negativePrompt: 'blurry, static, boring, low quality, amateur',
+  },
+  {
+    id: 'campaign',
+    label: 'Campaign',
+    hint: 'Ad-ready, commercial, persuasive visual',
+    promptPrefix: 'Commercial advertising campaign photograph, ',
+    promptSuffix: '. Studio-quality lighting, product-focused composition, aspirational lifestyle, clean background, brand-consistent color palette, magazine-quality, 8K resolution.',
+    negativePrompt: 'amateur, low quality, messy, cluttered, cheap looking',
+  },
+  {
+    id: 'branding',
+    label: 'Brand Identity',
+    hint: 'Logo backdrop, brand colors, identity system',
+    promptPrefix: 'Brand identity visual, sophisticated and cohesive, ',
+    promptSuffix: '. Minimalist composition, brand-consistent color palette, premium texture and materials, clean negative space, modern design aesthetic, suitable for brand guidelines.',
+    negativePrompt: 'cluttered, amateur, inconsistent, cheap, low quality',
+  },
+  {
+    id: 'linkedin',
+    label: 'LinkedIn',
+    hint: 'Professional, corporate, thought leadership',
+    promptPrefix: 'Professional LinkedIn post visual, corporate yet modern, ',
+    promptSuffix: '. Clean professional aesthetic, subtle color palette, business environment, thought leadership visual, high quality, 16:9 or square format.',
+    negativePrompt: 'casual, unprofessional, cluttered, low quality',
+  },
+];
