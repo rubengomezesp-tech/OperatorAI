@@ -48,17 +48,7 @@ export const IMAGE_PRESETS: ImagePreset[] = [
     promptSuffix: '. Natural ambient lighting, authentic candid moment, warm cinematic color grade, 35mm film texture, shallow depth of field, contemporary aspirational aesthetic, Kodak Portra 400 film grain, 4K.',
     negativePrompt: 'staged, awkward pose, cartoon, 3d render, low quality, oversaturated, fake',
   },
-];
-
-export const ASPECT_RATIOS = [
-  { id: '1:1',  label: 'Square',   w: 1024, h: 1024 },
-  { id: '16:9', label: 'Widescreen', w: 1344, h: 768 },
-  { id: '9:16', label: 'Vertical', w: 768,  h: 1344 },
-  { id: '4:5',  label: 'Portrait', w: 896,  h: 1120 },
-  { id: '3:2',  label: 'Landscape', w: 1216, h: 832 },
-] as const;
-
-export type AspectRatioId = typeof ASPECT_RATIOS[number]['id'  {
+  {
     id: 'ig-feed',
     label: 'Instagram Feed',
     hint: 'Square, scroll-stopping, on-brand feed post',
@@ -107,3 +97,17 @@ export type AspectRatioId = typeof ASPECT_RATIOS[number]['id'  {
     negativePrompt: 'casual, unprofessional, cluttered, low quality',
   },
 ];
+
+export const ASPECT_RATIOS = [
+  { id: '1:1',  label: 'Square',   w: 1024, h: 1024 },
+  { id: '16:9', label: 'Widescreen', w: 1344, h: 768 },
+  { id: '9:16', label: 'Vertical', w: 768,  h: 1344 },
+  { id: '4:5',  label: 'Portrait', w: 896,  h: 1120 },
+  { id: '3:2',  label: 'Landscape', w: 1216, h: 832 },
+] as const;
+
+export type AspectRatioId = typeof ASPECT_RATIOS[number]['id'];
+
+export function findPreset(id: string): ImagePreset | undefined {
+  return IMAGE_PRESETS.find((p) => p.id === id);
+}
