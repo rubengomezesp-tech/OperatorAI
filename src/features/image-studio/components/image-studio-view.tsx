@@ -57,8 +57,8 @@ export function ImageStudioView() {
       for (let i = 0; i < numImages; i++) {
         if (i > 0) {
           toast.info(locale === 'es'
-            ? `Imagen \${i + 1} de \${numImages}... esperando para evitar límites`
-            : `Image \${i + 1} of \${numImages}... waiting to avoid rate limits`);
+            ? `Imagen ${i + 1} de ${numImages}... esperando para evitar límites`
+            : `Image ${i + 1} of ${numImages}... waiting to avoid rate limits`);
           await new Promise(r => setTimeout(r, 12000));
         }
         const res = await fetch('/api/images/generate', {
