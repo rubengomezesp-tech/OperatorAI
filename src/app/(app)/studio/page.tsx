@@ -1,6 +1,6 @@
 'use client';
 import Link from 'next/link';
-import { ImageIcon, Video, Sparkles } from 'lucide-react';
+import { ImageIcon, Sparkles } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
 
 export default function StudioPage() {
@@ -23,16 +23,7 @@ export default function StudioPage() {
             </div>
           </div>
         </Link>
-        <Link href="/studio/video" className="group relative rounded-xl border border-border bg-surface p-6 hover:border-gold/40 hover:bg-surface-2 transition-all">
-          <div className="flex items-start gap-4">
-            <div className="h-14 w-14 rounded-xl bg-gold/10 border border-gold/20 flex items-center justify-center shrink-0 group-hover:bg-gold/15 transition-colors"><Video className="h-7 w-7 text-gold" /></div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-1"><h2 className="font-display text-[20px] group-hover:text-gold transition-colors">{t('nav.video_studio')}</h2><span className="text-[9px] px-1.5 py-0.5 rounded bg-gold/10 border border-gold/20 text-gold uppercase tracking-[0.12em]">Veo 3.1</span></div>
-              <p className="text-[13px] text-fg-muted leading-relaxed">{t('studio.video_desc')}</p>
-              <div className="mt-3 inline-flex items-center gap-1.5 text-[12px] text-gold font-medium"><Sparkles className="h-3.5 w-3.5" /><span>{t('studio.create_video')}</span></div>
-            </div>
-          </div>
-        </Link>
+        
       </div>
       <div className="rounded-lg border border-dashed border-border bg-surface-2/30 p-5 text-center">
         <p className="text-[13px] text-fg-muted">{t('studio.chat_hint')} <Link href="/chat" className="text-gold hover:underline">{t('studio.chat_link')}</Link> {t('studio.chat_suffix')}</p>

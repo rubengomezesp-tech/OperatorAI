@@ -12,7 +12,7 @@ export default function DeleteAccountPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    // In production this would call an API
+    await fetch("/api/account/delete", { method: "POST" });
     setSent(true);
   }
 
