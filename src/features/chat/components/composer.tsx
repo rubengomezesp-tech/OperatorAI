@@ -158,7 +158,7 @@ export function Composer({ onSend, onCancel, loading, disabled }: Props) {
             <input
               ref={fileRef}
               type="file"
-              accept="image/*,.pdf,.csv,.xlsx,.xls,.json,.txt,.doc,.docx"
+              accept="image/*,.pdf,.csv,.xlsx,.xls,.json,.txt,.doc,.docx" multiple
               onChange={handleFileSelect}
               className="hidden"
             />
