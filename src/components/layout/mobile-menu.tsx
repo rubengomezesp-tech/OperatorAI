@@ -8,7 +8,7 @@ import {
   LayoutDashboard, MessageSquare, FolderOpen, ImageIcon, Video,
   Mic, Zap, FileSpreadsheet, FileText, Brain, Sparkles, Plug,
   CreditCard, X, Menu,
-  type LucideIcon,
+  type LucideIcon, Rocket, Palette, LogOut, HelpCircle,
 } from 'lucide-react';
 
 interface NavItem {
@@ -25,6 +25,7 @@ interface NavSection {
 
 const nav: NavSection[] = [
   { groupKey: 'nav.workspace', items: [
+    { href: '/missions', labelKey: 'nav.missions', icon: Rocket, badge: 'NEW' },
     { href: '/dashboard', labelKey: 'nav.overview', icon: LayoutDashboard },
     { href: '/projects', labelKey: 'nav.projects', icon: FolderOpen },
     { href: '/chat', labelKey: 'nav.creative_agent', icon: MessageSquare, badge: 'AI' },
@@ -42,6 +43,7 @@ const nav: NavSection[] = [
     { href: '/knowledge', labelKey: 'nav.knowledge', icon: FileText },
   ]},
   { groupKey: 'nav.manage', items: [
+    { href: '/brand-os', labelKey: 'Brand OS', icon: Palette },
     { href: '/assistants', labelKey: 'nav.assistants', icon: Sparkles },
     { href: '/settings/integrations', labelKey: 'nav.integrations', icon: Plug },
     { href: '/settings/memory', labelKey: 'nav.memory', icon: Brain },
