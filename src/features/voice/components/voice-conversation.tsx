@@ -28,17 +28,11 @@ export function VoiceConversation() {
   const { speak, stop: stopTTS } = useTTS({
     voice: 'nova',
     onEnd: () => {
-      const cur = phaseRef.current as string;
-      if (autoMode && cur === 'speaking') {
+      setPhase('idle');
+      if (autoMode) {
         setTimeout(() => {
-          const c = phaseRef.current as string;
-          if (c === 'speaking' || c === 'idle') {
-            setPhase('idle');
-            startListening();
-          }
-        }, 500);
-      } else {
-        setPhase('idle');
+          startListening();
+        }, 300);
       }
     },
     onError: (msg) => {
