@@ -20,8 +20,6 @@ interface Props {
 }
 
 export function ChatView({ initialConversationId, initialMessages = [], initialTitle = null }: Props) {
-  const router = useRouter();
-  
   const [conversationId, setConversationId] = useState<string | null>(initialConversationId);
   const [title, setTitle] = useState<string | null>(initialTitle);
   const [messages, setMessages] = useState<UiMessage[]>(initialMessages);
