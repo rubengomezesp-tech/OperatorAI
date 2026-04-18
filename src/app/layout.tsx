@@ -9,6 +9,8 @@ const inter = Inter({ subsets: ['latin'], variable: '--font-inter', display: 'sw
 const serif = Instrument_Serif({ weight: '400', subsets: ['latin'], variable: '--font-serif', display: 'swap' });
 const mono = JetBrains_Mono({ subsets: ['latin'], variable: '--font-mono', display: 'swap' });
 
+export const viewport = { width: "device-width", initialScale: 1, maximumScale: 1, userScalable: false };
+
 export const metadata: Metadata = {
   title: { default: 'Operator AI', template: '%s - Operator AI' },
   description: 'The AI operating layer for businesses.',
