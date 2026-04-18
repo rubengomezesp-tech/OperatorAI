@@ -24,7 +24,7 @@ const nav: Section[] = [
   {
     groupKey: 'nav.workspace',
     items: [
-      { href: '/missions', labelKey: 'nav.overview', icon: Rocket, badge: 'NEW' },
+      { href: '/missions', labelKey: 'nav.missions', icon: Rocket, badge: 'NEW' },
       { href: '/dashboard', labelKey: 'nav.overview', icon: LayoutDashboard },
       { href: '/projects', labelKey: 'nav.projects', icon: FolderOpen },
       { href: '/chat', labelKey: 'nav.creative_agent', icon: MessageSquare, badge: 'AI' },
@@ -34,14 +34,14 @@ const nav: Section[] = [
     groupKey: 'nav.studio',
     items: [
       { href: '/studio/image', labelKey: 'nav.image_studio', icon: ImageIcon },
-      { href: '/studio/video', labelKey: 'nav.video_studio', icon: Video, badge: 'NEW' },
+      
       { href: '/voice', labelKey: 'nav.voice_mode', icon: Mic },
     ],
   },
   {
     groupKey: 'nav.automate',
     items: [
-      { href: '/workflows', labelKey: 'nav.workflows', icon: Zap },
+      
       { href: '/files', labelKey: 'nav.files', icon: FileSpreadsheet },
     ],
   },

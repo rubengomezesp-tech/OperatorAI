@@ -27,14 +27,14 @@ export const PLANS: PlanDefinition[] = [
     priceDisplay: '$29',
     quotas: { chatMessages: 500, imageGenerations: 50, knowledgeDocuments: 10, assistants: 1, projects: 1, integrations: 2, videoGenerations: 10 },
     features: [
-      '3 AI models (GPT-4o, Claude 4.5, Gemini 3.1)',
+      'AI Creative Agent (Claude + GPT-4o)',
       '500 chat messages / mo',
       '50 AI images / mo',
       '10 knowledge documents',
       '1 project',
-      '2 integrations',
-      'Voice mode + memory',
-      '10 AI videos / mo (Veo 3.1)',
+      
+      'Memory + Brand OS',
+      'Voice mode',
       'Email support',
     ],
     cta: 'Start with Starter',
@@ -52,10 +52,10 @@ export const PLANS: PlanDefinition[] = [
       '300 AI images / mo',
       '100 knowledge documents',
       '5 projects',
-      '10 integrations (Gmail, Notion, Slack...)',
-      '6 specialized agents',
-      'Reference images + refinement',
-      '100 AI videos / mo (Veo 3.1)',
+      'Brand OS + presets',
+      'Image Studio (11 presets)',
+      'Reference images',
+      
       'Priority support',
     ],
     highlight: true,
@@ -72,12 +72,12 @@ export const PLANS: PlanDefinition[] = [
       'Everything in Pro',
       '15,000 chat messages / mo',
       '1,500 AI images / mo',
-      '500 AI videos / mo (Veo 3.1)',
+      
       'Unlimited documents & assistants',
       '25 projects',
-      '50 integrations',
-      '5 team seats',
-      'Concierge onboarding',
+      
+      'Priority support',
+      
     ],
     cta: 'Start with Studio',
   },
@@ -92,13 +92,13 @@ export const PLANS: PlanDefinition[] = [
       'Everything in Studio',
       '50,000 chat messages / mo',
       '5,000 AI images / mo',
-      'Unlimited AI videos (Veo 3.1)',
-      'Unlimited projects + integrations',
-      '25 team seats',
-      'White-label (your domain, your logo)',
-      'Custom AI training on your IP',
-      'Dedicated account manager',
-      'SLA 99.9%',
+      
+      'Unlimited projects',
+      
+      'White-label (coming soon)',
+      
+      'Dedicated support',
+      
     ],
     cta: 'Talk to sales',
   },

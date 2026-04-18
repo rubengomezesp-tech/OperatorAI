@@ -32,11 +32,11 @@ const nav: NavSection[] = [
   ]},
   { groupKey: 'nav.studio', items: [
     { href: '/studio/image', labelKey: 'nav.image_studio', icon: ImageIcon },
-    { href: '/studio/video', labelKey: 'nav.video_studio', icon: Video, badge: 'NEW' },
+    
     { href: '/voice', labelKey: 'nav.voice_mode', icon: Mic },
   ]},
   { groupKey: 'nav.automate', items: [
-    { href: '/workflows', labelKey: 'nav.workflows', icon: Zap },
+    
     { href: '/files', labelKey: 'nav.files', icon: FileSpreadsheet },
   ]},
   { groupKey: 'nav.intelligence', items: [
