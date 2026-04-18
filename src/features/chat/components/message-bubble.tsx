@@ -1,3 +1,4 @@
+export type UiMessage = { id: string; role: "user" | "assistant"; content: string };
 'use client';
 import { useState, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
