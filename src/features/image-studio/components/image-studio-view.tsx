@@ -56,9 +56,7 @@ export function ImageStudioView() {
       // Generate images sequentially with delay to avoid rate limits
       for (let i = 0; i < numImages; i++) {
         if (i > 0) {
-          toast.info(locale === 'es'
-            ? 'Imagen ' + (i + 1) + ' de ' + numImages + '... esperando'
-            : 'Image ' + (i + 1) + ' of ' + numImages + '... waiting');
+          toast.info(locale === 'es' ? 'Imagen ' + (i + 1) + ' de ' + numImages + '...' : 'Image ' + (i + 1) + ' of ' + numImages + '...');
           await new Promise(r => setTimeout(r, 12000));
         }
         const res = await fetch('/api/images/generate', {
@@ -137,7 +135,7 @@ export function ImageStudioView() {
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
             placeholder={placeholder}
-            rows={3}
+            rows={2}
             className="w-full rounded-md border border-border bg-surface-2 px-3.5 py-2.5 text-[14px] text-fg placeholder:text-fg-subtle focus:outline-none focus:border-gold/60 focus:bg-surface-3 focus:ring-2 focus:ring-gold/15 resize-none"
           />
           <div className="mt-2 flex items-center gap-2 text-[11.5px] text-fg-subtle">
@@ -156,7 +154,7 @@ export function ImageStudioView() {
         </div>
 
         {/* Controls row */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           <div>
             <Label>{t('img.preset')}</Label>
             <PresetPicker value={preset} onChange={setPreset} />

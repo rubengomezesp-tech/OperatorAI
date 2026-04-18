@@ -6,26 +6,23 @@ import { resolveOrgContext } from '@/features/chat/server/resolve-org-context';
 export const runtime = 'nodejs';
 
 export async function GET() {
-  const ssr = await createSupabaseServerClient();
-  const { data: { user } } = await ssr.auth.getUser();
-  if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-
-  const svc = createSupabaseServiceClient();
-  let orgId: string;
   try {
-    orgId = (await resolveOrgContext(svc, user.id)).orgId;
+    const ssr = await createSupabaseServerClient();
+    const { data: { user } } = await ssr.auth.getUser();
+    if (!user) return NextResponse.json({ conversations: [] });
+
+    const svc = createSupabaseServiceClient();
+    const { orgId } = await resolveOrgContext(svc, user.id);
+
+    const { data } = await svc
+      .from('conversations')
+      .select('id, title, updated_at')
+      .eq('org_id', orgId)
+      .order('updated_at', { ascending: false })
+      .limit(100);
+
+    return NextResponse.json({ conversations: data ?? [] });
   } catch {
-    return NextResponse.json({ error: 'No active workspace' }, { status: 403 });
+    return NextResponse.json({ conversations: [] });
   }
-
-  const { data } = await svc
-    .from('conversations')
-    .select('id, title, last_message_at, message_count, is_starred')
-    .eq('org_id', orgId)
-    .eq('user_id', user.id)
-    .is('deleted_at', null)
-    .order('last_message_at', { ascending: false })
-    .limit(50);
-
-  return NextResponse.json({ conversations: data ?? [] });
 }
