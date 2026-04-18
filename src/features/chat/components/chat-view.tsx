@@ -6,7 +6,6 @@ import { toast } from 'sonner';
 import { MessageList } from './message-list';
 import { Composer } from './composer';
 import { ChatTopbar } from './chat-topbar';
-import { ChatSidebar } from './chat-sidebar';
 import { ChatDrawer } from './chat-drawer';
 import { useSendMessage } from '../hooks/use-send-message';
 import { useChatStore, MODEL_OPTIONS } from '../stores/chat-store';
@@ -148,7 +147,6 @@ export function ChatView({ initialConversationId, initialMessages = [], initialT
 
   return (
     <div className="h-[calc(100vh-56px)] flex">
-      <ChatSidebar currentId={conversationId} onSelect={handleChatSelect} />
       <div className="flex-1 flex flex-col min-w-0">
         <div className="flex items-center gap-2 px-4 py-2 border-b border-border">
           <div className="lg:hidden"><ChatDrawer currentId={conversationId} onSelect={handleChatSelect} /></div>
