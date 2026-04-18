@@ -31,7 +31,7 @@ const plans = [
     price_en: '$99 / month', price_es: '99 $ / mes',
     name_en: 'Pro', name_es: 'Pro',
     tagline_en: 'For brands and pros', tagline_es: 'Para marcas y profesionales',
-    features_en: ['Everything in Starter', '3,000 messages/mo', '300 AI images/mo', '100 AI videos/mo', '5 projects', '10 integrations', '6 specialized agents', 'Priority support'],
+    features_en: ['Everything in Starter', '3,000 messages/mo', '300 AI images/mo', '5 projects', 'Image Studio (11 presets)', 'Brand OS', 'Priority support'],
     features_es: ['Todo en Starter', '3.000 mensajes/mes', '300 imágenes IA/mes', '100 vídeos IA/mes', '5 proyectos', '10 integraciones', '6 agentes especializados', 'Soporte prioritario'],
   },
   {
@@ -41,7 +41,7 @@ const plans = [
     price_en: '$299 / month', price_es: '299 $ / mes',
     name_en: 'Studio', name_es: 'Studio',
     tagline_en: 'For studios with multiple brands', tagline_es: 'Para estudios con varias marcas',
-    features_en: ['Everything in Pro', '15,000 messages/mo', '1,500 AI images/mo', '500 AI videos/mo', '25 projects', '50 integrations', '5 team seats', 'Concierge onboarding'],
+    features_en: ['Everything in Pro', '15,000 messages/mo', '1,500 AI images/mo', '25 projects', 'Reference images', 'Priority support'],
     features_es: ['Todo en Pro', '15.000 mensajes/mes', '1.500 imágenes IA/mes', '500 vídeos IA/mes', '25 proyectos', '50 integraciones', '5 miembros de equipo', 'Onboarding concierge'],
   },
   {
@@ -51,7 +51,7 @@ const plans = [
     price_en: '$999 / month', price_es: '999 $ / mes',
     name_en: 'Agency', name_es: 'Agency',
     tagline_en: 'White-label for agencies', tagline_es: 'White-label para agencias',
-    features_en: ['Everything in Studio', '50,000 messages/mo', '5,000 AI images/mo', 'Unlimited videos', 'Unlimited projects', '25 team seats', 'White-label (your domain)', 'Dedicated account manager'],
+    features_en: ['Everything in Studio', '50,000 messages/mo', '5,000 AI images/mo', 'Unlimited projects', 'White-label (coming soon)', 'Dedicated support'],
     features_es: ['Todo en Studio', '50.000 mensajes/mes', '5.000 imágenes IA/mes', 'Vídeos ilimitados', 'Proyectos ilimitados', '25 miembros de equipo', 'White-label (tu dominio)', 'Account manager dedicado'],
   },
 ];

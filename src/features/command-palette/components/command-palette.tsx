@@ -3,7 +3,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Command } from 'cmdk';
 import {
-  Search, LayoutDashboard, MessageSquare, FolderOpen, ImageIcon, Video,
+  Search, LayoutDashboard, MessageSquare, FolderOpen, ImageIcon,
   Mic, Zap, FileSpreadsheet, FileText, Brain, Plug, CreditCard,
   Settings, LogOut, Sparkles, User, Palette, Bell, Shield,
   ArrowRight,
@@ -27,10 +27,8 @@ const items: NavItem[] = [
   { id: 'projects', label: 'Go to Projects', href: '/projects', icon: FolderOpen, category: 'Navigation', keywords: ['workspaces', 'brands'] },
   // Studio
   { id: 'image-studio', label: 'Image Studio', href: '/studio/image', icon: ImageIcon, category: 'Studio', keywords: ['generate image', 'flux', 'imagen'] },
-  { id: 'video-studio', label: 'Video Studio', href: '/studio/video', icon: Video, category: 'Studio', keywords: ['generate video', 'veo'] },
   { id: 'voice', label: 'Voice Mode', href: '/voice', icon: Mic, category: 'Studio', keywords: ['speak', 'talk', 'microphone'] },
   // Automate
-  { id: 'workflows', label: 'Workflows', href: '/workflows', icon: Zap, category: 'Automate', keywords: ['automations', 'zapier'] },
   { id: 'files', label: 'Files & Analysis', href: '/files', icon: FileSpreadsheet, category: 'Automate', keywords: ['csv', 'excel', 'data', 'code interpreter'] },
   // Intelligence
   { id: 'knowledge', label: 'Knowledge', href: '/knowledge', icon: FileText, category: 'Intelligence', keywords: ['documents', 'rag', 'search docs'] },

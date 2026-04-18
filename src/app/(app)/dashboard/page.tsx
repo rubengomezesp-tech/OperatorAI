@@ -36,7 +36,7 @@ export default function DashboardPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <T href="/chat" icon={MessageSquare} l={t('dash.chat')} d={t('dash.chat_d')} k="G+C" b={t('dash.new')} />
             <T href="/studio" icon={Sparkles} l={t('dash.stud')} d={t('dash.stud_d')} k="G+I" b={t('dash.new')} />
-            <T href="/workflows" icon={Zap} l={t('dash.wf')} d={t('dash.wf_d')} k="G+W" b={t('dash.new')} />
+            
             <T href="/brand-os" icon={Target} l={t('dash.bos')} d={t('dash.bos_d')} k="G+B" b={t('dash.new')} n />
           </div>
         </div>
