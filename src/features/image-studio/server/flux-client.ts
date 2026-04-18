@@ -23,6 +23,13 @@ const ASPECT_TO_SIZE: Record<string, { w: number; h: number }> = {
   '3:2':  { w: 1216, h: 832 },
 };
 
+const MAX_RETRIES = 3;
+const RETRY_DELAY_MS = 12000; // 12 seconds between retries (Replicate rate limit is 6/min)
+
+async function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export async function generateWithFlux(input: GenerateInput): Promise<GenerateOutput> {
   if (!serverEnv.REPLICATE_API_TOKEN) throw new Error('REPLICATE_API_TOKEN not set');
 
@@ -33,7 +40,6 @@ export async function generateWithFlux(input: GenerateInput): Promise<GenerateOu
 
   const hasReferences = input.referenceImageUrls && input.referenceImageUrls.length > 0;
 
-  // Build input payload for FLUX.2 Pro
   const payload: Record<string, unknown> = {
     prompt: input.prompt,
     aspect_ratio: input.aspectRatio,
@@ -43,24 +49,51 @@ export async function generateWithFlux(input: GenerateInput): Promise<GenerateOu
     seed,
   };
 
-  // FLUX.2 Pro accepts up to 8 reference images
   if (hasReferences) {
     payload.input_images = input.referenceImageUrls!.slice(0, 8);
   }
 
-  const output = await client.run(
-    'black-forest-labs/flux-2-pro',
-    { input: payload },
-  );
+  // Retry loop for rate limits
+  let lastError: Error | null = null;
+  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    try {
+      const output = await client.run(
+        'black-forest-labs/flux-2-pro',
+        { input: payload },
+      );
 
-  const urls = normalizeReplicateOutput(output);
-  if (urls.length === 0) throw new Error('Flux returned no images');
+      const urls = normalizeReplicateOutput(output);
+      if (urls.length === 0) throw new Error('Flux returned no images');
 
-  return {
-    urls,
-    seed,
-    latencyMs: Date.now() - started,
-  };
+      return {
+        urls,
+        seed,
+        latencyMs: Date.now() - started,
+      };
+    } catch (e) {
+      lastError = e instanceof Error ? e : new Error(String(e));
+      const msg = lastError.message.toLowerCase();
+
+      // If rate limited (429), wait and retry
+      if (msg.includes('429') || msg.includes('throttled') || msg.includes('rate limit')) {
+        console.log(`[flux] Rate limited, waiting ${RETRY_DELAY_MS / 1000}s before retry ${attempt + 1}/${MAX_RETRIES}...`);
+        await sleep(RETRY_DELAY_MS);
+        continue;
+      }
+
+      // If server error (5xx), retry once
+      if (msg.includes('500') || msg.includes('502') || msg.includes('503')) {
+        console.log(`[flux] Server error, retrying in 3s...`);
+        await sleep(3000);
+        continue;
+      }
+
+      // For other errors, don't retry
+      throw lastError;
+    }
+  }
+
+  throw lastError ?? new Error('Max retries reached');
 }
 
 function normalizeReplicateOutput(output: unknown): string[] {
@@ -93,8 +126,7 @@ function normalizeReplicateOutput(output: unknown): string[] {
 }
 
 /**
- * Rewrites user brief into a rich image prompt. If reference images are provided,
- * the prompt style also asks the model to describe how references should be used.
+ * Rewrites user brief into a rich image prompt.
  */
 export async function enhancePrompt(
   userPrompt: string,
@@ -107,7 +139,7 @@ export async function enhancePrompt(
   const client = new OpenAI({ apiKey: serverEnv.OPENAI_API_KEY });
 
   const refHint = hasReferences
-    ? ' The user has attached reference images - their style, subject, lighting, or composition should guide the output. When appropriate, reference them with phrases like "in the style of the reference" or "matching the mood of the reference".'
+    ? ' The user has attached reference images - their style, subject, lighting, or composition should guide the output.'
     : '';
 
   const system =

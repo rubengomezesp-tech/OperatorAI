@@ -53,8 +53,14 @@ export function ImageStudioView() {
     setImages((prev) => [...placeholders, ...prev]);
 
     try {
-      // Generate all images (sequentially to avoid rate limits)
+      // Generate images sequentially with delay to avoid rate limits
       for (let i = 0; i < numImages; i++) {
+        if (i > 0) {
+          toast.info(locale === 'es'
+            ? \`Imagen \${i + 1} de \${numImages}... esperando para evitar límites\`
+            : \`Image \${i + 1} of \${numImages}... waiting to avoid rate limits\`);
+          await new Promise(r => setTimeout(r, 12000));
+        }
         const res = await fetch('/api/images/generate', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -67,7 +73,16 @@ export function ImageStudioView() {
           }),
         });
         const body = await res.json();
-        if (!res.ok) throw new Error(body?.error ?? 'Generation failed');
+        if (!res.ok) {
+          const errMsg = body?.error ?? 'Generation failed';
+          // Don't break on rate limit — just skip this one
+          if (errMsg.includes('429') || errMsg.includes('throttled')) {
+            toast.error(locale === 'es' ? 'Límite de API — esperando...' : 'API limit — waiting...');
+            await new Promise(r => setTimeout(r, 15000));
+            continue;
+          }
+          throw new Error(errMsg);
+        }
       }
 
       toast.success(numImages > 1
