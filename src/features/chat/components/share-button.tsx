@@ -91,7 +91,7 @@ export function ShareButton({ conversationId }: Props) {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-[calc(100%+6px)] w-[340px] surface-raised rounded-lg border border-border shadow-2xl overflow-hidden z-50 animate-fadeIn">
+        <div className="absolute right-0 top-[calc(100%+6px)] w-[280px] max-w-[calc(100vw-32px)] surface-raised rounded-lg border border-border shadow-2xl overflow-hidden z-50 animate-fadeIn">
           <div className="p-4 border-b border-border">
             <div className="text-[10px] uppercase tracking-[0.14em] text-gold mb-2">Share conversation</div>
             <div className="text-[12.5px] text-fg-muted">Anyone with this link can view this conversation.</div>
