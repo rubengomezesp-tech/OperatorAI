@@ -1,5 +1,5 @@
-export type UiMessage = { id: string; role: "user" | "assistant"; content: string; createdAt?: string; status?: string; toolParts?: any[] };
 'use client';
+import type { UiMessage } from '@/lib/chat/types';
 import { useState, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
