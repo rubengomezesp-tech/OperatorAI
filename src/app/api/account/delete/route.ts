@@ -17,7 +17,7 @@ export async function POST() {
     await svc.from('conversations').delete().eq('user_id', userId);
     await svc.from('image_generations').delete().eq('user_id', userId);
     await (svc as any).from('feedback').delete().eq('user_id', userId);
-    await svc.from('documents').delete().eq('user_id', userId);
+    await (svc as any).from('documents').delete().eq('user_id', userId);
     await svc.auth.admin.deleteUser(userId);
 
     return NextResponse.json({ ok: true });
