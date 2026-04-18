@@ -21,6 +21,7 @@ interface BrandProfile {
   avoid_keywords: string[];
   instagram_handle: string;
   brand_values: string[];
+  competitors?: string[];
 }
 
 const DEFAULT: BrandProfile = {
