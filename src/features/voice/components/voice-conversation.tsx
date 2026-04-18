@@ -133,7 +133,7 @@ export function VoiceConversation() {
 
   useEffect(() => {
     if (recState === 'recording' && phase === 'idle') setPhase('listening');
-    if (recState === 'idle' && phase === 'listening') setPhase('idle');
+    // Don't reset to idle during auto-mode — let the flow continue
   }, [recState, phase]);
 
   const orbColor =
