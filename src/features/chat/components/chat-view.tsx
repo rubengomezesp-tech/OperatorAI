@@ -8,7 +8,7 @@ import { Composer } from './composer';
 import { ChatTopbar } from './chat-topbar';
 import { useSendMessage } from '../hooks/use-send-message';
 import { useChatStore, MODEL_OPTIONS } from '../stores/chat-store';
-import type { UiMessage } from './message-bubble';
+import type { UiMessage } from '@/lib/chat/types';
 import type { ToolPart } from './tool-result';
 
 interface Props {
