@@ -11,7 +11,7 @@ import { useI18n } from '@/lib/i18n';
 interface Workflow { id: string; name: string; description: string | null; trigger_type: string; is_active: boolean; last_run_at: string | null; last_run_status: string | null; total_runs: number; total_successes: number; created_at: string; }
 
 export function WorkflowsView() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [loading, setLoading] = useState(true);
   const [showTemplates, setShowTemplates] = useState(false);
@@ -75,7 +75,7 @@ export function WorkflowsView() {
               <button key={tmpl.id} type="button" onClick={() => createFromTemplate(tmpl.id)} className="text-left p-4 rounded-lg border border-border bg-surface-2 hover:border-gold/40 hover:bg-surface-3 transition group">
                 <div className="flex items-start gap-3">
                   <div className="h-9 w-9 rounded-lg bg-gold/10 border border-gold/20 flex items-center justify-center shrink-0 group-hover:bg-gold/20 transition"><Sparkles className="h-4 w-4 text-gold" /></div>
-                  <div className="flex-1 min-w-0"><div className="font-display text-[15px] group-hover:text-gold transition">{tmpl.name}</div><div className="text-[11.5px] text-fg-muted mt-0.5 line-clamp-2">{tmpl.description}</div>
+                  <div className="flex-1 min-w-0"><div className="font-display text-[15px] group-hover:text-gold transition">{locale === "es" ? tmpl.nameEs : tmpl.name}</div><div className="text-[11.5px] text-fg-muted mt-0.5 line-clamp-2">{locale === "es" ? tmpl.descriptionEs : tmpl.description}</div>
                     <div className="flex items-center gap-2 mt-2"><span className="text-[9.5px] tracking-[0.12em] uppercase px-1.5 h-4 rounded bg-surface-3 text-fg-subtle flex items-center">{tmpl.category}</span><span className="text-[9.5px] tracking-[0.12em] uppercase px-1.5 h-4 rounded bg-surface-3 text-fg-subtle flex items-center">{tmpl.steps.length} {t('wf.steps')}</span></div>
                   </div>
                 </div>

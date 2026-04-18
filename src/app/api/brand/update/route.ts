@@ -34,7 +34,22 @@ export async function POST(req: NextRequest) {
       updated_at: new Date().toISOString(),
     } as never, { onConflict: 'org_id' });
 
-    if (error) throw error;
+    if (error) {
+      // If column doesn't exist yet, retry without it
+      console.error('[brand] save error:', error.message);
+      if (error.message.includes('column')) {
+        const { error: e2 } = await svc.from('brand_profile').upsert({
+          org_id: orgId,
+          brand_name: body.brand_name ?? null,
+          description: body.description ?? null,
+          vibe: body.vibe ?? null,
+          updated_at: new Date().toISOString(),
+        } as never, { onConflict: 'org_id' });
+        if (e2) throw e2;
+      } else {
+        throw error;
+      }
+    }
     return NextResponse.json({ ok: true });
   } catch (e) {
     return NextResponse.json({ error: 'Failed to save' }, { status: 500 });
