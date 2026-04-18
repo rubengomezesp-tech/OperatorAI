@@ -36,7 +36,7 @@ const l: Record<string, Record<string, string>> = {
   phase1: { en: 'Mission templates', es: 'Plantillas de misión' },
   phase1d: { en: '30-day growth plans, campaign kits, content calendars — ready to deploy.', es: 'Planes de crecimiento de 30 días, kits de campaña, calendarios de contenido — listos para desplegar.' },
   phase2: { en: 'Agent orchestration', es: 'Orquestación de agentes' },
-  phase2d: { en: 'Multiple specialized agents working together on one objective. Copy, design, strategy, analytics.', es: 'Múltiples agentes especializados trabajando juntos en un objetivo. Copy, diseño, estrategia, analítica.' },
+  phase2d: { en: 'AI agents orchestrating content, design, and strategy for your brand — autonomously.', es: 'Agentes IA orquestando contenido, diseño y estrategia para tu marca — de forma autónoma.' },
   phase3: { en: 'Autonomous execution', es: 'Ejecución autónoma' },
   phase3d: { en: 'Set it and forget it. Missions run on schedule, generate outputs, measure results, and adapt.', es: 'Configúralo y olvídate. Las misiones se ejecutan programadas, generan resultados, miden y se adaptan.' },
   meanwhile: { en: 'Meanwhile, everything else is ready', es: 'Mientras tanto, todo lo demás está listo' },

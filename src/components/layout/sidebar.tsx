@@ -5,8 +5,8 @@ import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { useI18n } from '@/lib/i18n';
 import {
-  LayoutDashboard, MessageSquare, FolderOpen, ImageIcon, Video,
-  Mic, Zap, FileSpreadsheet, FileText, Brain, Sparkles, Plug,
+  LayoutDashboard, MessageSquare, FolderOpen, ImageIcon,
+  Mic, FileSpreadsheet, FileText, Brain, Sparkles, Plug,
   CreditCard, Settings, ChevronDown,
   type LucideIcon, Rocket, Target, Shield} from 'lucide-react';
 

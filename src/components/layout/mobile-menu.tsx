@@ -5,8 +5,8 @@ import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { useI18n } from '@/lib/i18n';
 import {
-  LayoutDashboard, MessageSquare, FolderOpen, ImageIcon, Video,
-  Mic, Zap, FileSpreadsheet, FileText, Brain, Sparkles, Plug,
+  LayoutDashboard, MessageSquare, FolderOpen, ImageIcon,
+  Mic, FileSpreadsheet, FileText, Brain, Sparkles, Plug,
   CreditCard, X, Menu,
   type LucideIcon, Rocket, Palette, LogOut, HelpCircle,
 } from 'lucide-react';
