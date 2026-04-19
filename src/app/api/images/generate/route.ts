@@ -80,7 +80,7 @@ export async function POST(req: NextRequest) {
   const imageId = (created as { id: string }).id;
 
   try {
-    const selectedModel = body.imageModel || 'flux-2-pro';
+    const selectedModel = (body as any).imageModel ?? 'flux-2-pro';
     const result = await generateWithFlux({
       prompt: fullPrompt,
       aspectRatio: body.aspectRatio,
