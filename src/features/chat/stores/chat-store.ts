@@ -5,7 +5,7 @@ import { persist } from 'zustand/middleware';
 export type ModelId =
   | 'gpt-4o'
   | 'claude-sonnet-4-5-20250929'
-  | 'gemini-3.1-pro-preview';
+  ;
 
 export interface ModelOption {
   id: ModelId;

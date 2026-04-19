@@ -28,7 +28,7 @@ export function getDefaultProvider(): ChatProvider {
 }
 
 export function resolveModelForProvider(name: ProviderName): string {
-  if (name === 'openai') return 'gpt-4o';
+  if (name === 'openai') return 'gemini-2.5-flash-preview';
   if (name === 'anthropic') return 'claude-sonnet-4-5-20250929';
   return 'gemini-2.0-flash';
 }
