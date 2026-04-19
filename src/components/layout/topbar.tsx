@@ -10,6 +10,7 @@ const TITLES: Record<string, string> = {
   '/dashboard': 'Studio',
   '/chat': 'Creative Agent',
   '/studio/image': 'Image Studio',
+  '/studio/video': 'Video Studio',
   '/voice': 'Voice Mode',
   '/files': 'Files & Analysis',
   '/projects': 'Projects',

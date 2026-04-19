@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { useI18n } from '@/lib/i18n';
 import {
-  LayoutDashboard, MessageSquare, FolderOpen, ImageIcon,
+  LayoutDashboard, MessageSquare, FolderOpen, ImageIcon, Video,
   Mic, FileSpreadsheet, FileText, Brain, Sparkles, Plug,
   CreditCard, X, Menu,
   type LucideIcon, Rocket, Palette, LogOut, HelpCircle,
@@ -32,6 +32,7 @@ const nav: NavSection[] = [
   ]},
   { groupKey: 'nav.studio', items: [
     { href: '/studio/image', labelKey: 'nav.image_studio', icon: ImageIcon },
+    { href: '/studio/video', labelKey: 'nav.video_studio', icon: Video },
     
     { href: '/voice', labelKey: 'nav.voice_mode', icon: Mic },
   ]},
