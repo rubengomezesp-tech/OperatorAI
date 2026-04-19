@@ -36,14 +36,12 @@ export function Composer({ onSend, onCancel, loading, disabled }: Props) {
     const trimmed = value.trim();
     if ((!trimmed && attachments.length === 0) || loading || disabled) return;
     const msg = trimmed || (attachments.length > 0 ? 'Analyze this file' : '');
-    // Send first attachment for backward compat, include all in allAttachments
     onSend(
       msg,
       attachments.length > 0 ? {
         base64: attachments[0].base64,
         mimeType: attachments[0].mimeType,
         fileName: attachments.map(a => a.file.name).join(', '),
-        allAttachments: attachments.map(a => ({ base64: a.base64, mimeType: a.mimeType, fileName: a.file.name })),
       } : undefined,
     );
     setValue('');
