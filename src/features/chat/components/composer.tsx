@@ -36,14 +36,18 @@ export function Composer({ onSend, onCancel, loading, disabled }: Props) {
     const trimmed = value.trim();
     if ((!trimmed && attachments.length === 0) || loading || disabled) return;
     const msg = trimmed || (attachments.length > 0 ? 'Analyze this file' : '');
-    onSend(
-      msg,
-      attachments.length > 0 ? {
+    const firstAtt = attachments.length > 0 ? {
         base64: attachments[0].base64,
         mimeType: attachments[0].mimeType,
-        fileName: attachments.map(a => a.file.name).join(', '),
-      } : undefined,
-    );
+        fileName: attachments[0].file.name,
+      } : undefined;
+    // Store all image previews for display
+    if (attachments.length > 0) {
+      (window as any).__pendingAttachmentUrls = attachments
+        .filter(a => a.mimeType.startsWith('image/'))
+        .map(a => 'data:' + a.mimeType + ';base64,' + a.base64);
+    }
+    onSend(msg, firstAtt);
     setValue('');
     setAttachments([]);
   }

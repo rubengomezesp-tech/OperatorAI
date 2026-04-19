@@ -46,16 +46,19 @@ export function ChatView({ initialConversationId, initialMessages = [], initialT
           );
         } else {
           if (userText) {
-            const displayText = attachment
+            const displayText = userText; // was: attachment
               ? userText + '\n\n📎 ' + attachment.fileName
               : userText;
+            // Get all attachment preview URLs
+            const allUrls = (window as any).__pendingAttachmentUrls as string[] | undefined;
+            delete (window as any).__pendingAttachmentUrls;
             const userMsg: UiMessage = {
               id: nanoid(),
               role: 'user',
               content: displayText,
               createdAt: new Date().toISOString(),
               status: 'complete',
-              attachmentUrls: attachment ? ['data:' + attachment.mimeType + ';base64,' + attachment.base64] : undefined,
+              attachmentUrls: allUrls && allUrls.length > 0 ? allUrls : (attachment ? ['data:' + attachment.mimeType + ';base64,' + attachment.base64] : undefined),
             };
             next = [...prev, userMsg];
           }
