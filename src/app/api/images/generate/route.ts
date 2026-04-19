@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
     seed: body.seed ?? null,
     reference_storage_path: hasReferences ? body.referenceUrls!.join(',') : null,
     provider: 'replicate',
-    model: body?.model ?? 'flux-2-pro',
+    model: (body as any)?.model ?? 'flux-2-pro',
     status: 'processing',
   } as never;
 
