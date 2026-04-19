@@ -46,9 +46,7 @@ export function ChatView({ initialConversationId, initialMessages = [], initialT
           );
         } else {
           if (userText) {
-            const displayText = userText; // was: attachment
-              ? userText + '\n\n📎 ' + attachment.fileName
-              : userText;
+            const displayText = userText;
             // Get all attachment preview URLs
             const allUrls = (window as any).__pendingAttachmentUrls as string[] | undefined;
             delete (window as any).__pendingAttachmentUrls;
