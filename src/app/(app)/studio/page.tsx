@@ -1,6 +1,6 @@
 'use client';
 import Link from 'next/link';
-import { ImageIcon, Sparkles } from 'lucide-react';
+import { ImageIcon, Sparkles, Video, Bell } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
 
 export default function StudioPage() {
@@ -23,7 +23,16 @@ export default function StudioPage() {
             </div>
           </div>
         </Link>
-        
+        <div className="relative rounded-xl border border-border bg-surface p-6 opacity-70">
+          <div className="absolute top-3 right-3 text-[9px] px-2 py-0.5 rounded-full bg-gold/10 border border-gold/20 text-gold uppercase tracking-[0.14em]">{locale === 'es' ? 'Pronto' : 'Soon'}</div>
+          <div className="flex items-start gap-4">
+            <div className="h-14 w-14 rounded-xl bg-surface-2 border border-border flex items-center justify-center shrink-0"><Video className="h-7 w-7 text-fg-muted" /></div>
+            <div className="flex-1 min-w-0">
+              <h2 className="font-display text-[20px] text-fg-muted mb-1">{locale === 'es' ? 'Video Studio' : 'Video Studio'}</h2>
+              <p className="text-[13px] text-fg-subtle leading-relaxed">{locale === 'es' ? 'Genera vídeo cinematográfico con IA. Próximamente.' : 'Generate cinematic AI video. Coming soon.'}</p>
+            </div>
+          </div>
+        </div>
       </div>
       <div className="rounded-lg border border-dashed border-border bg-surface-2/30 p-5 text-center">
         <p className="text-[13px] text-fg-muted">{t('studio.chat_hint')} <Link href="/chat" className="text-gold hover:underline">{t('studio.chat_link')}</Link> {t('studio.chat_suffix')}</p>

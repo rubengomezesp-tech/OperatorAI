@@ -19,6 +19,7 @@ export function ImageStudioView() {
   const [aspect, setAspect] = useState<AspectRatioId>('1:1');
   const [enhance, setEnhance] = useState(true);
   const [numImages, setNumImages] = useState(1);
+  const [imageModel, setImageModel] = useState<'flux-2-pro' | 'flux-1.1-pro'>('flux-2-pro');
   const [references, setReferences] = useState<ReferenceImage[]>([]);
   const [generating, setGenerating] = useState(false);
   const [images, setImages] = useState<ImageItem[]>([]);
@@ -64,6 +65,7 @@ export function ImageStudioView() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             prompt,
+            imageModel,
             preset: preset ?? undefined,
             aspectRatio: aspect,
             enhance,
@@ -154,7 +156,7 @@ export function ImageStudioView() {
         </div>
 
         {/* Controls row */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-4">
           <div>
             <Label>{t('img.preset')}</Label>
             <PresetPicker value={preset} onChange={setPreset} />
@@ -181,13 +183,31 @@ export function ImageStudioView() {
               ))}
             </div>
           </div>
+          <div>
+            <Label>{locale === 'es' ? 'Modelo' : 'Model'}</Label>
+            <div className="flex items-center gap-1 p-1 rounded-md border border-border bg-surface-2">
+              {([['flux-2-pro', 'Flux 2 Pro'], ['flux-1.1-pro', 'Flux 1.1 Pro']] as const).map(([id, label]) => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setImageModel(id as any)}
+                  className={cn(
+                    'flex-1 h-8 rounded text-[11px] font-medium transition-colors',
+                    imageModel === id ? 'bg-gold/15 text-gold border border-gold/30' : 'text-fg-muted hover:text-fg',
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
 
         {/* Generate button */}
         <div className="flex items-center justify-between pt-4 border-t border-border">
           <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.14em] text-fg-subtle">
             <ImageIcon className="h-3 w-3 text-gold" />
-            <span>Flux 2 Pro &middot; {references.length > 0 ? t('img.with_refs') : t('img.no_refs')}{numImages > 1 ? ` × ${numImages}` : ''}</span>
+            <span>{imageModel === 'flux-2-pro' ? 'Flux 2 Pro' : 'Flux 1.1 Pro'} &middot; {references.length > 0 ? t('img.with_refs') : t('img.no_refs')}{numImages > 1 ? ` × ${numImages}` : ''}</span>
           </div>
           <Button size="md" onClick={generate} disabled={!prompt.trim() || generating} loading={generating}>
             {!generating && <Sparkles className="h-4 w-4" />}

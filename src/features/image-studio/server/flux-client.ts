@@ -7,6 +7,7 @@ export interface GenerateInput {
   aspectRatio: '1:1' | '16:9' | '9:16' | '4:5' | '3:2';
   seed?: number;
   referenceImageUrls?: string[];
+  model?: 'flux-2-pro' | 'flux-1.1-pro';
 }
 
 export interface GenerateOutput {
@@ -57,8 +58,9 @@ export async function generateWithFlux(input: GenerateInput): Promise<GenerateOu
   let lastError: Error | null = null;
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
     try {
+      const modelId = input.model === 'flux-1.1-pro' ? 'black-forest-labs/flux-1.1-pro' : 'black-forest-labs/flux-2-pro';
       const output = await client.run(
-        'black-forest-labs/flux-2-pro',
+        modelId,
         { input: payload },
       );
 

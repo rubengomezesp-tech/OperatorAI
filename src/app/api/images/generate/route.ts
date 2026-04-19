@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
     seed: body.seed ?? null,
     reference_storage_path: hasReferences ? body.referenceUrls!.join(',') : null,
     provider: 'replicate',
-    model: 'flux-2-pro',
+    model: selectedModel || 'flux-2-pro',
     status: 'processing',
   } as never;
 
@@ -80,9 +80,11 @@ export async function POST(req: NextRequest) {
   const imageId = (created as { id: string }).id;
 
   try {
+    const selectedModel = body.imageModel || 'flux-2-pro';
     const result = await generateWithFlux({
       prompt: fullPrompt,
       aspectRatio: body.aspectRatio,
+      model: selectedModel,
       seed: body.seed,
       referenceImageUrls: body.referenceUrls,
     });
