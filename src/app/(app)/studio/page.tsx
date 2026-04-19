@@ -4,7 +4,7 @@ import { ImageIcon, Sparkles, Video } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
 
 export default function StudioPage() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   return (
     <div className="px-6 lg:px-10 py-8 max-w-[960px] mx-auto space-y-8">
       <div>
