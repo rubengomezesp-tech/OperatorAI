@@ -9,6 +9,7 @@ import { MobileMenu, MobileMenuButton } from './mobile-menu';
 const TITLES: Record<string, string> = {
   '/dashboard': 'Studio',
   '/chat': 'Creative Agent',
+  '/creative-studio': 'Creative Studio',
   '/studio/image': 'Image Studio',
   '/studio/video': 'Video Studio',
   '/voice': 'Voice Mode',
