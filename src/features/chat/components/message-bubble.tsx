@@ -78,7 +78,7 @@ export function MessageBubble({ message, isLastAssistant, onRegenerate, regenDis
             (message as any).attachmentUrls.length === 2 ? 'grid-cols-2 max-w-[320px]' :
             'grid-cols-3 max-w-[400px]',
           )}>
-            {(message as any).attachmentUrls.map((url, i) => (
+            {(message as any).attachmentUrls.map((url: string, i: number) => (
               <img
                 key={i}
                 src={url}
