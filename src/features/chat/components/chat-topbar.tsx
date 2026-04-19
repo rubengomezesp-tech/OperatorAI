@@ -4,7 +4,7 @@ import { ShareButton } from './share-button';
 
 export function ChatTopbar({ title, conversationId }: { title?: string | null; conversationId?: string | null }) {
   return (
-    <div className="flex items-center justify-between px-6 py-3 ">
+    <div className="flex items-center justify-between px-4 py-3">
       <div className="min-w-0">
         <div className="font-display text-[16px] truncate">
           {title || 'New conversation'}
