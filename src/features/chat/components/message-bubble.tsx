@@ -70,6 +70,26 @@ export function MessageBubble({ message, isLastAssistant, onRegenerate, regenDis
           <ImageGallery urls={imageUrls} />
         )}
 
+        {/* User attachment images */}
+        {isUser && message.attachmentUrls && message.attachmentUrls.length > 0 && (
+          <div className={cn(
+            'grid gap-1.5 rounded-lg overflow-hidden',
+            message.attachmentUrls.length === 1 ? 'grid-cols-1 max-w-[280px]' :
+            message.attachmentUrls.length === 2 ? 'grid-cols-2 max-w-[320px]' :
+            'grid-cols-3 max-w-[400px]',
+          )}>
+            {message.attachmentUrls.map((url, i) => (
+              <img
+                key={i}
+                src={url}
+                alt=""
+                className="w-full h-auto rounded-lg object-cover max-h-[200px]"
+                loading="lazy"
+              />
+            ))}
+          </div>
+        )}
+
         {/* Actions (assistant only) */}
         {!isUser && (
           <MessageActions

@@ -49,7 +49,14 @@ export function ChatView({ initialConversationId, initialMessages = [], initialT
             const displayText = attachment
               ? userText + '\n\n📎 ' + attachment.fileName
               : userText;
-            const userMsg: UiMessage = { id: nanoid(), role: 'user', content: displayText, createdAt: new Date().toISOString(), status: 'complete' };
+            const userMsg: UiMessage = {
+              id: nanoid(),
+              role: 'user',
+              content: displayText,
+              createdAt: new Date().toISOString(),
+              status: 'complete',
+              attachmentUrls: attachment ? ['data:' + attachment.mimeType + ';base64,' + attachment.base64] : undefined,
+            };
             next = [...prev, userMsg];
           }
           const assistantMsg: UiMessage = { id: assistantPlaceholderId, role: 'assistant', content: '', createdAt: new Date().toISOString(), status: 'streaming', toolParts: [] };

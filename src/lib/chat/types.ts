@@ -16,6 +16,7 @@ export interface ToolPart {
     sources?: Array<{ title: string; id: string }>;
   };
   error?: string;
+  attachmentUrls?: string[];
   createdAt: string;
 }
 
@@ -26,6 +27,7 @@ export interface UiMessage {
   createdAt: string;
   status?: 'streaming' | 'complete' | 'failed';
   error?: string;
+  attachmentUrls?: string[];
   /** Tool invocations attached to this assistant message, in order. */
   toolParts?: ToolPart[];
 }
