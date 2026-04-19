@@ -269,6 +269,69 @@ export async function POST(req: NextRequest) {
           })),
         }));
 
+        // ═══ PROVIDER ROUTING ═══
+        const selectedProvider = (body.provider || 'anthropic') as string;
+        
+        if (selectedProvider === 'openai') {
+          try {
+            const OpenAI = (await import('openai')).default;
+            const oai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+            const oaiMsgs = messages.map(m => ({
+              role: m.role as 'system' | 'user' | 'assistant',
+              content: typeof m.content === 'string' ? m.content : JSON.stringify(m.content),
+            }));
+            const oaiStream = await oai.chat.completions.create({
+              model: body.model || 'gpt-4o',
+              messages: oaiMsgs,
+              stream: true,
+              max_tokens: 4096,
+            });
+            let oaiText = '';
+            for await (const chunk of oaiStream) {
+              const d = chunk.choices[0]?.delta?.content || '';
+              if (d) { oaiText += d; controller.enqueue(sseEncode('delta', { text: d })); }
+            }
+            await svc.from('messages').update({ content: oaiText, status: 'complete' } as never).eq('id', pendingMessageId);
+            controller.enqueue(sseEncode('done', { assistantMessageId: pendingMessageId, conversationId, isNewConversation: isNew }));
+            controller.close();
+          } catch (e) {
+            const msg = e instanceof Error ? e.message : 'OpenAI error';
+            controller.enqueue(sseEncode('error', { message: msg }));
+            controller.close();
+          }
+          return;
+        }
+        
+        if (selectedProvider === 'google') {
+          try {
+            const { GoogleGenerativeAI } = await import('@google/generative-ai');
+            const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY || '');
+            const gemModel = genAI.getGenerativeModel({ model: body.model || 'gemini-2.5-flash-preview' });
+            const sysMsg = messages.filter(m => m.role === 'system').map(m => typeof m.content === 'string' ? m.content : '').join('\n');
+            const chatMsgs = messages.filter(m => m.role !== 'system').map(m => ({
+              role: m.role === 'assistant' ? 'model' as const : 'user' as const,
+              parts: [{ text: typeof m.content === 'string' ? m.content : JSON.stringify(m.content) }],
+            }));
+            const lastMsg = chatMsgs.pop();
+            const chat = gemModel.startChat({ history: chatMsgs, systemInstruction: sysMsg || undefined });
+            const gemStream = await chat.sendMessageStream(lastMsg?.parts[0]?.text || '');
+            let gemText = '';
+            for await (const chunk of gemStream.stream) {
+              const d = chunk.text();
+              if (d) { gemText += d; controller.enqueue(sseEncode('delta', { text: d })); }
+            }
+            await svc.from('messages').update({ content: gemText, status: 'complete' } as never).eq('id', pendingMessageId);
+            controller.enqueue(sseEncode('done', { assistantMessageId: pendingMessageId, conversationId, isNewConversation: isNew }));
+            controller.close();
+          } catch (e) {
+            const msg = e instanceof Error ? e.message : 'Gemini error';
+            controller.enqueue(sseEncode('error', { message: msg }));
+            controller.close();
+          }
+          return;
+        }
+        
+        // ═══ ANTHROPIC (default) — with tool-use for images ═══
         let fullText = '';
         let inputTokens = 0;
         let outputTokens = 0;
