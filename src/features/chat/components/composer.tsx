@@ -36,9 +36,15 @@ export function Composer({ onSend, onCancel, loading, disabled }: Props) {
     const trimmed = value.trim();
     if ((!trimmed && attachments.length === 0) || loading || disabled) return;
     const msg = trimmed || (attachments.length > 0 ? 'Analyze this file' : '');
+    // Send first attachment for backward compat, include all in allAttachments
     onSend(
       msg,
-      attachments.length > 0 ? { base64: attachments[0].base64, mimeType: attachments[0].mimeType, fileName: attachments[0].file.name } : undefined,
+      attachments.length > 0 ? {
+        base64: attachments[0].base64,
+        mimeType: attachments[0].mimeType,
+        fileName: attachments.map(a => a.file.name).join(', '),
+        allAttachments: attachments.map(a => ({ base64: a.base64, mimeType: a.mimeType, fileName: a.file.name })),
+      } : undefined,
     );
     setValue('');
     setAttachments([]);
@@ -63,11 +69,7 @@ export function Composer({ onSend, onCancel, loading, disabled }: Props) {
     const toProcess = Array.from(files).slice(0, remaining);
     for (const file of toProcess) {
 
-    // Max 20MB
-    if (file.size > 20 * 1024 * 1024) {
-      alert('File too large (max 20MB)');
-      return;
-    }
+    if (file.size > 20 * 1024 * 1024) continue;
 
     const base64 = await fileToBase64(file);
     const isImage = file.type.startsWith('image/');
@@ -96,7 +98,7 @@ export function Composer({ onSend, onCancel, loading, disabled }: Props) {
 
         {/* Attachment preview */}
         {attachments.length > 0 && (
-          <div className="flex gap-2 p-2 rounded-lg border border-border bg-surface-2 overflow-x-auto">
+          <div className="flex flex-wrap gap-2 p-2 rounded-lg border border-border bg-surface-2">
             {attachments.map((att, i) => (
               <div key={i} className="relative shrink-0 group">
                 {att.preview ? (
