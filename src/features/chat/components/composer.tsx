@@ -57,8 +57,11 @@ export function Composer({ onSend, onCancel, loading, disabled }: Props) {
   }
 
   async function handleFileSelect(e: ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    const remaining = 10 - attachments.length;
+    const toProcess = Array.from(files).slice(0, remaining);
+    for (const file of toProcess) {
 
     // Max 20MB
     if (file.size > 20 * 1024 * 1024) {
@@ -70,10 +73,9 @@ export function Composer({ onSend, onCancel, loading, disabled }: Props) {
     const isImage = file.type.startsWith('image/');
     const preview = isImage ? URL.createObjectURL(file) : null;
 
-    if (attachments.length >= 10) { alert('Max 10 files'); return; }
     setAttachments(prev => [...prev, { file, preview, base64, mimeType: file.type }]);
+    }
 
-    // Clear input so same file can be re-selected
     if (fileRef.current) fileRef.current.value = '';
   }
 

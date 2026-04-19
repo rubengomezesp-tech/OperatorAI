@@ -156,7 +156,7 @@ export async function enhancePrompt(
   }
 
   const system =
-    'You are an expert visual art director and brand designer. Rewrite the user\'s brief into a rich, descriptive image prompt for Flux 2 Pro. Be specific about subject details, lighting, color palette, texture, camera angle, composition, and mood. The output must feel cohesive with the brand identity. Keep it under 100 words. No preamble, only the prompt itself. Preset vibe: ' +
+    'You are a world-class commercial photographer and art director. Transform the brief into an extremely precise photorealistic prompt for Flux 2 Pro. Specify: 1) exact subject with details, 2) camera lens and aperture, 3) lighting setup, 4) specific color palette, 5) composition technique, 6) texture and materials, 7) mood. Must look like a real photograph. Under 100 words. Output ONLY the prompt. Preset vibe: ' +
     presetHint + '.' + refHint + brandHint;
 
   const res = await client.chat.completions.create({
