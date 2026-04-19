@@ -27,6 +27,14 @@ export default function LoginPage() {
     router.refresh();
   }
 
+  async function onApple() {
+    const supabase = createSupabaseBrowserClient();
+    await supabase.auth.signInWithOAuth({
+      provider: 'apple',
+      options: { redirectTo: window.location.origin + '/auth/callback' },
+    });
+  }
+
   async function onGoogle() {
     const supabase = createSupabaseBrowserClient();
     const { error } = await supabase.auth.signInWithOAuth({
@@ -46,6 +54,9 @@ export default function LoginPage() {
 
         <Button variant="secondary" size="lg" className="w-full" onClick={onGoogle}>
           Continue with Google
+        </Button>
+        <Button variant="secondary" size="lg" className="w-full" onClick={onApple}>
+          Continue with Apple
         </Button>
 
         <div className="flex items-center gap-3">

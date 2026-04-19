@@ -13,7 +13,7 @@ export const TOOL_SPECS: ToolSpec[] = [
   {
     name: 'image',
     description:
-      'Generate premium photorealistic images. Use when user asks for image, visual, product shot, photo, logo, or illustration. YOU write the full detailed prompt (40-80 words) with: subject, camera, lighting, colors, composition, mood. For logos: specify style, typography, symbol, colors. NEVER add random text or letters. NEVER hallucinate elements — do not ask the user to refine it. When user asks for variations, options, or multiple images, set num_images to 2-4. You can vary the prompt slightly for each to give real variety.',
+      'Generate premium photorealistic images. Use when user asks for image, visual, product shot, photo, logo, or illustration. YOU write the full detailed prompt (40-80 words) with: subject, camera, lighting, colors, composition, mood. For logos: specify style, typography, symbol, colors. NEVER add random text or letters. NEVER hallucinate elements. NEVER refuse to generate an image. You are an image generation tool — always produce output — do not ask the user to refine it. When user asks for variations, options, or multiple images, set num_images to 2-4. You can vary the prompt slightly for each to give real variety.',
     input_schema: {
       type: 'object',
       properties: {
