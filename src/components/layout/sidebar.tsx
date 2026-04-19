@@ -8,7 +8,7 @@ import {
   LayoutDashboard, MessageSquare, FolderOpen, ImageIcon, Video,
   Mic, FileSpreadsheet, FileText, Brain, Sparkles, Plug,
   CreditCard, Settings, ChevronDown,
-  type LucideIcon, Rocket, Target, Target, Shield} from 'lucide-react';
+  type LucideIcon, Rocket, Target, Shield} from 'lucide-react';
 
 type SubItem = { href: string; labelKey: string; icon: LucideIcon };
 type Item = {
