@@ -30,7 +30,7 @@ export function getDefaultProvider(): ChatProvider {
 export function resolveModelForProvider(name: ProviderName): string {
   if (name === 'openai') return 'gpt-4o';
   if (name === 'anthropic') return 'claude-sonnet-4-5-20250929';
-  return 'gemini-3.1-pro-preview';
+  return 'gemini-2.0-flash';
 }
 
 export * from './types';

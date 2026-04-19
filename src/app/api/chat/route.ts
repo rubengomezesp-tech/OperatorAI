@@ -234,8 +234,8 @@ export async function POST(req: NextRequest) {
     role: 'assistant',
     content: '',
     status: 'streaming',
-    provider: 'anthropic',
-    model: 'claude-sonnet-4-5',
+    provider: body.provider || 'anthropic',
+    model: body.model || 'claude-sonnet-4-5',
     parent_message_id: userMessageId,
     context_doc_chunks: retrieved.map((c) => c.id),
   } as never;
