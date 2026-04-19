@@ -8,7 +8,7 @@ import {
   LayoutDashboard, MessageSquare, FolderOpen, ImageIcon, Video,
   Mic, FileSpreadsheet, FileText, Brain, Sparkles, Plug,
   CreditCard, X, Menu,
-  type LucideIcon, Rocket, Palette, LogOut, HelpCircle,
+  type LucideIcon, Target, Rocket, Palette, LogOut, HelpCircle,
 } from 'lucide-react';
 
 interface NavItem {
