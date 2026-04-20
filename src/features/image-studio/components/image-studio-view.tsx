@@ -70,7 +70,7 @@ export function ImageStudioView() {
     setLastPrompt(thePrompt);
 
     const tempIds = Array.from({ length: numImages }, (_, i) => 'temp-' + Date.now() + '-' + i);
-    setImages(prev => [...tempIds.map(id => ({ id, url: '', prompt: thePrompt, presetId: preset, aspectRatio: aspect, starred: false, created_at: new Date().toISOString(), loading: true })), ...prev]);
+    setImages(prev => [...tempIds.map(id => ({ id, prompt: thePrompt, enhanced_prompt: null, preset, aspect_ratio: aspect, is_starred: false, status: 'processing' as const, display_urls: [], created_at: new Date().toISOString(), error_message: null })), ...prev]);
 
     try {
       for (let i = 0; i < numImages; i++) {
@@ -91,7 +91,7 @@ export function ImageStudioView() {
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Failed');
-        setImages(prev => prev.map(img => img.id === tempIds[i] ? { ...img, ...data.image, loading: false } : img));
+        setImages(prev => prev.map(img => img.id === tempIds[i] ? { ...img, ...data.image, status: 'complete' as const } : img));
         if (i < numImages - 1) await new Promise(r => setTimeout(r, 3000));
       }
       toast.success(numImages > 1
@@ -114,7 +114,7 @@ export function ImageStudioView() {
     await generate(newPrompt);
   }
 
-  const filtered = filter === 'starred' ? images.filter(i => i.starred) : images;
+  const filtered = filter === 'starred' ? images.filter(i => i.is_starred) : images;
 
   return (
     <div className="px-4 lg:px-10 py-6 max-w-[1280px] mx-auto space-y-6">
@@ -300,7 +300,7 @@ export function ImageStudioView() {
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
             {filtered.map(img => (
-              <ImageCard key={img.id} image={img} onUpdate={refresh} />
+              <ImageCard key={img.id} img={img} onStar={async (id, starred) => { await fetch("/api/images/star", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, starred }) }); refresh(); }} />
             ))}
           </div>
         )}
