@@ -121,10 +121,10 @@ export default function LandingPage() {
           </div>
           <p className="text-[11.5px] text-fg-subtle uppercase tracking-[0.14em]">
             {l('no_card')} &middot; {l('from')}
-          </div>
+          </p>
           <div className="mt-4">
             <Link href="/login" className="text-[13px] text-gold hover:text-gold/80 underline underline-offset-4 transition-colors">{l('cta_login')}</Link>
-          </p>
+          </div>
         </div>
       </section>
 
