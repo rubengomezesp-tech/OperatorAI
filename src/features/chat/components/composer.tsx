@@ -3,6 +3,7 @@ import { AgentPicker } from '@/features/agents/components/agent-picker';
 import { useState, useRef, useEffect, type KeyboardEvent, type ChangeEvent } from 'react';
 import { ArrowUp, Square, Paperclip, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useI18n } from '@/lib/i18n';
 import { MicButton } from '@/features/voice/components/mic-button';
 
 interface Attachment {
@@ -20,6 +21,7 @@ interface Props {
 }
 
 export function Composer({ onSend, onCancel, loading, disabled }: Props) {
+  const { locale } = useI18n();
   const [value, setValue] = useState('');
   const [agentType, setAgentType] = useState<'creative' | 'brand' | 'copy' | 'research' | 'analyst' | 'social'>('creative');
   const [attachments, setAttachments] = useState<Attachment[]>([]);
@@ -93,7 +95,7 @@ export function Composer({ onSend, onCancel, loading, disabled }: Props) {
 
   return (
     <div className="border-t border-border glass">
-      <div className="max-w-[760px] mx-auto px-6 py-4 space-y-2.5">
+      <div className="max-w-[820px] mx-auto px-4 lg:px-6 py-3 space-y-2.5">
         <div className="flex items-center gap-2">
           <AgentPicker value={agentType} onChange={setAgentType} />
         </div>
@@ -135,13 +137,13 @@ export function Composer({ onSend, onCancel, loading, disabled }: Props) {
             value={value}
             onChange={(e) => setValue(e.target.value)}
             onKeyDown={onKeyDown}
-            placeholder="Message Operator..."
-            rows={1}
+            placeholder={locale === "es" ? "Escribe tu idea, sube imagenes, pide lo que necesites..." : "Type your idea, upload images, ask for anything..."}
+            rows={2}
             disabled={disabled}
             className={cn(
               'flex-1 bg-transparent resize-none border-0 focus:outline-none',
               'px-4 py-3.5 text-[14.5px] text-fg placeholder:text-fg-subtle',
-              'min-h-[48px] max-h-[200px]',
+              'min-h-[52px] max-h-[300px]',
             )}
           />
           <div className="p-1.5 flex items-center gap-1.5">

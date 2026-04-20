@@ -4,7 +4,7 @@ import { ArrowRight, Rocket, Target, Zap } from 'lucide-react';
 import { useI18n, LanguageToggle } from '@/lib/i18n';
 
 const t_landing: Record<string, Record<string, string>> = {
-  badge: { en: 'Operator AI v4.0', es: 'Operator AI v4.0' },
+  badge: { en: 'Operator AI v1.1', es: 'Operator AI v1.1' },
   h1_1: { en: 'Deploy missions.', es: 'Despliega misiones.' },
   h1_2: { en: 'Not prompts.', es: 'No prompts.' },
   hero_p: {
@@ -13,6 +13,7 @@ const t_landing: Record<string, Record<string, string>> = {
   },
   cta_trial: { en: 'Start 7-day free trial', es: 'Prueba gratis 7 días' },
   cta_pricing: { en: 'View pricing', es: 'Ver precios' },
+  cta_login: { en: 'Log in', es: 'Iniciar sesion' },
   no_card: { en: 'No card required', es: 'Sin tarjeta' },
   from: { en: 'Starter from $29/mo', es: 'Starter desde 29 $/mes' },
   shift: { en: 'The shift', es: 'El cambio' },
@@ -76,9 +77,11 @@ export default function LandingPage() {
             <Link href="/pricing" className="hover:text-gold transition-colors">{l('nav_pricing')}</Link>
             <Link href="/login" className="hover:text-gold transition-colors">{l('nav_login')}</Link>
             <LanguageToggle />
+            <Link href="/login" className="h-9 px-4 rounded-md border border-gold/30 bg-gold/10 text-gold text-[13px] font-medium flex items-center hover:bg-gold/20 transition-colors">{l(t_landing.cta_login)}</Link>
           </nav>
           <div className="flex md:hidden items-center gap-2">
             <LanguageToggle />
+            <Link href="/login" className="h-9 px-4 rounded-md border border-gold/30 bg-gold/10 text-gold text-[13px] font-medium flex items-center hover:bg-gold/20 transition-colors">{l(t_landing.cta_login)}</Link>
             <Link
               href="/signup"
               className="inline-flex items-center gap-1.5 h-8 px-3.5 rounded-md gold-grad text-bg text-[12px] font-medium hover:brightness-110 transition"
