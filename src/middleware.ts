@@ -1,43 +1,65 @@
 import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { NextResponse, type NextRequest } from 'next/server';
+import { createServerClient } from '@supabase/ssr';
 
 export const config = {
-  matcher: ['/api/:path*'],
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|icons|logo.png|manifest.json|sw.js).*)'],
 };
 
-export function middleware(req: NextRequest) {
-  const res = NextResponse.next();
+export async function middleware(req: NextRequest) {
+  let res = NextResponse.next();
 
-  // CORS — only allow our domains
-  const origin = req.headers.get('origin') ?? '';
-  const allowed = [
-    'https://operatoraiapp.com',
-    'https://www.operatoraiapp.com',
-    'https://operator-ai-delta.vercel.app',
-    'http://localhost:3000',
-  ];
+  // Refresh Supabase session on every request (keeps user logged in)
+  try {
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() { return req.cookies.getAll(); },
+          setAll(cookiesToSet) {
+            cookiesToSet.forEach(({ name, value, options }) => {
+              req.cookies.set(name, value);
+              res = NextResponse.next({ request: req });
+              res.cookies.set(name, value, options);
+            });
+          },
+        },
+      },
+    );
+    await supabase.auth.getUser();
+  } catch {}
 
-  if (allowed.includes(origin)) {
-    res.headers.set('Access-Control-Allow-Origin', origin);
-  }
-
-  res.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  res.headers.set('Access-Control-Max-Age', '86400');
-
-  // Block non-browser automated requests without proper headers
+  // CORS — only for API routes
   if (req.nextUrl.pathname.startsWith('/api/')) {
-    // Rate limit header for clients
-    res.headers.set('X-RateLimit-Policy', '60 per minute');
+    const origin = req.headers.get('origin') ?? '';
+    const allowed = [
+      'https://operatoraiapp.com',
+      'https://www.operatoraiapp.com',
+      'https://operator-ai-delta.vercel.app',
+      'http://localhost:3000',
+      'capacitor://localhost',
+      'ionic://localhost',
+    ];
 
-    // Prevent caching of API responses
-    res.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate');
-    res.headers.set('Pragma', 'no-cache');
-  }
+    if (allowed.includes(origin)) {
+      res.headers.set('Access-Control-Allow-Origin', origin);
+      res.headers.set('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
+      res.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+      res.headers.set('Access-Control-Allow-Credentials', 'true');
+    }
 
-  // Handle preflight
-  if (req.method === 'OPTIONS') {
-    return new NextResponse(null, { status: 200, headers: res.headers });
+    // Rate limiting
+    if (req.method !== 'OPTIONS') {
+      const ip = req.headers.get('x-forwarded-for')?.split(',')[0] ?? 'unknown';
+      const ok = checkRateLimit(ip);
+      if (!ok) return rateLimitResponse();
+    }
+
+    // Security headers
+    res.headers.set('X-Frame-Options', 'DENY');
+    res.headers.set('X-Content-Type-Options', 'nosniff');
+    res.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
   }
 
   return res;

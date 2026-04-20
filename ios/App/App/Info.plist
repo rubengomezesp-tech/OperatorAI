@@ -47,5 +47,16 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+
+	<key>NSCameraUsageDescription</key>
+	<string>Operator AI uses your camera to capture images for AI analysis and brand content creation.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Operator AI uses your microphone for hands-free voice conversations with the AI agent.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Operator AI accesses your photo library to upload reference images for AI-powered image generation and brand design.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Operator AI saves generated images and brand assets to your photo library.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Operator AI uses speech recognition for voice mode to convert your speech into text commands.</string>
 </dict>
 </plist>
