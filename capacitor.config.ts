@@ -10,17 +10,19 @@ const config: CapacitorConfig = {
   },
   ios: {
     scheme: 'Operator AI',
-    contentInset: 'always',
-    backgroundColor: '#0A0A0B',
+    contentInset: 'automatic',
     preferredContentMode: 'mobile',
-    scrollEnabled: true,
+    backgroundColor: '#0A0A0B',
   },
   plugins: {
     SplashScreen: {
-      launchAutoHide: true,
-      launchShowDuration: 2000,
+      launchAutoHide: false,
       backgroundColor: '#0A0A0B',
       showSpinner: false,
+    },
+    StatusBar: {
+      style: 'LIGHT',
+      backgroundColor: '#0A0A0B',
     },
   },
 };
