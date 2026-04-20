@@ -19,7 +19,7 @@ interface Props {
 const ACCEPT = 'image/jpeg,image/png,image/webp,image/gif';
 const MAX_SIZE = 10 * 1024 * 1024;
 
-export function ReferenceUploader({ value, onChange, maxImages = 4 }: Props) {
+export function ReferenceUploader({ value, onChange, maxImages = 10 }: Props) {
   const [uploading, setUploading] = useState(0);
   const [dragOver, setDragOver] = useState(false);
 
