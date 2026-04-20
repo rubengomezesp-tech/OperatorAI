@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { createSupabaseServiceClient } from '@/lib/supabase/service';
 import { resolveOrgContext } from '@/features/chat/server/resolve-org-context';
-import { generateVideo, pollVideoStatus } from '@/features/video/server/veo-client';
+import { generateVideo, getOperationStatus } from '@/features/video/server/veo-client';
 
 export const runtime = 'nodejs';
 export const maxDuration = 300;
@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
     let videoUrl = '';
     for (let i = 0; i < 48; i++) {
       await new Promise(r => setTimeout(r, 5000));
-      const status = await pollVideoStatus(op.operationName);
+      const status = await getOperationStatus(op.operationName);
       if (status.done) {
         if (status.videoUri) { videoUrl = status.videoUri; }
         if (status.error) { throw new Error(status.error); }
