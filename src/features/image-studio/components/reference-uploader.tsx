@@ -40,6 +40,7 @@ export function ReferenceUploader({ value, onChange, maxImages = 10 }: Props) {
 
     setUploading((n) => n + toUpload.length);
 
+    const newRefs: { url: string; path: string }[] = [];
     for (const file of toUpload) {
       try {
         const fd = new FormData();
@@ -49,7 +50,9 @@ export function ReferenceUploader({ value, onChange, maxImages = 10 }: Props) {
         if (!res.ok) {
           toast.error(body?.error ?? 'Upload failed');
         } else {
-          onChange([...value, { url: body.url, path: body.path }]);
+          newRefs.push({ url: body.url, path: body.path });
+          // Update progressively so user sees each image appear
+          onChange([...value, ...newRefs]);
         }
       } catch (e) {
         toast.error(e instanceof Error ? e.message : 'Upload failed');
@@ -82,7 +85,7 @@ export function ReferenceUploader({ value, onChange, maxImages = 10 }: Props) {
 
   return (
     <div className="space-y-2">
-      <div className="grid grid-cols-4 gap-2">
+      <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-2">
         {value.map((img, i) => (
           <div key={i} className="relative group aspect-square rounded-md overflow-hidden border border-border bg-surface-2">
             <Image
@@ -138,15 +141,12 @@ export function ReferenceUploader({ value, onChange, maxImages = 10 }: Props) {
           </label>
         )}
 
-        {/* Pad empty slots up to maxImages for visual balance */}
-        {Array.from({ length: Math.max(0, maxImages - value.length - (canAddMore ? 1 : 0)) }).map((_, i) => (
-          <div key={'pad-' + i} className="aspect-square rounded-md border border-dashed border-border/40 bg-surface-2/30" />
-        ))}
+
       </div>
 
       <div className="flex items-center justify-between text-[11px] text-fg-subtle">
         <span>
-          {value.length}/{maxImages} references · Flux 2 Pro uses them for style, subject, and composition.
+          {value.length > 0 ? value.length + '/' + maxImages + ' ' + (value.length === 1 ? 'reference' : 'references') : 'Drag & drop or click to add references (up to ' + maxImages + ')'}
         </span>
         {value.length > 0 && (
           <button
