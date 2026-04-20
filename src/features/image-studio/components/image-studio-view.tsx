@@ -300,7 +300,7 @@ export function ImageStudioView() {
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
             {filtered.map(img => (
-              <ImageCard key={img.id} img={img} onStar={async (id, starred) => { await fetch("/api/images/star", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, starred }) }); refresh(); }} />
+              <ImageCard key={img.id} img={img} onStar={async (id, starred) => { await fetch("/api/images/star", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, starred }) }); refresh(); }} onDelete={async (id) => { await fetch("/api/images/delete", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) }); refresh(); }} />
             ))}
           </div>
         )}
