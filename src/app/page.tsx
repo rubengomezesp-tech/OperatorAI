@@ -75,13 +75,12 @@ export default function LandingPage() {
           </Link>
           <nav className="hidden md:flex items-center gap-6 text-[13px] text-fg-muted">
             <Link href="/pricing" className="hover:text-gold transition-colors">{l('nav_pricing')}</Link>
-            <Link href="/login" className="hover:text-gold transition-colors">{l('nav_login')}</Link>
             <LanguageToggle />
-            <Link href="/login" className="h-9 px-4 rounded-md border border-gold/30 bg-gold/10 text-gold text-[13px] font-medium flex items-center hover:bg-gold/20 transition-colors">{l(t_landing.cta_login)}</Link>
+            <Link href="/login" className="h-9 px-4 rounded-md border border-gold/30 bg-gold/10 text-gold text-[13px] font-medium flex items-center hover:bg-gold/20 transition-colors">{l('cta_login')}</Link>
           </nav>
           <div className="flex md:hidden items-center gap-2">
             <LanguageToggle />
-            <Link href="/login" className="h-9 px-4 rounded-md border border-gold/30 bg-gold/10 text-gold text-[13px] font-medium flex items-center hover:bg-gold/20 transition-colors">{l(t_landing.cta_login)}</Link>
+            <Link href="/login" className="h-9 px-4 rounded-md border border-gold/30 bg-gold/10 text-gold text-[13px] font-medium flex items-center hover:bg-gold/20 transition-colors">{l('cta_login')}</Link>
             <Link
               href="/signup"
               className="inline-flex items-center gap-1.5 h-8 px-3.5 rounded-md gold-grad text-bg text-[12px] font-medium hover:brightness-110 transition"
