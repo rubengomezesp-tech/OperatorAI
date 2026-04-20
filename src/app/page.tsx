@@ -76,11 +76,9 @@ export default function LandingPage() {
           <nav className="hidden md:flex items-center gap-6 text-[13px] text-fg-muted">
             <Link href="/pricing" className="hover:text-gold transition-colors">{l('nav_pricing')}</Link>
             <LanguageToggle />
-            <Link href="/login" className="h-9 px-4 rounded-md border border-gold/30 bg-gold/10 text-gold text-[13px] font-medium flex items-center hover:bg-gold/20 transition-colors">{l('cta_login')}</Link>
           </nav>
           <div className="flex md:hidden items-center gap-2">
             <LanguageToggle />
-            <Link href="/login" className="h-9 px-4 rounded-md border border-gold/30 bg-gold/10 text-gold text-[13px] font-medium flex items-center hover:bg-gold/20 transition-colors">{l('cta_login')}</Link>
             <Link
               href="/signup"
               className="inline-flex items-center gap-1.5 h-8 px-3.5 rounded-md gold-grad text-bg text-[12px] font-medium hover:brightness-110 transition"
@@ -123,6 +121,9 @@ export default function LandingPage() {
           </div>
           <p className="text-[11.5px] text-fg-subtle uppercase tracking-[0.14em]">
             {l('no_card')} &middot; {l('from')}
+          </div>
+          <div className="mt-4">
+            <Link href="/login" className="text-[13px] text-gold hover:text-gold/80 underline underline-offset-4 transition-colors">{l('cta_login')}</Link>
           </p>
         </div>
       </section>
