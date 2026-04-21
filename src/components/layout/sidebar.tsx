@@ -4,11 +4,12 @@ import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { useI18n } from '@/lib/i18n';
-import {
-  LayoutDashboard, MessageSquare, FolderOpen, ImageIcon, Video,
+import {LayoutDashboard, MessageSquare, FolderOpen, ImageIcon, Video,
   Mic, FileSpreadsheet, FileText, Brain, Sparkles, Plug,
   CreditCard, Settings, ChevronDown,
-  type LucideIcon, Rocket, Target, Shield} from 'lucide-react';
+   Rocket, Target, Shield, Zap} from 'lucide-react';
+
+import type { LucideIcon } from 'lucide-react';
 
 type SubItem = { href: string; labelKey: string; icon: LucideIcon };
 type Item = {
