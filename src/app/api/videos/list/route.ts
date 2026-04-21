@@ -22,7 +22,8 @@ export async function GET() {
       .limit(50);
 
     return NextResponse.json({ videos: data ?? [] });
-  } catch {
-    return NextResponse.json({ videos: [] });
+  } catch (e) {
+    console.error('[video-list]', e);
+    return NextResponse.json({ videos: [], error: String(e) });
   }
 }
