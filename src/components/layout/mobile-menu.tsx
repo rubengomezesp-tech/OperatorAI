@@ -7,7 +7,9 @@ import { useI18n } from '@/lib/i18n';
 import {LayoutDashboard, MessageSquare, FolderOpen, ImageIcon, Video,
   Mic, FileSpreadsheet, FileText, Brain, Sparkles, Plug,
   CreditCard, X, Menu,
-  type LucideIcon, Target, Rocket, Palette, LogOut, HelpCircle,, Zap} from 'lucide-react';
+   Target, Rocket, Palette, LogOut, HelpCircle, Zap} from 'lucide-react';
+
+import type { LucideIcon } from 'lucide-react';
 
 interface NavItem {
   href: string;
