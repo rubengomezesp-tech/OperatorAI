@@ -14,6 +14,11 @@ const W = 1080;
 const H = 1920;
 const PAD = 40;
 const BG = '#0A0A0B';
+const SIZES: Record<string, [number, number]> = {
+ '9:16': [1080, 1920],
+ '1:1': [1080, 1080],
+ '4:5': [1080, 1350],
+};
 
 /**
  * Deterministic canvas composer.
@@ -24,7 +29,7 @@ const BG = '#0A0A0B';
  * - lifestyle → background fill
  * - support → small accents
  */
-export function ReferenceComposer({ imageUrls, classifications, onComposed }: Props) {
+export function ReferenceComposer({ imageUrls, classifications, aspectRatio, onComposed }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [loading, setLoading] = useState(true);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -45,15 +50,15 @@ export function ReferenceComposer({ imageUrls, classifications, onComposed }: Pr
 
     // Background
     ctx.fillStyle = BG;
-    ctx.fillRect(0, 0, W, H);
+    ctx.fillRect(0, 0, CW, CH);
 
     // Subtle gradient
-    const grad = ctx.createLinearGradient(0, 0, 0, H);
+    const grad = ctx.createLinearGradient(0, 0, 0, CH);
     grad.addColorStop(0, 'rgba(201,168,99,0.06)');
     grad.addColorStop(0.5, 'rgba(0,0,0,0)');
     grad.addColorStop(1, 'rgba(201,168,99,0.03)');
     ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, W, H);
+    ctx.fillRect(0, 0, CW, CH);
 
     // Load all images
     const loaded: { img: HTMLImageElement; cls: Classification }[] = [];
@@ -81,27 +86,27 @@ export function ReferenceComposer({ imageUrls, classifications, onComposed }: Pr
     // LIFESTYLE → background fill (if any)
     if (lifestyles.length > 0) {
       const bg = lifestyles[0].img;
-      const scale = Math.max(W / bg.width, H / bg.height);
+      const scale = Math.max(CW / bg.width, CH / bg.height);
       const sw = bg.width * scale;
       const sh = bg.height * scale;
       ctx.globalAlpha = 0.3;
-      ctx.drawImage(bg, (W - sw) / 2, (H - sh) / 2, sw, sh);
+      ctx.drawImage(bg, (CW - sw) / 2, (CH - sh) / 2, sw, sh);
       ctx.globalAlpha = 1;
       // Darken overlay
       ctx.fillStyle = 'rgba(10,10,11,0.7)';
-      ctx.fillRect(0, 0, W, H);
+      ctx.fillRect(0, 0, CW, CH);
     }
 
     // PRODUCT → center, 60% width
     if (products.length > 0) {
       const p = products[0].img;
-      const maxW = W * 0.6;
-      const maxH = H * 0.4;
+      const maxW = CW * 0.6;
+      const maxH = CH * 0.4;
       const scale = Math.min(maxW / p.width, maxH / p.height);
       const pw = p.width * scale;
       const ph = p.height * scale;
-      const px = (W - pw) / 2;
-      const py = (H - ph) / 2 - 60;
+      const px = (CW - pw) / 2;
+      const py = (CH - ph) / 2 - 60;
 
       // Subtle shadow
       ctx.shadowColor = 'rgba(201,168,99,0.2)';
@@ -113,19 +118,19 @@ export function ReferenceComposer({ imageUrls, classifications, onComposed }: Pr
     // LOGO → top-right
     if (logos.length > 0) {
       const l = logos[0].img;
-      const maxS = W * 0.15;
+      const maxS = CW * 0.15;
       const scale = Math.min(maxS / l.width, maxS / l.height);
       const lw = l.width * scale;
       const lh = l.height * scale;
-      ctx.drawImage(l, W - lw - PAD, PAD, lw, lh);
+      ctx.drawImage(l, CW - lw - PAD, PAD, lw, lh);
     }
 
     // UI/SCREENSHOTS → bottom grid
     if (uis.length > 0) {
-      const gridY = H * 0.72;
-      const gridH = H * 0.22;
+      const gridY = CH * 0.72;
+      const gridH = CH * 0.22;
       const cols = Math.min(uis.length, 3);
-      const cellW = (W - PAD * 2 - (cols - 1) * 12) / cols;
+      const cellW = (CW - PAD * 2 - (cols - 1) * 12) / cols;
       const cellH = gridH;
 
       uis.slice(0, 3).forEach((u, i) => {
@@ -152,7 +157,7 @@ export function ReferenceComposer({ imageUrls, classifications, onComposed }: Pr
 
     // SUPPORT → small accents, top-left area
     supports.slice(0, 2).forEach((s, i) => {
-      const maxS = W * 0.1;
+      const maxS = CW * 0.1;
       const scale = Math.min(maxS / s.img.width, maxS / s.img.height);
       const sw2 = s.img.width * scale;
       const sh2 = s.img.height * scale;
