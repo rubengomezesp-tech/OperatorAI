@@ -338,6 +338,16 @@ const translations: Record<string, { en: string; es: string }> = {
   'vid.deleted': { en: 'Deleted', es: 'Eliminado' },
   'vid.clear_all': { en: 'Clear all', es: 'Limpiar todo' },
   'vid.long_video': { en: 'Long video (15s+)', es: 'Video largo (15s+)' },
+  'ad.builder': { en: 'Ad Builder', es: 'Constructor de Anuncios' },
+  'ad.format': { en: 'Choose format', es: 'Elige formato' },
+  'ad.brief': { en: 'Describe your ad', es: 'Describe tu anuncio' },
+  'ad.create': { en: 'Create ad', es: 'Crear anuncio' },
+  'ad.ready': { en: 'Ad ready', es: 'Anuncio listo' },
+  'ad.download': { en: 'Download PNG', es: 'Descargar PNG' },
+  'ad.edit_text': { en: 'Edit texts', es: 'Editar textos' },
+  'ad.regenerate': { en: 'Regenerate image', es: 'Regenerar imagen' },
+  'ad.text_style': { en: 'Text style', es: 'Estilo de texto' },
+  'ad.text_position': { en: 'Text position', es: 'Posicion del texto' },
 };
 
 type TranslationKey = string;

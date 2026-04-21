@@ -1,16 +1,26 @@
 'use client';
 import { useState } from 'react';
-import { Megaphone, BookOpen, Palette, Flame, ArrowLeft, Sparkles } from 'lucide-react';
+import { Megaphone, Wand2, BookOpen, Palette, Flame, ArrowLeft, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useI18n } from '@/lib/i18n';
 import { CampaignGenerator } from './campaign-generator';
 import { StoryPackGenerator } from './story-pack-generator';
 import { BrandKitGenerator } from './brand-kit-generator';
 import { ViralContentGenerator } from './viral-content-generator';
+import { AdBuilder } from './ad-builder';
 
-type Tool = 'campaign' | 'stories' | 'brand-kit' | 'viral' | null;
+type Tool = 'campaign' | 'stories' | 'brand-kit' | 'viral' | 'ad-builder' | null;
 
 const TOOLS = [
+  {
+    id: 'ad-builder' as const,
+    icon: Wand2,
+    title: { en: 'Ad Builder', es: 'Constructor de Anuncios' },
+    desc: { en: 'From idea to publish-ready ad in 30 seconds. Perfect text, no design skills needed.', es: 'De idea a anuncio publicable en 30 segundos. Texto perfecto, sin saber disenar.' },
+    color: 'text-gold',
+    bg: 'bg-gold/10 border-gold/20',
+    time: '~30s',
+  },
   {
     id: 'campaign' as const,
     icon: Megaphone,
@@ -64,6 +74,7 @@ export function CreativeStudioView() {
           <ArrowLeft className="h-3.5 w-3.5" />
           <span>{locale === 'es' ? 'Volver al estudio' : 'Back to studio'}</span>
         </button>
+        {activeTool === 'ad-builder' && <AdBuilder />}
         {activeTool === 'campaign' && <CampaignGenerator />}
         {activeTool === 'stories' && <StoryPackGenerator />}
         {activeTool === 'brand-kit' && <BrandKitGenerator />}
