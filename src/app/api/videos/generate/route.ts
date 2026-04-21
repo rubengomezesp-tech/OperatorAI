@@ -54,7 +54,7 @@ async function persistVideo(svc: any, orgId: string, tempUrl: string, videoId: s
 
     // Upload to Supabase Storage
     const { error } = await svc.storage
-      .from('video-outputs')
+      .from('videos')
       .upload(storagePath, buffer, {
         contentType: contentType.startsWith('video/') ? contentType : 'video/mp4',
         cacheControl: '31536000',
@@ -66,7 +66,7 @@ async function persistVideo(svc: any, orgId: string, tempUrl: string, videoId: s
       return url; // Return temp URL as fallback
     }
 
-    const { data } = svc.storage.from('video-outputs').getPublicUrl(storagePath);
+    const { data } = svc.storage.from('videos').getPublicUrl(storagePath);
     const permanentUrl = data?.publicUrl;
     console.log('[video-persist] Saved permanently:', permanentUrl?.slice(0, 80));
     return permanentUrl || url;
