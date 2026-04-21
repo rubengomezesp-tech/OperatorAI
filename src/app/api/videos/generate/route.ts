@@ -100,10 +100,12 @@ export async function POST(req: NextRequest) {
 
     // Step 1: Generate video (temp URL)
     let tempUrl: string;
+    // Try selected engine, fallback to Replicate if Veo fails (403/quota)
     if (isReplicate) {
       tempUrl = await generateWithReplicate(body.prompt);
     } else {
-      tempUrl = await generateWithVeo(
+      try {
+        tempUrl = await generateWithVeo(
         body.prompt,
         body.model || 'veo-3.1-fast-generate-preview',
         body.aspectRatio || '16:9',
@@ -111,6 +113,10 @@ export async function POST(req: NextRequest) {
         body.referenceBase64,
         body.referenceMimeType,
       );
+      } catch (veoErr) {
+        console.warn('[video] Veo failed, falling back to Replicate:', veoErr);
+        tempUrl = await generateWithReplicate(body.prompt);
+      }
     }
 
     // Step 2: Download and save to Supabase Storage (permanent)
