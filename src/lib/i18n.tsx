@@ -352,6 +352,7 @@ const translations: Record<string, { en: string; es: string }> = {
   'create.upload': { en: 'Upload images', es: 'Sube imagenes' },
   'create.generate': { en: 'Create Campaign', es: 'Crear campana' },
   'create.ready': { en: 'Your campaign', es: 'Tu campana' },
+  'nav.create_campaigns': { en: 'Create Campaigns', es: 'Crea Campanas' },
 };
 
 type TranslationKey = string;

@@ -29,8 +29,7 @@ const nav: NavSection[] = [
     { href: '/dashboard', labelKey: 'nav.overview', icon: LayoutDashboard },
     { href: '/projects', labelKey: 'nav.projects', icon: FolderOpen },
     { href: '/chat', labelKey: 'nav.creative_agent', icon: MessageSquare, badge: 'AI' },
-    { href: '/create', labelKey: 'Create', icon: Zap, badge: 'NEW' },
-      { href: '/creative-studio', labelKey: 'Creative Studio', icon: Target },
+          { href: '/creative-studio', labelKey: 'nav.create_campaigns', icon: Zap, badge: 'NEW' },
   ]},
   { groupKey: 'nav.studio', items: [
     { href: '/studio/image', labelKey: 'nav.image_studio', icon: ImageIcon },

@@ -16,6 +16,7 @@ const Schema = z.object({
   priority: z.enum(['fast', 'balanced', 'exact']).default('balanced'),
   duration: z.number().min(3).max(15).default(15),
   format: z.enum(['9:16', '16:9', '1:1']).default('9:16'),
+  skipVideo: z.boolean().optional(),
 });
 
 async function generateCopy(objective: string): Promise<{ hook: string; message: string; cta: string; headline: string }> {
@@ -119,6 +120,11 @@ export async function POST(req: NextRequest) {
       duration: body.duration,
       priority: body.priority,
     });
+
+    // 3. Skip video if image_copy mode
+    if (body.skipVideo) {
+      return NextResponse.json({ ok: true, campaign: { copy, model: 'none' } });
+    }
 
     // 3. Build prompt
     const prompt = [
