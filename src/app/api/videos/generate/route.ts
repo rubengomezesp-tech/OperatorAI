@@ -180,7 +180,7 @@ export async function POST(req: NextRequest) {
       aspect_ratio: body.aspectRatio || '16:9',
       duration_seconds: isReplicate ? 15 : (body.duration || 8),
       status: 'completed',
-      video_url: permanentUrl,
+      storage_path: permanentUrl,
       cost_usd: isReplicate ? 0.05 : 0.08,
       latency_ms: latencyMs,
       created_at: new Date().toISOString(),

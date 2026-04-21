@@ -16,12 +16,19 @@ export async function GET() {
 
     const { data } = await (svc as any)
       .from('videos')
-      .select('id, prompt, model, aspect_ratio, duration_seconds, status, video_url, error_message, cost_usd, created_at, completed_at')
+      .select('id, prompt, model, aspect_ratio, duration_seconds, status, storage_path, error_message, cost_usd, created_at, completed_at')
       .eq('org_id', orgId)
       .order('created_at', { ascending: false })
       .limit(50);
 
-    return NextResponse.json({ videos: data ?? [] });
+    const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+    const videos = (data ?? []).map((v: any) => ({
+      ...v,
+      video_url: v.storage_path
+        ? (v.storage_path.startsWith('http') ? v.storage_path : SUPABASE_URL + '/storage/v1/object/public/videos/' + v.storage_path)
+        : null,
+    }));
+    return NextResponse.json({ videos });
   } catch (e) {
     console.error('[video-list]', e);
     return NextResponse.json({ videos: [], error: String(e) });
