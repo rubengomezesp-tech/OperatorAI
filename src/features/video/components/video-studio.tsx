@@ -26,10 +26,10 @@ export function VideoStudio() {
   const { locale } = useI18n();
   const es = locale === 'es';
   const [prompt, setPrompt] = useState('');
-  const [engine, setEngine] = useState<Engine>('veo');
+  const [engine, setEngine] = useState<Engine>('minimax');
   const [veoModel, setVeoModel] = useState('veo-3.1-fast-generate-preview');
   const [aspect, setAspect] = useState<'16:9' | '9:16'>('16:9');
-  const [duration, setDuration] = useState<number>(8);
+  const [duration, setDuration] = useState<number>(15);
   const [references, setReferences] = useState<RefImage[]>([]);
   const [generating, setGenerating] = useState(false);
   const [elapsed, setElapsed] = useState(0);
@@ -330,7 +330,19 @@ export function VideoStudio() {
                 {v.video_url ? (
                   <div className="relative aspect-video bg-black">
                     {playingId === v.id ? (
-                      <video src={v.video_url} controls autoPlay className="w-full h-full object-contain" onEnded={() => setPlayingId(null)} />
+                      <video
+                        src={v.video_url}
+                        controls
+                        autoPlay
+                        playsInline
+                        crossOrigin="anonymous"
+                        className="w-full h-full object-contain"
+                        onEnded={() => setPlayingId(null)}
+                        onError={(e) => {
+                          console.error('Video playback error:', e);
+                          window.open(v.video_url!, '_blank');
+                        }}
+                      />
                     ) : (
                       <button onClick={() => setPlayingId(v.id)} className="w-full h-full flex items-center justify-center bg-surface-2 hover:bg-surface-3 transition-colors">
                         <div className="h-14 w-14 rounded-full bg-gold/20 border border-gold/30 flex items-center justify-center hover:scale-110 transition-transform">
