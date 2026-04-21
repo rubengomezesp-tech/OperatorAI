@@ -20,41 +20,86 @@ const BodySchema = z.object({
 
 /** Download video from temp URL and upload to Supabase Storage */
 async function persistVideo(svc: any, orgId: string, tempUrl: string, videoId: string): Promise<string> {
-  // Download video bytes
-  const res = await fetch(tempUrl);
-  if (!res.ok) throw new Error('Failed to download video: ' + res.status);
-  const buffer = Buffer.from(await res.arrayBuffer());
-  const contentType = res.headers.get('content-type') || 'video/mp4';
-  const ext = contentType.includes('webm') ? 'webm' : 'mp4';
+  try {
+    // Some Replicate URLs return a ReadableStream object, extract URL
+    let url = tempUrl;
+    if (typeof tempUrl === 'object' && (tempUrl as any).url) {
+      url = String((tempUrl as any).url);
+    }
 
-  // Upload to Supabase Storage
-  const storagePath = orgId + '/' + videoId + '.' + ext;
-  const { error } = await svc.storage
-    .from('video-outputs')
-    .upload(storagePath, buffer, {
-      contentType,
-      cacheControl: '31536000',
-      upsert: true,
-    });
+    console.log('[video-persist] Downloading from:', url.slice(0, 100));
 
-  if (error) {
-    console.error('[video-storage]', error);
-    // Return temp URL as fallback
-    return tempUrl;
+    // Download video bytes with timeout
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 60000);
+    const res = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeout);
+
+    if (!res.ok) {
+      console.error('[video-persist] Download failed:', res.status, res.statusText);
+      return url; // Return temp URL as fallback
+    }
+
+    const buffer = Buffer.from(await res.arrayBuffer());
+    console.log('[video-persist] Downloaded:', buffer.length, 'bytes');
+
+    if (buffer.length < 1000) {
+      console.error('[video-persist] Video too small, likely an error page');
+      return url;
+    }
+
+    const contentType = res.headers.get('content-type') || 'video/mp4';
+    const ext = contentType.includes('webm') ? 'webm' : 'mp4';
+    const storagePath = orgId + '/' + videoId + '.' + ext;
+
+    // Upload to Supabase Storage
+    const { error } = await svc.storage
+      .from('video-outputs')
+      .upload(storagePath, buffer, {
+        contentType: contentType.startsWith('video/') ? contentType : 'video/mp4',
+        cacheControl: '31536000',
+        upsert: true,
+      });
+
+    if (error) {
+      console.error('[video-storage] Upload failed:', error.message);
+      return url; // Return temp URL as fallback
+    }
+
+    const { data } = svc.storage.from('video-outputs').getPublicUrl(storagePath);
+    const permanentUrl = data?.publicUrl;
+    console.log('[video-persist] Saved permanently:', permanentUrl?.slice(0, 80));
+    return permanentUrl || url;
+  } catch (e) {
+    console.error('[video-persist] Error:', e);
+    return tempUrl; // Always fallback to temp URL
   }
-
-  // Get permanent public URL
-  const { data } = svc.storage.from('video-outputs').getPublicUrl(storagePath);
-  return data?.publicUrl || tempUrl;
 }
 
 async function generateWithReplicate(prompt: string): Promise<string> {
   const Replicate = (await import('replicate')).default;
   const client = new Replicate({ auth: serverEnv.REPLICATE_API_TOKEN });
+  console.log('[video-replicate] Starting generation...');
   const output = await client.run('minimax/video-01', { input: { prompt, prompt_optimizer: true } });
+  console.log('[video-replicate] Output type:', typeof output, output ? Object.keys(output as any).slice(0, 5) : 'null');
+
+  // Handle all possible output formats
   if (typeof output === 'string') return output;
-  if (output && typeof output === 'object' && 'url' in (output as any)) return String((output as any).url);
-  throw new Error('No video URL from Replicate');
+  if (output instanceof URL) return output.toString();
+  if (output && typeof output === 'object') {
+    const o = output as any;
+    if (o.url && typeof o.url === 'function') return await o.url();
+    if (o.url) return String(o.url);
+    if (o.href) return String(o.href);
+    if (o.toString && o.toString() !== '[object Object]') return o.toString();
+    if (Array.isArray(output) && output.length > 0) {
+      const first = output[0];
+      if (typeof first === 'string') return first;
+      if (first?.url) return String(first.url);
+    }
+  }
+  console.error('[video-replicate] Unknown output format:', JSON.stringify(output).slice(0, 200));
+  throw new Error('Could not extract video URL from Replicate output');
 }
 
 async function generateWithVeo(prompt: string, model: string, aspect: string, duration: number, refBase64?: string, refMime?: string): Promise<string> {
