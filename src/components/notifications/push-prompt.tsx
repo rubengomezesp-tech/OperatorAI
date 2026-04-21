@@ -4,85 +4,93 @@ import { Bell, X } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 
+const VAPID_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || '';
+
 export function PushNotificationPrompt() {
   const { locale } = useI18n();
+  const es = locale === 'es';
   const [show, setShow] = useState(false);
-  const [permission, setPermission] = useState<string>('default');
 
   useEffect(() => {
-    if (!('Notification' in window) || !('serviceWorker' in navigator)) return;
-    setPermission(Notification.permission);
-    // Show prompt after 10 seconds if not yet decided
-    if (Notification.permission === 'default') {
-      const timer = setTimeout(() => {
-        if (!sessionStorage.getItem('operator.push-dismissed')) {
-          setShow(true);
-        }
-      }, 10000);
-      return () => clearTimeout(timer);
-    }
+    if (typeof window === 'undefined' || !('Notification' in window) || !('serviceWorker' in navigator)) return;
+    if (Notification.permission !== 'default') return;
+    if (localStorage.getItem('operator.push-dismissed')) return;
+    const timer = setTimeout(() => setShow(true), 5000);
+    return () => clearTimeout(timer);
   }, []);
 
   async function enable() {
     try {
-      const result = await Notification.requestPermission();
-      setPermission(result);
-      if (result === 'granted') {
-        // Register for push
-        const reg = await navigator.serviceWorker.ready;
-        // For now just show a local notification as confirmation
-        reg.showNotification('Operator AI', {
-          body: locale === 'es' ? 'Notificaciones activadas ✓' : 'Notifications enabled ✓',
-          icon: '/icons/icon-192x192.png',
-        });
-      }
+      const perm = await Notification.requestPermission();
+      if (perm !== 'granted') { setShow(false); return; }
+
+      const reg = await navigator.serviceWorker.ready;
+      const sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_KEY),
+      });
+
+      // Send subscription to server
+      await fetch('/api/push/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subscription: sub.toJSON() }),
+      });
+
       setShow(false);
-    } catch {
+      localStorage.setItem('operator.push-enabled', '1');
+    } catch (e) {
+      console.error('[push-subscribe]', e);
       setShow(false);
     }
   }
 
   function dismiss() {
     setShow(false);
-    sessionStorage.setItem('operator.push-dismissed', '1');
+    localStorage.setItem('operator.push-dismissed', '1');
   }
 
-  if (!show || permission !== 'default') return null;
+  if (!show) return null;
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 max-w-[340px] animate-fade-in-up">
-      <div className="rounded-xl border border-gold/30 bg-surface shadow-[0_20px_60px_-15px_rgb(0_0_0_/_0.5)] p-5 space-y-3">
-        <div className="flex items-start justify-between gap-3">
-          <div className="h-10 w-10 rounded-lg bg-gold/15 border border-gold/30 flex items-center justify-center shrink-0">
+    <div className="fixed bottom-4 right-4 z-50 w-[320px] animate-fade-in-up">
+      <div className="rounded-xl border border-gold/20 bg-surface shadow-2xl p-4">
+        <div className="flex items-start gap-3">
+          <div className="h-10 w-10 rounded-xl bg-gold/10 border border-gold/20 flex items-center justify-center shrink-0">
             <Bell className="h-5 w-5 text-gold" />
           </div>
-          <button onClick={dismiss} className="text-fg-muted hover:text-fg"><X className="h-4 w-4" /></button>
-        </div>
-        <div>
-          <div className="font-display text-[16px] mb-1">
-            {locale === 'es' ? 'Activa las notificaciones' : 'Enable notifications'}
+          <div className="flex-1 min-w-0">
+            <div className="font-display text-[14px] mb-1">
+              {es ? 'Activar notificaciones' : 'Enable notifications'}
+            </div>
+            <p className="text-[12px] text-fg-muted leading-relaxed mb-3">
+              {es
+                ? 'Recibe avisos cuando tus imagenes y videos esten listos, incluso si cierras la app.'
+                : 'Get notified when your images and videos are ready, even if you close the app.'}
+            </p>
+            <div className="flex gap-2">
+              <button onClick={enable} className="h-8 px-4 rounded-lg gold-grad text-bg text-[12px] font-medium hover:brightness-110 transition">
+                {es ? 'Activar' : 'Enable'}
+              </button>
+              <button onClick={dismiss} className="h-8 px-4 rounded-lg border border-border bg-surface-2 text-[12px] text-fg-muted hover:text-fg transition-colors">
+                {es ? 'Ahora no' : 'Not now'}
+              </button>
+            </div>
           </div>
-          <p className="text-[12.5px] text-fg-muted leading-relaxed">
-            {locale === 'es'
-              ? 'Recibe alertas cuando tus imágenes estén listas, tus misiones avancen o necesiten tu aprobación.'
-              : 'Get alerts when your images are ready, missions progress, or need your approval.'}
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <button
-            onClick={enable}
-            className="flex-1 h-9 rounded-md gold-grad text-bg text-[13px] font-medium hover:brightness-110 transition"
-          >
-            {locale === 'es' ? 'Activar' : 'Enable'}
-          </button>
-          <button
-            onClick={dismiss}
-            className="h-9 px-3 rounded-md border border-border bg-surface-2 text-[13px] text-fg-muted hover:text-fg transition"
-          >
-            {locale === 'es' ? 'Ahora no' : 'Not now'}
+          <button onClick={dismiss} className="text-fg-subtle hover:text-fg shrink-0">
+            <X className="h-4 w-4" />
           </button>
         </div>
       </div>
     </div>
   );
+}
+
+function urlBase64ToUint8Array(base64String: string) {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) outputArray[i] = rawData.charCodeAt(i);
+  return outputArray;
 }

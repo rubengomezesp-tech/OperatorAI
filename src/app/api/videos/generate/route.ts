@@ -4,6 +4,7 @@ import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { createSupabaseServiceClient } from '@/lib/supabase/service';
 import { resolveOrgContext } from '@/features/chat/server/resolve-org-context';
 import { serverEnv } from '@/lib/env';
+import { sendPushNotification } from '@/lib/push';
 
 export const runtime = 'nodejs';
 export const maxDuration = 300;
@@ -143,6 +144,9 @@ export async function POST(req: NextRequest) {
         warning: 'Video saved to storage but DB record failed: ' + dbError.message,
       });
     }
+
+    // Send push notification
+    sendPushNotification(user.id, 'Video ready', 'Your video has been generated and saved.', '/studio/video').catch(() => {});
 
     return NextResponse.json({ ok: true, video: { id: videoId, url: permanentUrl, latencyMs } });
   } catch (e) {
