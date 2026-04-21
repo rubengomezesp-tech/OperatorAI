@@ -3,7 +3,6 @@ import { z } from 'zod';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { createSupabaseServiceClient } from '@/lib/supabase/service';
 import { resolveOrgContext } from '@/features/chat/server/resolve-org-context';
-import { generateVideo, getOperationStatus } from '@/features/video/server/veo-client';
 import { serverEnv } from '@/lib/env';
 
 export const runtime = 'nodejs';
@@ -27,6 +26,31 @@ async function generateWithReplicate(prompt: string): Promise<string> {
   throw new Error('No video URL from Replicate');
 }
 
+async function generateWithVeo(prompt: string, model: string, aspect: string, duration: number, refBase64?: string, refMime?: string): Promise<string> {
+  const { generateVideo, getOperationStatus } = await import('@/features/video/server/veo-client');
+
+  const op = await generateVideo({
+    prompt,
+    model: model as any,
+    aspectRatio: aspect as any,
+    durationSeconds: duration as any,
+    imageBytes: refBase64,
+    imageMimeType: refMime,
+  });
+
+  // Poll (max 4 min)
+  for (let i = 0; i < 48; i++) {
+    await new Promise(r => setTimeout(r, 5000));
+    const status = await getOperationStatus(op.operationName);
+    if (status.done) {
+      if (status.videoUri) return status.videoUri;
+      if (status.error) throw new Error('Veo error: ' + status.error);
+      throw new Error('Veo completed but no video URL');
+    }
+  }
+  throw new Error('Video generation timed out after 4 minutes');
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = BodySchema.parse(await req.json());
@@ -41,48 +65,34 @@ export async function POST(req: NextRequest) {
     }
 
     const started = Date.now();
-    let videoUrl = '';
     const isReplicate = body.model === 'minimax-video-01';
+    let videoUrl: string;
 
     if (isReplicate) {
-      // Replicate — longer videos
       videoUrl = await generateWithReplicate(body.prompt);
     } else {
-      // Veo — Google's video model
-      const op = await generateVideo({
-        prompt: body.prompt,
-        model: (body.model as any) || 'veo-3.1-fast-generate-preview',
-        aspectRatio: body.aspectRatio || '16:9',
-        durationSeconds: (body.duration as any) || 8,
-        imageBytes: body.referenceBase64,
-        imageMimeType: body.referenceMimeType,
-      });
-
-      // Poll for result (max 4 min)
-      for (let i = 0; i < 48; i++) {
-        await new Promise(r => setTimeout(r, 5000));
-        const status = await getOperationStatus(op.operationName);
-        if (status.done) {
-          if (status.videoUri) videoUrl = status.videoUri;
-          if (status.error) throw new Error(status.error);
-          break;
-        }
-      }
+      videoUrl = await generateWithVeo(
+        body.prompt,
+        body.model || 'veo-3.1-fast-generate-preview',
+        body.aspectRatio || '16:9',
+        body.duration || 8,
+        body.referenceBase64,
+        body.referenceMimeType,
+      );
     }
-
-    if (!videoUrl) throw new Error('Video generation timed out');
 
     const latencyMs = Date.now() - started;
     const videoId = crypto.randomUUID();
 
-    await (svc as any).from('videos').insert({
+    // Save to DB — use (svc as any) to bypass strict types
+    const { error: dbError } = await (svc as any).from('videos').insert({
       id: videoId,
       org_id: orgId,
       user_id: user.id,
       prompt: body.prompt,
       model: body.model || 'veo-3.1-fast-generate-preview',
       aspect_ratio: body.aspectRatio || '16:9',
-      duration_seconds: body.duration || 8,
+      duration_seconds: isReplicate ? 15 : (body.duration || 8),
       status: 'completed',
       video_url: videoUrl,
       cost_usd: isReplicate ? 0.05 : 0.08,
@@ -90,6 +100,12 @@ export async function POST(req: NextRequest) {
       created_at: new Date().toISOString(),
       completed_at: new Date().toISOString(),
     });
+
+    if (dbError) {
+      console.error('[video-db]', dbError);
+      // Still return the video even if DB save fails
+      return NextResponse.json({ ok: true, video: { id: videoId, url: videoUrl, latencyMs }, dbWarning: dbError.message });
+    }
 
     return NextResponse.json({ ok: true, video: { id: videoId, url: videoUrl, latencyMs } });
   } catch (e) {
