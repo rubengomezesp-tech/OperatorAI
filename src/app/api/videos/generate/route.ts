@@ -166,7 +166,7 @@ export async function POST(req: NextRequest) {
 
     // Step 2: Download and save to Supabase Storage (permanent)
     // Save URL directly — no re-upload needed
-    const permanentUrl = tempUrl;
+    const permanentUrl = await persistVideo(svc, orgId, tempUrl, videoId);
 
     const latencyMs = Date.now() - started;
 
