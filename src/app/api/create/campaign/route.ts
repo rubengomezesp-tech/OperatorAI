@@ -130,7 +130,15 @@ export async function POST(req: NextRequest) {
 
     // 4. Determine images to send
     const startImage = body.composedImageUrl || body.imageUrls[0];
-    const refImages = route.supportsMultiRef ? body.imageUrls : undefined;
+
+    // Exact mode: send only 2-4 most relevant refs (not all)
+    // Composed canvas is the primary visual. Refs add consistency, not override.
+    let refImages: string[] | undefined;
+    if (route.supportsMultiRef && body.imageUrls.length > 1) {
+      refImages = body.imageUrls
+        .filter((url: string) => url !== body.composedImageUrl)
+        .slice(0, 4);
+    }
 
     // 5. Generate video
     const tempUrl = await generateVideo(route.model, prompt, route.duration, startImage, refImages, body.format);
