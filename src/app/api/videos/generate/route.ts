@@ -182,7 +182,6 @@ export async function POST(req: NextRequest) {
       status: 'completed',
       storage_path: permanentUrl,
       cost_usd: isReplicate ? 0.05 : 0.08,
-      latency_ms: latencyMs,
       created_at: new Date().toISOString(),
       completed_at: new Date().toISOString(),
     });
