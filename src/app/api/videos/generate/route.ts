@@ -43,8 +43,15 @@ async function persistVideo(svc: any, orgId: string, tempUrl: string, videoId: s
     const buffer = Buffer.from(await res.arrayBuffer());
     console.log('[video-persist] Downloaded:', buffer.length, 'bytes');
 
-    if (buffer.length < 1000) {
-      console.error('[video-persist] Video too small, likely an error page');
+    if (buffer.length < 10000) {
+      console.error('[video-persist] File too small:', buffer.length, 'bytes. Content:', buffer.toString('utf8').slice(0, 200));
+      return url;
+    }
+
+    // Check if content is actually video, not error JSON/HTML
+    const head = buffer.toString('utf8', 0, 50);
+    if (head.includes('"error"') || head.includes('<html') || head.includes('<!DOCTYPE')) {
+      console.error('[video-persist] Downloaded error page, not video');
       return url;
     }
 
