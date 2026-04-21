@@ -132,24 +132,119 @@ export function AdBuilder() {
 
   // Export as PNG
   async function exportAd() {
-    if (!canvasRef.current) return;
+    if (!canvasRef.current || !result) return;
     try {
-      const html2canvas = (await import('html2canvas-pro')).default ?? (await import('html2canvas')).default;
-      const canvas = await html2canvas(canvasRef.current, {
-        scale: 2,
-        useCORS: true,
-        allowTaint: true,
-        backgroundColor: '#000000',
+      // Create canvas manually — no external lib needed
+      const el = canvasRef.current;
+      const rect = el.getBoundingClientRect();
+      const scale = 3;
+      const canvas = document.createElement('canvas');
+      canvas.width = rect.width * scale;
+      canvas.height = rect.height * scale;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      // Draw background image
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = () => reject();
+        img.src = result.imageUrl;
       });
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+      // Draw overlay
+      const grad = textPosition === 'bottom'
+        ? ctx.createLinearGradient(0, canvas.height, 0, canvas.height * 0.4)
+        : textPosition === 'top'
+        ? ctx.createLinearGradient(0, 0, 0, canvas.height * 0.6)
+        : null;
+      if (grad) {
+        grad.addColorStop(0, 'rgba(0,0,0,' + (overlay / 100) + ')');
+        grad.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = grad;
+      } else {
+        ctx.fillStyle = 'rgba(0,0,0,' + (overlay / 100) + ')';
+      }
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Draw text
+      const px = 48 * scale;
+      const headSize = currentStyle.id === 'bold' ? 36 * scale : currentStyle.id === 'minimal' ? 28 * scale : 32 * scale;
+      const subSize = 14 * scale;
+      const ctaSize = 13 * scale;
+      const pad = 24 * scale;
+
+      ctx.textAlign = currentStyle.align === 'text-center' ? 'center' : 'left';
+      const tx = currentStyle.align === 'text-center' ? canvas.width / 2 : pad;
+      const isLuxury = currentStyle.id === 'luxury';
+
+      let ty = textPosition === 'top' ? pad + headSize
+        : textPosition === 'center' ? canvas.height / 2 - headSize
+        : canvas.height - pad - ctaSize - subSize - headSize - 40 * scale;
+
+      // Headline
+      ctx.fillStyle = isLuxury ? '#F5DEB3' : '#FFFFFF';
+      ctx.font = (currentStyle.weight === 'font-black' ? 'bold ' : '') + headSize + 'px ' + (currentStyle.font === 'font-serif' ? 'Georgia, serif' : 'system-ui, sans-serif');
+      ctx.shadowColor = 'rgba(0,0,0,0.5)';
+      ctx.shadowBlur = 8 * scale;
+      wrapText(ctx, copy.headline, tx, ty, canvas.width - pad * 2, headSize * 1.1);
+      ty += headSize * 1.3;
+
+      // Subheadline
+      if (copy.subheadline) {
+        ctx.fillStyle = 'rgba(255,255,255,0.8)';
+        ctx.font = subSize + 'px system-ui, sans-serif';
+        ctx.shadowBlur = 4 * scale;
+        wrapText(ctx, copy.subheadline, tx, ty, canvas.width - pad * 2, subSize * 1.3);
+        ty += subSize * 2;
+      }
+
+      // CTA button
+      if (copy.cta) {
+        ty += 8 * scale;
+        ctx.shadowBlur = 0;
+        const ctaW = ctx.measureText(copy.cta).width + 40 * scale;
+        const ctaH = ctaSize + 16 * scale;
+        const ctaX = currentStyle.align === 'text-center' ? (canvas.width - ctaW) / 2 : pad;
+        ctx.fillStyle = '#FFFFFF';
+        ctx.beginPath();
+        const r = ctaH / 2;
+        ctx.moveTo(ctaX + r, ty); ctx.lineTo(ctaX + ctaW - r, ty); ctx.arc(ctaX + ctaW - r, ty + r, r, -Math.PI/2, Math.PI/2); ctx.lineTo(ctaX + r, ty + ctaH); ctx.arc(ctaX + r, ty + r, r, Math.PI/2, 3*Math.PI/2);
+        ctx.fill();
+        ctx.fillStyle = '#000000';
+        ctx.font = 'bold ' + ctaSize + 'px system-ui, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(copy.cta, ctaX + ctaW / 2, ty + ctaH / 2 + ctaSize / 3);
+      }
+
       const link = document.createElement('a');
       link.download = 'operator-ad-' + format + '-' + Date.now() + '.png';
-      link.href = canvas.toDataURL('image/png');
+      link.href = canvas.toDataURL('image/png', 0.95);
       link.click();
       toast.success(es ? 'Descargado' : 'Downloaded');
     } catch (e) {
-      // Fallback without html2canvas
-      toast.error(es ? 'Instala html2canvas para exportar' : 'Install html2canvas to export');
+      console.error('Export failed:', e);
+      toast.error(es ? 'Error al exportar' : 'Export failed');
     }
+  }
+
+  function wrapText(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, maxW: number, lineH: number) {
+    const words = text.split(' ');
+    let line = '';
+    let cy = y;
+    for (const word of words) {
+      const test = line + word + ' ';
+      if (ctx.measureText(test).width > maxW && line !== '') {
+        ctx.fillText(line.trim(), x, cy);
+        line = word + ' ';
+        cy += lineH;
+      } else {
+        line = test;
+      }
+    }
+    ctx.fillText(line.trim(), x, cy);
   }
 
   const currentStyle = TEXT_STYLES.find(s => s.id === textStyle) || TEXT_STYLES[1];
