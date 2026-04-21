@@ -4,12 +4,10 @@ import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { useI18n } from '@/lib/i18n';
-import {
-  LayoutDashboard, MessageSquare, FolderOpen, ImageIcon, Video,
+import {LayoutDashboard, MessageSquare, FolderOpen, ImageIcon, Video,
   Mic, FileSpreadsheet, FileText, Brain, Sparkles, Plug,
   CreditCard, X, Menu,
-  type LucideIcon, Target, Rocket, Palette, LogOut, HelpCircle,
-} from 'lucide-react';
+  type LucideIcon, Target, Rocket, Palette, LogOut, HelpCircle,, Zap} from 'lucide-react';
 
 interface NavItem {
   href: string;
