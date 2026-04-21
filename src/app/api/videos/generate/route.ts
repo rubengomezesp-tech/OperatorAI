@@ -17,6 +17,36 @@ const BodySchema = z.object({
   referenceMimeType: z.string().optional(),
 });
 
+/** Download video from temp URL and upload to Supabase Storage */
+async function persistVideo(svc: any, orgId: string, tempUrl: string, videoId: string): Promise<string> {
+  // Download video bytes
+  const res = await fetch(tempUrl);
+  if (!res.ok) throw new Error('Failed to download video: ' + res.status);
+  const buffer = Buffer.from(await res.arrayBuffer());
+  const contentType = res.headers.get('content-type') || 'video/mp4';
+  const ext = contentType.includes('webm') ? 'webm' : 'mp4';
+
+  // Upload to Supabase Storage
+  const storagePath = orgId + '/' + videoId + '.' + ext;
+  const { error } = await svc.storage
+    .from('video-outputs')
+    .upload(storagePath, buffer, {
+      contentType,
+      cacheControl: '31536000',
+      upsert: true,
+    });
+
+  if (error) {
+    console.error('[video-storage]', error);
+    // Return temp URL as fallback
+    return tempUrl;
+  }
+
+  // Get permanent public URL
+  const { data } = svc.storage.from('video-outputs').getPublicUrl(storagePath);
+  return data?.publicUrl || tempUrl;
+}
+
 async function generateWithReplicate(prompt: string): Promise<string> {
   const Replicate = (await import('replicate')).default;
   const client = new Replicate({ auth: serverEnv.REPLICATE_API_TOKEN });
@@ -38,17 +68,16 @@ async function generateWithVeo(prompt: string, model: string, aspect: string, du
     imageMimeType: refMime,
   });
 
-  // Poll (max 4 min)
   for (let i = 0; i < 48; i++) {
     await new Promise(r => setTimeout(r, 5000));
     const status = await getOperationStatus(op.operationName);
     if (status.done) {
       if (status.videoUri) return status.videoUri;
-      if (status.error) throw new Error('Veo error: ' + status.error);
+      if (status.error) throw new Error('Veo: ' + status.error);
       throw new Error('Veo completed but no video URL');
     }
   }
-  throw new Error('Video generation timed out after 4 minutes');
+  throw new Error('Video generation timed out');
 }
 
 export async function POST(req: NextRequest) {
@@ -66,12 +95,14 @@ export async function POST(req: NextRequest) {
 
     const started = Date.now();
     const isReplicate = body.model === 'minimax-video-01';
-    let videoUrl: string;
+    const videoId = crypto.randomUUID();
 
+    // Step 1: Generate video (temp URL)
+    let tempUrl: string;
     if (isReplicate) {
-      videoUrl = await generateWithReplicate(body.prompt);
+      tempUrl = await generateWithReplicate(body.prompt);
     } else {
-      videoUrl = await generateWithVeo(
+      tempUrl = await generateWithVeo(
         body.prompt,
         body.model || 'veo-3.1-fast-generate-preview',
         body.aspectRatio || '16:9',
@@ -81,10 +112,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const latencyMs = Date.now() - started;
-    const videoId = crypto.randomUUID();
+    // Step 2: Download and save to Supabase Storage (permanent)
+    const permanentUrl = await persistVideo(svc, orgId, tempUrl, videoId);
 
-    // Save to DB — use (svc as any) to bypass strict types
+    const latencyMs = Date.now() - started;
+
+    // Step 3: Save to DB with permanent URL
     const { error: dbError } = await (svc as any).from('videos').insert({
       id: videoId,
       org_id: orgId,
@@ -94,7 +127,7 @@ export async function POST(req: NextRequest) {
       aspect_ratio: body.aspectRatio || '16:9',
       duration_seconds: isReplicate ? 15 : (body.duration || 8),
       status: 'completed',
-      video_url: videoUrl,
+      video_url: permanentUrl,
       cost_usd: isReplicate ? 0.05 : 0.08,
       latency_ms: latencyMs,
       created_at: new Date().toISOString(),
@@ -102,12 +135,16 @@ export async function POST(req: NextRequest) {
     });
 
     if (dbError) {
-      console.error('[video-db]', dbError);
-      // Still return the video even if DB save fails
-      return NextResponse.json({ ok: true, video: { id: videoId, url: videoUrl, latencyMs }, dbWarning: dbError.message });
+      console.error('[video-db]', dbError.message);
+      // Return video even if DB fails
+      return NextResponse.json({
+        ok: true,
+        video: { id: videoId, url: permanentUrl, latencyMs },
+        warning: 'Video saved to storage but DB record failed: ' + dbError.message,
+      });
     }
 
-    return NextResponse.json({ ok: true, video: { id: videoId, url: videoUrl, latencyMs } });
+    return NextResponse.json({ ok: true, video: { id: videoId, url: permanentUrl, latencyMs } });
   } catch (e) {
     console.error('[video-generate]', e);
     return NextResponse.json({ error: e instanceof Error ? e.message : 'Failed' }, { status: 500 });
