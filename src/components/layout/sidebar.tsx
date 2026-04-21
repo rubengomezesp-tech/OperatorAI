@@ -28,7 +28,8 @@ const nav: Section[] = [
       { href: '/dashboard', labelKey: 'nav.overview', icon: LayoutDashboard },
       { href: '/projects', labelKey: 'nav.projects', icon: FolderOpen },
       { href: '/chat', labelKey: 'nav.creative_agent', icon: MessageSquare, badge: 'AI' },
-      { href: '/creative-studio', labelKey: 'Creative Studio', icon: Target, badge: 'NEW' },
+      { href: '/create', labelKey: 'Create', icon: Zap, badge: 'NEW' },
+      { href: '/creative-studio', labelKey: 'Creative Studio', icon: Target },
     ],
   },
   {

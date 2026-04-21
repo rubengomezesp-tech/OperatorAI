@@ -348,6 +348,10 @@ const translations: Record<string, { en: string; es: string }> = {
   'ad.regenerate': { en: 'Regenerate image', es: 'Regenerar imagen' },
   'ad.text_style': { en: 'Text style', es: 'Estilo de texto' },
   'ad.text_position': { en: 'Text position', es: 'Posicion del texto' },
+  'create.title': { en: 'Create', es: 'Crear' },
+  'create.upload': { en: 'Upload images', es: 'Sube imagenes' },
+  'create.generate': { en: 'Create Campaign', es: 'Crear campana' },
+  'create.ready': { en: 'Your campaign', es: 'Tu campana' },
 };
 
 type TranslationKey = string;
