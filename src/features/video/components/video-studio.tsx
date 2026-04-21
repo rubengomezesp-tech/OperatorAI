@@ -21,13 +21,14 @@ const PRESETS = [
 ];
 
 const MODELS = [
-  { id: 'veo-3.1-lite-generate-preview', label: 'Veo Lite', desc: 'Fast, affordable' },
-  { id: 'veo-3.1-fast-generate-preview', label: 'Veo Fast', desc: 'Best balance' },
-  { id: 'veo-3.1-generate-preview', label: 'Veo Pro', desc: 'Highest quality' },
+  { id: 'veo-3.1-lite-generate-preview', label: 'Veo Lite', desc: 'Fast, affordable', engine: 'veo' },
+  { id: 'veo-3.1-fast-generate-preview', label: 'Veo Fast', desc: 'Best balance', engine: 'veo' },
+  { id: 'veo-3.1-generate-preview', label: 'Veo Pro', desc: 'Highest quality', engine: 'veo' },
+  { id: 'minimax-video-01', label: 'Minimax 15s', desc: 'Long videos up to 15s', engine: 'replicate' },
 ];
 
 export function VideoStudio() {
-  const { locale } = useI18n();
+  const { t, locale } = useI18n();
   const es = locale === 'es';
   const [prompt, setPrompt] = useState('');
   const [model, setModel] = useState('veo-3.1-fast-generate-preview');
@@ -73,7 +74,7 @@ export function VideoStudio() {
 
   async function generate(customPrompt?: string) {
     const p = customPrompt || prompt;
-    if (!p.trim()) { toast.error(es ? 'Escribe un prompt' : 'Enter a prompt'); return; }
+    if (!p.trim()) { toast.error(t('vid.describe')); return; }
     setGenerating(true);
     try {
       const res = await fetch('/api/videos/generate', {
@@ -90,7 +91,7 @@ export function VideoStudio() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed');
-      toast.success(es ? 'Video generado' : 'Video generated');
+      toast.success(t('vid.generated'));
       refresh();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed');
@@ -100,7 +101,7 @@ export function VideoStudio() {
   async function deleteVideo(id: string) {
     await fetch('/api/videos/delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
     setVideos(prev => prev.filter(v => v.id !== id));
-    toast.success(es ? 'Eliminado' : 'Deleted');
+    toast.success(t('vid.deleted'));
   }
 
   return (
@@ -121,7 +122,7 @@ export function VideoStudio() {
 
       {/* Quick Presets */}
       <div>
-        <div className="text-[10px] uppercase tracking-[0.16em] text-fg-subtle mb-3">{es ? 'Presets rapidos' : 'Quick presets'}</div>
+        <div className="text-[10px] uppercase tracking-[0.16em] text-fg-subtle mb-3">{t('vid.presets')}</div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
           {PRESETS.map(p => (
             <button key={p.id} onClick={() => setPrompt(p.prompt)} className="group text-left p-3 rounded-xl border border-border bg-surface hover:border-gold/30 hover:bg-surface-2 transition-all">
@@ -137,12 +138,12 @@ export function VideoStudio() {
 
       {/* Generation Panel */}
       <div className="rounded-xl border border-border bg-surface p-5 space-y-4">
-        <textarea value={prompt} onChange={e => setPrompt(e.target.value)} placeholder={es ? 'Describe el video que quieres crear...' : 'Describe the video you want to create...'} rows={3} className="w-full rounded-lg border border-border bg-surface-2 px-4 py-3 text-[14px] placeholder:text-fg-subtle focus:outline-none focus:border-gold/40 resize-none" />
+        <textarea value={prompt} onChange={e => setPrompt(e.target.value)} placeholder={t('vid.describe')} rows={3} className="w-full rounded-lg border border-border bg-surface-2 px-4 py-3 text-[14px] placeholder:text-fg-subtle focus:outline-none focus:border-gold/40 resize-none" />
 
         {/* Reference Images */}
         <div>
           <div className="text-[10px] uppercase tracking-[0.14em] text-fg-subtle mb-2">
-            {es ? 'Imagenes de referencia' : 'Reference images'}
+            {t('vid.refs')}
             {references.length > 0 && <span className="text-gold ml-1">({references.length}/10)</span>}
           </div>
           <div className="flex flex-wrap gap-2">
@@ -164,7 +165,7 @@ export function VideoStudio() {
           <input ref={fileRef} type="file" accept="image/*" multiple onChange={handleRefFiles} className="hidden" />
           {references.length > 0 && (
             <button onClick={() => { references.forEach(r => URL.revokeObjectURL(r.preview)); setReferences([]); }} className="mt-1 text-[10px] text-fg-subtle hover:text-red-400 transition-colors">
-              {es ? 'Limpiar todo' : 'Clear all'}
+              {t('vid.clear_all')}
             </button>
           )}
         </div>
@@ -173,7 +174,7 @@ export function VideoStudio() {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {/* Model */}
           <div>
-            <div className="text-[10px] uppercase tracking-[0.14em] text-fg-subtle mb-2">{es ? 'Modelo' : 'Model'}</div>
+            <div className="text-[10px] uppercase tracking-[0.14em] text-fg-subtle mb-2">{t('vid.model')}</div>
             <div className="space-y-1">
               {MODELS.map(m => (
                 <button key={m.id} onClick={() => setModel(m.id)} className={cn('w-full text-left px-3 py-2 rounded-lg border transition-all', model === m.id ? 'bg-gold/10 border-gold/30' : 'bg-surface-2 border-border hover:border-gold/20')}>
@@ -189,7 +190,7 @@ export function VideoStudio() {
 
           {/* Format */}
           <div>
-            <div className="text-[10px] uppercase tracking-[0.14em] text-fg-subtle mb-2">{es ? 'Formato' : 'Format'}</div>
+            <div className="text-[10px] uppercase tracking-[0.14em] text-fg-subtle mb-2">{t('vid.format')}</div>
             <div className="space-y-1.5">
               {([['16:9', 'Landscape'], ['9:16', 'Portrait']] as const).map(([id, label]) => (
                 <button key={id} onClick={() => setAspect(id)} className={cn('w-full flex items-center gap-3 px-3 h-10 rounded-lg border transition-all', aspect === id ? 'bg-gold/10 border-gold/30 text-gold' : 'bg-surface-2 border-border text-fg-muted hover:text-fg')}>
@@ -199,7 +200,7 @@ export function VideoStudio() {
               ))}
             </div>
 
-            <div className="text-[10px] uppercase tracking-[0.14em] text-fg-subtle mb-2 mt-4">{es ? 'Duracion' : 'Duration'}</div>
+            <div className="text-[10px] uppercase tracking-[0.14em] text-fg-subtle mb-2 mt-4">{t('vid.duration')}</div>
             <div className="flex gap-2">
               {([4, 6, 8] as const).map(d => (
                 <button key={d} onClick={() => setDuration(d)} className={cn('flex-1 h-9 rounded-lg text-[12px] font-medium border transition-all', duration === d ? 'bg-gold/15 text-gold border-gold/30' : 'bg-surface-2 text-fg-muted border-border')}>
@@ -222,7 +223,7 @@ export function VideoStudio() {
 
         {/* Generate */}
         <button onClick={() => generate()} disabled={generating} className="w-full h-12 rounded-lg gold-grad text-bg text-[14px] font-medium hover:brightness-110 transition disabled:opacity-50 flex items-center justify-center gap-2">
-          {generating ? (<><Loader2 className="h-4 w-4 animate-spin" /><span>{es ? 'Generando video... (puede tardar 1-3 min)' : 'Generating video... (may take 1-3 min)'}</span></>) : (<><Video className="h-4 w-4" /><span>{es ? 'Generar video' : 'Generate video'}</span></>)}
+          {generating ? (<><Loader2 className="h-4 w-4 animate-spin" /><span>{t('vid.generating')}</span></>) : (<><Video className="h-4 w-4" /><span>{t('vid.generate')}</span></>)}
         </button>
 
         <div className="flex items-center justify-center text-[10px] text-fg-subtle gap-2">
@@ -234,7 +235,7 @@ export function VideoStudio() {
       {/* Gallery */}
       {videos.length > 0 && (
         <div>
-          <h2 className="font-display text-[18px] mb-4">{es ? 'Tus videos' : 'Your videos'} <span className="text-[11px] text-fg-subtle">({videos.length})</span></h2>
+          <h2 className="font-display text-[18px] mb-4">{t('vid.your_videos')} <span className="text-[11px] text-fg-subtle">({videos.length})</span></h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {videos.map(v => (
               <div key={v.id} className="rounded-xl border border-border bg-surface overflow-hidden group">
@@ -274,7 +275,7 @@ export function VideoStudio() {
       {videos.length === 0 && !generating && (
         <div className="rounded-xl border border-dashed border-border py-16 text-center">
           <Video className="h-8 w-8 text-fg-subtle mx-auto mb-3" />
-          <p className="text-[14px] text-fg-muted">{es ? 'Tus videos apareceran aqui' : 'Your videos will appear here'}</p>
+          <p className="text-[14px] text-fg-muted">{t('vid.empty')}</p>
         </div>
       )}
     </div>

@@ -138,7 +138,7 @@ export function ImageStudioView() {
           <textarea
             value={prompt}
             onChange={e => setPrompt(e.target.value)}
-            placeholder={es ? 'Describe la imagen que quieres crear...' : 'Describe the image you want to create...'}
+            placeholder={es ? t('img.describe') : t('img.describe')}
             rows={2}
             className="w-full rounded-lg border border-border bg-surface-2 px-4 py-3 text-[14px] placeholder:text-fg-subtle focus:outline-none focus:border-gold/40 resize-none"
           />
@@ -147,11 +147,11 @@ export function ImageStudioView() {
         {/* Controls Row 1: Preset + Aspect */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <Label>{es ? 'Estilo' : 'Style'}</Label>
+            <Label>{t('img.style')}</Label>
             <PresetPicker value={preset} onChange={setPreset} />
           </div>
           <div>
-            <Label>{es ? 'Formato' : 'Aspect Ratio'}</Label>
+            <Label>{t('img.format')}</Label>
             <AspectPicker value={aspect} onChange={setAspect} />
           </div>
         </div>
@@ -160,7 +160,7 @@ export function ImageStudioView() {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {/* Model */}
           <div>
-            <Label>{es ? 'Modelo' : 'Model'}</Label>
+            <Label>{t('img.model')}</Label>
             <div className="flex gap-1 p-1 rounded-lg border border-border bg-surface-2">
               {([['flux-2-pro', 'Flux 2 Pro'], ['flux-1.1-pro', 'Flux 1.1 Pro']] as const).map(([id, label]) => (
                 <button
@@ -200,12 +200,12 @@ export function ImageStudioView() {
 
           {/* Enhance toggle */}
           <div>
-            <Label>{es ? 'Auto-mejora' : 'Auto-enhance'}</Label>
+            <Label>{t('img.auto_enhance')}</Label>
             <button
               onClick={() => setEnhance(!enhance)}
               className="flex items-center justify-between w-full h-10 px-3 rounded-lg border border-border bg-surface-2"
             >
-              <span className="text-[12px] text-fg-muted">{enhance ? (es ? 'Prompt optimizado por IA' : 'AI-optimized prompt') : (es ? 'Prompt original' : 'Original prompt')}</span>
+              <span className="text-[12px] text-fg-muted">{enhance ? (t('img.ai_optimized')) : (t('img.original_prompt'))}</span>
               <div className={cn('h-5 w-9 rounded-full transition-colors relative', enhance ? 'bg-gold' : 'bg-surface-3 border border-border')}>
                 <div className={cn('absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform', enhance ? 'translate-x-4' : 'translate-x-0.5')} />
               </div>
@@ -216,7 +216,7 @@ export function ImageStudioView() {
         {/* References */}
         <div>
           <Label>
-            {es ? 'Imagenes de referencia' : 'Reference images'}
+            {t('img.references')}
             <span className="text-fg-subtle normal-case tracking-normal font-normal ml-1">
               {references.length > 0 ? `(${references.length}/10)` : (es ? '(opcional, hasta 10)' : '(optional, up to 10)')}
             </span>
@@ -224,7 +224,7 @@ export function ImageStudioView() {
           <ReferenceUploader value={references} onChange={setReferences} maxImages={10} />
           {references.length > 0 && (
             <button onClick={() => { setReferences([]); sessionStorage.removeItem('operator.studio.refs'); }} className="mt-1 text-[11px] text-fg-subtle hover:text-red-400 transition-colors">
-              {es ? 'Limpiar referencias' : 'Clear references'}
+              {t('img.clear_refs')}
             </button>
           )}
         </div>
@@ -245,7 +245,7 @@ export function ImageStudioView() {
         {/* Model badge */}
         <div className="flex items-center justify-center gap-2 text-[10px] text-fg-subtle">
           <Sparkles className="h-3 w-3 text-gold" />
-          <span>{imageModel === 'flux-2-pro' ? 'Flux 2 Pro' : 'Flux 1.1 Pro'} &middot; {references.length > 0 ? (es ? 'con refs' : 'with refs') : (es ? 'sin refs' : 'no refs')}{numImages > 1 ? ' x ' + numImages : ''}</span>
+          <span>{imageModel === 'flux-2-pro' ? 'Flux 2 Pro' : 'Flux 1.1 Pro'} &middot; {references.length > 0 ? (t('img.with_refs')) : (t('img.no_refs'))}{numImages > 1 ? ' x ' + numImages : ''}</span>
         </div>
       </div>
 
@@ -254,7 +254,7 @@ export function ImageStudioView() {
         <div className="rounded-xl border border-gold/20 bg-gold/5 p-4 space-y-3">
           <div className="flex items-center gap-2">
             <RotateCcw className="h-3.5 w-3.5 text-gold" />
-            <span className="text-[12px] font-medium text-gold">{es ? 'Refinar resultado' : 'Refine result'}</span>
+            <span className="text-[12px] font-medium text-gold">{t('img.refine')}</span>
           </div>
           <p className="text-[11px] text-fg-muted">{es ? 'Dile que corregir o cambiar. Mantiene tus referencias y ajustes.' : 'Tell it what to fix or change. Keeps your references and settings.'}</p>
           <div className="flex gap-2">
@@ -280,7 +280,7 @@ export function ImageStudioView() {
       <div>
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <h2 className="font-display text-[18px]">{es ? 'Galeria' : 'Gallery'}</h2>
+            <h2 className="font-display text-[18px]">{t('img.gallery')}</h2>
             <span className="text-[11px] text-fg-subtle">({filtered.length})</span>
           </div>
           <div className="flex gap-1 p-0.5 rounded-md border border-border bg-surface-2">
@@ -295,7 +295,7 @@ export function ImageStudioView() {
         {filtered.length === 0 ? (
           <div className="rounded-xl border border-dashed border-border py-16 text-center">
             <ImageIcon className="h-8 w-8 text-fg-subtle mx-auto mb-3" />
-            <p className="text-[14px] text-fg-muted">{es ? 'Tus imagenes apareceran aqui' : 'Your images will appear here'}</p>
+            <p className="text-[14px] text-fg-muted">{t('img.empty')}</p>
           </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">

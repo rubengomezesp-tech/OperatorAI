@@ -4,6 +4,7 @@ import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { createSupabaseServiceClient } from '@/lib/supabase/service';
 import { resolveOrgContext } from '@/features/chat/server/resolve-org-context';
 import { generateVideo, getOperationStatus } from '@/features/video/server/veo-client';
+import { serverEnv } from '@/lib/env';
 
 export const runtime = 'nodejs';
 export const maxDuration = 300;
@@ -17,10 +18,18 @@ const BodySchema = z.object({
   referenceMimeType: z.string().optional(),
 });
 
+async function generateWithReplicate(prompt: string): Promise<string> {
+  const Replicate = (await import('replicate')).default;
+  const client = new Replicate({ auth: serverEnv.REPLICATE_API_TOKEN });
+  const output = await client.run('minimax/video-01', { input: { prompt, prompt_optimizer: true } });
+  if (typeof output === 'string') return output;
+  if (output && typeof output === 'object' && 'url' in (output as any)) return String((output as any).url);
+  throw new Error('No video URL from Replicate');
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = BodySchema.parse(await req.json());
-
     const ssr = await createSupabaseServerClient();
     const { data: { user } } = await ssr.auth.getUser();
     if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
@@ -32,26 +41,32 @@ export async function POST(req: NextRequest) {
     }
 
     const started = Date.now();
-
-    // Start Veo generation
-    const op = await generateVideo({
-      prompt: body.prompt,
-      model: (body.model as any) || 'veo-3.1-fast-generate-preview',
-      aspectRatio: body.aspectRatio || '16:9',
-      durationSeconds: (body.duration as any) || 8,
-      imageBytes: body.referenceBase64,
-      imageMimeType: body.referenceMimeType,
-    });
-
-    // Poll for result (max 4 minutes)
     let videoUrl = '';
-    for (let i = 0; i < 48; i++) {
-      await new Promise(r => setTimeout(r, 5000));
-      const status = await getOperationStatus(op.operationName);
-      if (status.done) {
-        if (status.videoUri) { videoUrl = status.videoUri; }
-        if (status.error) { throw new Error(status.error); }
-        break;
+    const isReplicate = body.model === 'minimax-video-01';
+
+    if (isReplicate) {
+      // Replicate — longer videos
+      videoUrl = await generateWithReplicate(body.prompt);
+    } else {
+      // Veo — Google's video model
+      const op = await generateVideo({
+        prompt: body.prompt,
+        model: (body.model as any) || 'veo-3.1-fast-generate-preview',
+        aspectRatio: body.aspectRatio || '16:9',
+        durationSeconds: (body.duration as any) || 8,
+        imageBytes: body.referenceBase64,
+        imageMimeType: body.referenceMimeType,
+      });
+
+      // Poll for result (max 4 min)
+      for (let i = 0; i < 48; i++) {
+        await new Promise(r => setTimeout(r, 5000));
+        const status = await getOperationStatus(op.operationName);
+        if (status.done) {
+          if (status.videoUri) videoUrl = status.videoUri;
+          if (status.error) throw new Error(status.error);
+          break;
+        }
       }
     }
 
@@ -70,7 +85,7 @@ export async function POST(req: NextRequest) {
       duration_seconds: body.duration || 8,
       status: 'completed',
       video_url: videoUrl,
-      cost_usd: 0.05,
+      cost_usd: isReplicate ? 0.05 : 0.08,
       latency_ms: latencyMs,
       created_at: new Date().toISOString(),
       completed_at: new Date().toISOString(),
@@ -79,7 +94,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, video: { id: videoId, url: videoUrl, latencyMs } });
   } catch (e) {
     console.error('[video-generate]', e);
-    const msg = e instanceof Error ? e.message : 'Video generation failed';
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return NextResponse.json({ error: e instanceof Error ? e.message : 'Failed' }, { status: 500 });
   }
 }
