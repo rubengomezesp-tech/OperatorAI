@@ -248,7 +248,6 @@ export function AdEditor({ imageUrl, copy, aspectRatio, onExport }: Props) {
                 left: b.x + '%',
                 top: b.y + '%',
                 transform: b.align === 'center' ? 'translate(-50%, -50%)' : b.align === 'right' ? 'translate(-100%, -50%)' : 'translate(0, -50%)',
-                color: COLOR_MAP[b.color],
                 fontSize: b.fontSize + 'px',
                 fontFamily: b.fontFamily === 'serif' ? 'Georgia, serif' : 'system-ui, sans-serif',
                 fontWeight: b.fontWeight === 'black' ? 900 : b.fontWeight === 'bold' ? 700 : b.fontWeight === 'light' ? 300 : 400,
