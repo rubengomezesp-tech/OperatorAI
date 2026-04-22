@@ -10,6 +10,7 @@ import { AdEditor } from './ad-editor';
 type Step = 'upload' | 'composing' | 'compose_preview' | 'generating' | 'result';
 type Priority = 'fast' | 'balanced' | 'exact';
 type OutputMode = 'image' | 'image_copy' | 'full';
+type CompositionMode = 'structured' | 'creative';
 type AspectRatio = '9:16' | '1:1' | '4:5';
 
 interface Img { url: string; preview: string; }
@@ -28,6 +29,8 @@ export function CreativeStudioView() {
   const [duration, setDuration] = useState(15);
   const [aspect, setAspect] = useState<AspectRatio>('9:16');
   const [outputMode, setOutputMode] = useState<OutputMode>('full');
+  const [compositionMode, setCompositionMode] = useState<CompositionMode>('structured');
+  const [creativePrompt, setCreativePrompt] = useState<string>('');
   const [cls, setCls] = useState<Cls[]>([]);
   const [composedUrl, setComposedUrl] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
@@ -61,11 +64,29 @@ export function CreativeStudioView() {
     if (!images.length) return;
     setStep('composing');
     try {
-      const res = await fetch('/api/create/compose', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ imageUrls: images.map(i=>i.url) }) });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
-      setCls(data.classification?.images || []);
-      setStep('compose_preview');
+      if (compositionMode === 'creative') {
+        // Creative mode: generate cinematic image with Flux
+        const res = await fetch('/api/create/creative', {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ imageUrls: images.map(i=>i.url), objective, aspectRatio: aspect }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+        setComposedUrl(data.imageUrl);
+        setCreativePrompt(data.prompt || '');
+        setCls([]);
+        setStep('compose_preview');
+      } else {
+        // Structured mode: canvas layout
+        const res = await fetch('/api/create/compose', {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ imageUrls: images.map(i=>i.url) }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+        setCls(data.classification?.images || []);
+        setStep('compose_preview');
+      }
     } catch (e) { toast.error(e instanceof Error ? e.message : 'Failed'); setStep('upload'); }
   }
 
@@ -137,6 +158,21 @@ export function CreativeStudioView() {
       </div>
       {/* Objective */}
       <input value={objective} onChange={e=>setObjective(e.target.value)} placeholder={es?'Objetivo: lanzamiento, 7 dias gratis, branding...':'Objective: launch, 7-day trial, branding...'} className="w-full h-11 px-4 rounded-xl border border-border bg-surface text-[13px] placeholder:text-fg-subtle focus:outline-none focus:border-gold/40"/>
+      {/* Composition Mode — Structured vs Creative */}
+      <div className="rounded-xl border border-border bg-surface p-3 space-y-2">
+        <div className="text-[9px] uppercase tracking-[0.12em] text-fg-subtle">{es?'Tipo de composicion':'Composition type'}</div>
+        <div className="grid grid-cols-2 gap-1.5">
+          <button onClick={()=>setCompositionMode('structured')} className={cn('flex flex-col items-start p-2.5 rounded-lg border text-left transition-all',compositionMode==='structured'?'bg-gold/10 border-gold/30':'bg-surface-2 border-border hover:border-gold/20')}>
+            <span className={cn('text-[11px] font-medium',compositionMode==='structured'?'text-gold':'text-fg')}>Structured</span>
+            <span className="text-[9px] text-fg-subtle">{es?'Layout exacto con tus imagenes':'Exact layout with your images'}</span>
+          </button>
+          <button onClick={()=>setCompositionMode('creative')} className={cn('flex flex-col items-start p-2.5 rounded-lg border text-left transition-all',compositionMode==='creative'?'bg-gold/10 border-gold/30':'bg-surface-2 border-border hover:border-gold/20')}>
+            <span className={cn('text-[11px] font-medium',compositionMode==='creative'?'text-gold':'text-fg')}>Creative</span>
+            <span className="text-[9px] text-fg-subtle">{es?'Visual cinematico premium':'Premium cinematic visual'}</span>
+          </button>
+        </div>
+      </div>
+
       {/* Aspect + Mode + Output */}
       <div className="grid grid-cols-3 gap-3">
         <div className="rounded-xl border border-border bg-surface p-3 space-y-1.5">
@@ -163,9 +199,20 @@ export function CreativeStudioView() {
   // ═══════ COMPOSE PREVIEW ═══════
   if (step==='compose_preview') return (
     <div className="px-4 lg:px-10 py-6 max-w-[720px] mx-auto space-y-5">
-      <h2 className="font-display text-[20px] text-center">{es?'Composicion':'Composition'}</h2>
-      {cls.length>0&&(<div className="flex flex-wrap gap-1.5 justify-center">{cls.map((c,i)=>(<div key={i} className="px-2 py-0.5 rounded-full bg-surface-2 border border-border text-[9px]"><span className="text-gold font-medium uppercase">{c.type}</span> <span className="text-fg-muted">{c.description?.slice(0,20)}</span></div>))}</div>)}
-      <ReferenceComposer imageUrls={images.map(i=>i.url)} classifications={cls} aspectRatio={aspect} onComposed={setComposedUrl}/>
+      <h2 className="font-display text-[20px] text-center">{compositionMode==='creative'?(es?'Visual cinematico':'Cinematic visual'):(es?'Composicion':'Composition')}</h2>
+      {compositionMode==='structured' && cls.length>0&&(<div className="flex flex-wrap gap-1.5 justify-center">{cls.map((c,i)=>(<div key={i} className="px-2 py-0.5 rounded-full bg-surface-2 border border-border text-[9px]"><span className="text-gold font-medium uppercase">{c.type}</span> <span className="text-fg-muted">{c.description?.slice(0,20)}</span></div>))}</div>)}
+
+      {compositionMode==='structured' ? (
+        <ReferenceComposer imageUrls={images.map(i=>i.url)} classifications={cls} aspectRatio={aspect} onComposed={setComposedUrl}/>
+      ) : composedUrl ? (
+        <div className="space-y-2">
+          <img src={composedUrl} alt="Creative composition" className="w-full max-h-[420px] object-contain rounded-xl border border-border"/>
+          {creativePrompt && <p className="text-[10px] text-fg-subtle italic line-clamp-2">{creativePrompt}</p>}
+        </div>
+      ) : (
+        <div className="aspect-[9/16] max-h-[380px] rounded-xl border border-border bg-surface-2 flex items-center justify-center"><Loader2 className="h-6 w-6 text-gold animate-spin"/></div>
+      )}
+
       <div className="flex gap-3">
         <button onClick={()=>setStep('upload')} className="h-10 px-4 rounded-lg border border-border bg-surface-2 text-[12px] text-fg-muted">{es?'Volver':'Back'}</button>
         <button onClick={classify} className="h-10 px-4 rounded-lg border border-border bg-surface-2 text-[12px] text-fg-muted flex items-center gap-1.5"><RotateCcw className="h-3 w-3"/>{es?'Recomponer':'Redo'}</button>
