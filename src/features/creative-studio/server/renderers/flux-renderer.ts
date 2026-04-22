@@ -3,27 +3,24 @@ import { generateWithFlux } from '@/features/image-studio/server/flux-client';
 import type { Variant } from '../../types';
 import type { RenderInput, RenderOutput } from './canvas-renderer';
 
-const NEGATIVE = [
-  'generic AI gradient, stock photo aesthetic, AI slop, random text,',
-  'fake UI, pastel blobs, clipart, isometric illustration, 3D render cartoon,',
-  'cheap drop shadows, abusive glow, bokeh overkill, watermarks,',
-  'generic SaaS illustration, character mascots, Adobe Stock vibe,',
-  'blurry, low quality, low-end ad aesthetics',
-].join(' ');
+// Negative-prompt ideas baked into the positive prompt instead, because the
+// flux-client does not expose a negativePrompt field. Flux 1.1/2 respect
+// natural-language "avoid X, avoid Y" phrasing well.
+const AVOID_CLAUSE =
+  'avoid generic AI gradients, avoid stock-photo aesthetic, avoid fake UI, ' +
+  'avoid clipart, avoid isometric illustration, avoid 3D cartoon render, ' +
+  'avoid pastel blobs, avoid abusive glow, avoid watermarks, ' +
+  'avoid generic SaaS illustration, avoid Adobe Stock vibe, avoid cheap shadows';
 
 interface FluxRenderOptions {
-  extraNegative?: string;
   promptSuffix?: string;
 }
 
 /**
  * FLUX RENDERER
  * Reuses the existing flux-client.generateWithFlux (same path as /api/images/generate).
- * Passes referenceImageUrls for style grounding (logo + supports) so output
- * stays anchored to the user's visual world, not the training average.
- *
- * This does NOT create a separate Flux integration. It calls the same wrapper
- * the rest of the app uses.
+ * Matches its actual signature: { prompt, aspectRatio, seed?, referenceImageUrls?, model? }
+ * Returns { urls: string[], seed, latencyMs }
  */
 export async function renderFlux(
   input: RenderInput,
@@ -33,8 +30,8 @@ export async function renderFlux(
 
   const prompt = buildFluxPrompt(variant, options.promptSuffix);
 
-  // Reference grounding: pass logo + up to 3 support assets
-  // Hero/product screenshots are NOT sent to flux because we never regenerate UI.
+  // Reference grounding: pass logo + up to 3 support assets (max 8 accepted by helper).
+  // Hero/product screenshots are NOT sent because we never regenerate UI.
   const refUrls: string[] = [];
   if (variant.composition.logoIndex) {
     const u = imageUrls[variant.composition.logoIndex - 1];
@@ -45,35 +42,16 @@ export async function renderFlux(
     if (u && refUrls.length < 4) refUrls.push(u);
   }
 
-  const negativePrompt = options.extraNegative
-    ? NEGATIVE + ' ' + options.extraNegative
-    : NEGATIVE;
-
   const result = await generateWithFlux({
     prompt,
     aspectRatio: variant.aspectRatio,
-    imageModel: 'flux-2-pro',
-    referenceImageUrls: refUrls,
-    negativePrompt,
-  } as any);
+    model: 'flux-2-pro',
+    referenceImageUrls: refUrls.length > 0 ? refUrls : undefined,
+  });
 
-  // generateWithFlux returns a url or an object with url
-  let imageUrl = '';
-  if (typeof result === 'string') {
-    imageUrl = result;
-  } else if (result && typeof result === 'object') {
-    const r = result as any;
-    if (r.url) imageUrl = String(r.url);
-    else if (r.imageUrl) imageUrl = String(r.imageUrl);
-    else if (Array.isArray(r.display_urls) && r.display_urls[0]) {
-      imageUrl = String(r.display_urls[0]);
-    } else if (Array.isArray(r.images) && r.images[0]) {
-      imageUrl = String(r.images[0]);
-    }
-  }
-
+  const imageUrl = result.urls?.[0];
   if (!imageUrl) {
-    throw new Error('Flux renderer: could not extract image URL from result');
+    throw new Error('Flux renderer: generateWithFlux returned no URLs');
   }
 
   return { imageUrl, engine: 'flux' };
@@ -88,6 +66,7 @@ function buildFluxPrompt(variant: Variant, suffix?: string): string {
     'premium advertising composition, cinematic lighting, depth of field',
     'no text, no letters, no words, text-free composition',
     'commercial photography quality, award-winning brand advertising',
+    AVOID_CLAUSE,
   ];
   if (suffix) parts.push(suffix);
   return parts.filter(Boolean).join('. ');
