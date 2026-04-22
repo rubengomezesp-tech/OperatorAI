@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useI18n } from '@/lib/i18n';
 import { ReferenceComposer } from './reference-composer';
+import { AdEditor } from './ad-editor';
 
 type Step = 'upload' | 'composing' | 'compose_preview' | 'generating' | 'result';
 type Priority = 'fast' | 'balanced' | 'exact';
@@ -33,6 +34,7 @@ export function CreativeStudioView() {
   const [elapsed, setElapsed] = useState(0);
   const [result, setResult] = useState<Result | null>(null);
   const [playing, setPlaying] = useState(false);
+  const [showEditor, setShowEditor] = useState(false);
   const [editingCopy, setEditingCopy] = useState(false);
   const [editCopy, setEditCopy] = useState<AdCopy>({ hook:'', message:'', cta:'', headline:'' });
   const [copied, setCopied] = useState<string | null>(null);
@@ -207,6 +209,33 @@ export function CreativeStudioView() {
               <img src={result.composedImage} alt="" className="w-full" style={{maxHeight:420, objectFit:'contain'}}/>
             </div>
           ) : null}
+          {/* Open Ad Editor */}
+          {result.composedImage && hasCopy && !showEditor && (
+            <button onClick={()=>setShowEditor(true)} className="w-full h-10 rounded-lg border border-gold/30 bg-gold/10 text-gold text-[12px] font-medium flex items-center justify-center gap-2 hover:bg-gold/15 transition-colors">
+              <Type className="h-3.5 w-3.5"/>{es?'Anadir texto + templates':'Add text + templates'}
+            </button>
+          )}
+
+          {showEditor && result.composedImage && (
+            <div className="lg:col-span-2 rounded-xl border border-border bg-surface p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-display text-[14px]">{es?'Editor de anuncio':'Ad Editor'}</h3>
+                <button onClick={()=>setShowEditor(false)} className="text-[10px] text-fg-muted hover:text-fg">{es?'Cerrar':'Close'}</button>
+              </div>
+              <AdEditor
+                imageUrl={result.composedImage}
+                copy={result.copy}
+                aspectRatio={aspect}
+                onExport={(url) => {
+                  const link = document.createElement('a');
+                  link.download = 'ad-final.png';
+                  link.href = url;
+                  link.click();
+                }}
+              />
+            </div>
+          )}
+
           {/* Downloads */}
           <div className="flex gap-2">
             {result.composedImage && (<a href={result.composedImage} download="campaign-image.png" className="flex-1 h-10 rounded-lg border border-border bg-surface-2 text-[11px] text-fg-muted flex items-center justify-center gap-1.5 hover:text-fg transition-colors"><ImageIcon className="h-3.5 w-3.5"/>{es?'Imagen':'Image'}</a>)}
