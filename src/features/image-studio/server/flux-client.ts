@@ -24,80 +24,13 @@ const ASPECT_TO_SIZE: Record<string, { w: number; h: number }> = {
   '3:2': { w: 1216, h: 832 },
 };
 
-const MODEL_MAP: Record<
-  'flux-2-pro' | 'flux-1.1-pro',
-  `${string}/${string}`
-> = {
+// 🔥 MODELOS TIPADOS (esto evita el error de TS)
+const MODEL_MAP = {
   'flux-2-pro': 'black-forest-labs/flux-1.1-pro',
   'flux-1.1-pro': 'black-forest-labs/flux-1.1-pro',
-};
+} as const;
 
 const MAX_RETRIES = 3;
-const DEFAULT_RETRY_AFTER_SECONDS = 10;
-
-function sleep(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-function extractRetryAfterSeconds(err: unknown): number {
-  const retryAfter =
-    (err as any)?.response?.headers?.get?.('retry-after') ??
-    (err as any)?.response?.headers?.['retry-after'];
-
-  const parsed = Number(retryAfter);
-  if (Number.isFinite(parsed) && parsed > 0) return parsed;
-
-  return DEFAULT_RETRY_AFTER_SECONDS;
-}
-
-async function runWithRetry(
-  client: Replicate,
-  model: `${string}/${string}` | `${string}/${string}:${string}`,
-  payload: Record<string, unknown>,
-) {
-  let attempt = 0;
-
-  while (attempt < MAX_RETRIES) {
-    try {
-      return await client.run(model, { input: payload });
-    } catch (err: any) {
-      const status = err?.response?.status;
-
-      if (status === 429 && attempt < MAX_RETRIES - 1) {
-        const retryAfterSeconds = extractRetryAfterSeconds(err);
-        console.warn(
-          `[flux-client] rate limited (429). retrying in ${retryAfterSeconds}s. attempt ${attempt + 1}/${MAX_RETRIES}`,
-        );
-        await sleep(retryAfterSeconds * 1000);
-        attempt++;
-        continue;
-      }
-
-      throw err;
-    }
-  }
-
-  throw new Error('Flux failed after retries');
-}
-
-function normalizeOutputToUrls(output: unknown): string[] {
-  if (typeof output === 'string') {
-    return [output];
-  }
-
-  if (Array.isArray(output)) {
-    return output.filter((u): u is string => typeof u === 'string');
-  }
-
-  if (output && typeof output === 'object') {
-    const maybeUrl = (output as any).url;
-    if (typeof maybeUrl === 'string') {
-      return [maybeUrl];
-    }
-  }
-
-  return [];
-}
 
 export async function generateWithFlux(
   input: GenerateInput,
@@ -111,7 +44,7 @@ export async function generateWithFlux(
     useFileOutput: false,
   });
 
-  const seed = input.seed ?? Math.floor(Math.random() * 999_999_999);
+  const seed = input.seed ?? Math.floor(Math.random() * 999999999);
   const started = Date.now();
   const size = ASPECT_TO_SIZE[input.aspectRatio] ?? ASPECT_TO_SIZE['1:1'];
 
@@ -123,10 +56,7 @@ export async function generateWithFlux(
     seed,
   };
 
-  if (
-    typeof payload.prompt !== 'string' ||
-    payload.prompt.trim().length < 10
-  ) {
+  if (typeof payload.prompt !== 'string' || payload.prompt.trim().length < 10) {
     throw new Error('Invalid prompt sent to Flux');
   }
 
@@ -138,52 +68,65 @@ export async function generateWithFlux(
     payload.negative_prompt = input.negativePrompt.trim();
   }
 
+  const modelKey = input.model || 'flux-1.1-pro';
+  const model = MODEL_MAP[modelKey];
+
   console.log('[flux-client] payload:', payload);
 
-  const modelKey =
-    input.model === 'flux-1.1-pro' || input.model === 'flux-2-pro'
-      ? input.model
-      : 'flux-2-pro';
+  let attempt = 0;
 
-  const model = MODEL_MAP[modelKey] as `${string}/${string}`;
+  while (attempt < MAX_RETRIES) {
+    try {
+      const output = await client.run(
+        model as unknown as `${string}/${string}`,
+        { input: payload },
+      );
 
-  try {
-    const output = await runWithRetry(client, model, payload);
+      let urls: string[] = [];
 
-    const urls = normalizeOutputToUrls(output).filter(
-      (u): u is string => typeof u === 'string' && u.startsWith('http'),
-    );
+      if (typeof output === 'string') {
+        urls = [output];
+      } else if (Array.isArray(output)) {
+        urls = output.filter((u): u is string => typeof u === 'string');
+      } else if (output && typeof output === 'object') {
+        const maybeUrl = (output as any).url;
+        if (typeof maybeUrl === 'string') {
+          urls = [maybeUrl];
+        }
+      }
 
-    if (!urls.length) {
-      console.error('[flux-client] RAW OUTPUT:', output);
-      throw new Error('No image returned from Flux');
+      const cleanUrls = urls.filter(
+        (u): u is string => typeof u === 'string' && u.startsWith('http'),
+      );
+
+      if (!cleanUrls.length) {
+        console.error('[flux-client] RAW OUTPUT:', output);
+        throw new Error('No image returned from Flux');
+      }
+
+      return {
+        urls: cleanUrls,
+        seed,
+        latencyMs: Date.now() - started,
+      };
+    } catch (err: any) {
+      const status = err?.response?.status;
+
+      // 🔥 RATE LIMIT FIX
+      if (status === 429) {
+        const retryAfter =
+          Number(err?.response?.headers?.get?.('retry-after')) || 10;
+
+        console.warn(`[flux-client] 429 — retrying in ${retryAfter}s...`);
+        await new Promise((r) => setTimeout(r, retryAfter * 1000));
+        attempt++;
+        continue;
+      }
+
+      console.error('[flux-client] ERROR:', err);
+      throw err;
     }
-
-    return {
-      urls,
-      seed,
-      latencyMs: Date.now() - started,
-    };
-  } catch (err) {
-    console.error('[flux-client] ERROR:', err);
-    throw err;
   }
-}
 
-export function enhancePrompt(
-  prompt: string,
-  preset?: 'editorial' | 'startup' | 'luxury',
-): string {
-  if (!preset) return prompt;
-
-  const suffix = {
-    editorial:
-      ' editorial photography, cinematic lighting, magazine style',
-    startup:
-      ' modern product shot, clean lighting, startup aesthetic',
-    luxury:
-      ' luxury photography, premium lighting, high-end composition',
-  }[preset];
-
-  return prompt + suffix;
+  throw new Error('Flux failed after retries');
 }
