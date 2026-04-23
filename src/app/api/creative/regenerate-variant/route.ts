@@ -4,153 +4,269 @@ import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { createSupabaseServiceClient } from '@/lib/supabase/service';
 import { planCampaign } from '@/features/creative-studio/server/creative-planner';
 import { renderWithQuality } from '@/features/creative-studio/server/render-router';
-import type { Variant, CampaignMemory } from '@/features/creative-studio/types';
+import type {
+  Variant,
+  CampaignMemory,
+  ProductBrief,
+  ImageAnalysis,
+  AspectRatio,
+  QualityReport,
+} from '@/features/creative-studio/types';
 
 export const runtime = 'nodejs';
-export const maxDuration = 240;
+export const maxDuration = 300;
 
 const Body = z.object({
   campaignId: z.string().uuid(),
   variantId: z.string(),
 });
 
-/**
- * REGENERATE VARIANT
- * - Pushes the current variant into memory as "rejected"
- * - Re-runs the planner with updated memory
- * - Picks ONLY the new variant that matches the same layout (same slot)
- * - Renders it (with quality gate)
- * - Updates the campaign row so the slot now holds the new variant
- *
- * Does NOT re-render the other 4 variants. Does NOT reset the grid.
- */
+type RegenOk = {
+  ok: true;
+  variant: Variant;
+  imageUrl: string;
+  engine: string;
+  qualityReport: QualityReport | null;
+  memory: CampaignMemory;
+};
+
+type RegenFail = {
+  ok: false;
+  error: string;
+  code:
+    | 'NOT_AUTHENTICATED'
+    | 'CAMPAIGN_NOT_FOUND'
+    | 'VARIANT_NOT_FOUND'
+    | 'PLAN_FAILED'
+    | 'RATE_LIMITED'
+    | 'TIMEOUT'
+    | 'GENERATION_FAILED'
+    | 'INVALID_INPUT'
+    | 'INTERNAL';
+};
+
+type RegenResponse = RegenOk | RegenFail;
+
 export async function POST(req: NextRequest) {
+  let body: z.infer<typeof Body>;
   try {
-    const body = Body.parse(await req.json());
+    body = Body.parse(await req.json());
+  } catch {
+    return json({
+      ok: false,
+      error: 'Invalid request body',
+      code: 'INVALID_INPUT',
+    });
+  }
 
-    const ssr = await createSupabaseServerClient();
-    const {
-      data: { user },
-    } = await ssr.auth.getUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-    }
+  const ssr = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await ssr.auth.getUser();
+  if (!user) {
+    return json({
+      ok: false,
+      error: 'Not authenticated',
+      code: 'NOT_AUTHENTICATED',
+    });
+  }
 
-    const svc = createSupabaseServiceClient();
+  const svc = createSupabaseServiceClient();
 
-    const { data: row, error } = await svc
-      .from('campaigns' as any)
-      .select('*')
-      .eq('id', body.campaignId)
-      .eq('user_id', user.id)
-      .single();
+  const { data: row, error: loadErr } = await svc
+    .from('campaigns' as any)
+    .select(
+      'image_urls, analyses, brief, variants, memory, aspect_ratio, rendered_images, quality_reports',
+    )
+    .eq('id', body.campaignId)
+    .eq('user_id', user.id)
+    .is('deleted_at', null)
+    .single();
 
-    if (error || !row) {
-      return NextResponse.json({ error: 'Campaign not found' }, { status: 404 });
-    }
-    const campaign = row as any;
+  if (loadErr || !row) {
+    return json({
+      ok: false,
+      error: 'Campaign not found',
+      code: 'CAMPAIGN_NOT_FOUND',
+    });
+  }
 
-    const variants = (campaign.variants as Variant[]) || [];
-    const existing = variants.find((v) => v.id === body.variantId);
-    if (!existing) {
-      return NextResponse.json(
-        { error: 'Variant not found in campaign' },
-        { status: 404 },
-      );
-    }
+  const campaign = row as {
+    image_urls: string[];
+    analyses: ImageAnalysis[];
+    brief: ProductBrief;
+    variants: Variant[];
+    memory: CampaignMemory;
+    aspect_ratio: AspectRatio;
+    rendered_images: Record<string, string> | null;
+    quality_reports: Record<string, QualityReport> | null;
+  };
 
-    // Build updated memory with the rejected variant tracked
-    const prevMemory: CampaignMemory = campaign.memory || {
-      previousVariants: [],
-      rejectedVariantIds: [],
-      userEdits: {},
-      regenerationCount: 0,
-    };
-    const updatedMemory: CampaignMemory = {
-      previousVariants: [
-        ...(prevMemory.previousVariants || []),
-        existing,
-      ].slice(-20), // cap at 20 entries
-      selectedVariantId: prevMemory.selectedVariantId,
-      rejectedVariantIds: [
-        ...(prevMemory.rejectedVariantIds || []),
-        existing.id,
-      ],
-      userEdits: prevMemory.userEdits || {},
-      regenerationCount: (prevMemory.regenerationCount || 0) + 1,
-    };
+  const oldVariant = campaign.variants.find((v) => v.id === body.variantId);
+  if (!oldVariant) {
+    return json({
+      ok: false,
+      error: 'Variant not found',
+      code: 'VARIANT_NOT_FOUND',
+    });
+  }
 
-    // Plan again with memory context
-    const newVariants = await planCampaign(
+  const updatedMemory: CampaignMemory = {
+    previousVariants: [...campaign.memory.previousVariants, oldVariant],
+    rejectedVariantIds: [
+      ...campaign.memory.rejectedVariantIds,
+      oldVariant.id,
+    ],
+    selectedVariantId: campaign.memory.selectedVariantId,
+    userEdits: campaign.memory.userEdits,
+    regenerationCount: campaign.memory.regenerationCount + 1,
+  };
+
+  let newVariants: Variant[];
+  try {
+    newVariants = await planCampaign(
       campaign.brief,
       campaign.analyses,
       campaign.aspect_ratio,
       updatedMemory,
     );
+  } catch (err) {
+    console.error(
+      '[regenerate] plan failed',
+      JSON.stringify({ campaignId: body.campaignId, error: String(err) }),
+    );
+    return json({
+      ok: false,
+      error: err instanceof Error ? err.message : 'Plan failed',
+      code: 'PLAN_FAILED',
+    });
+  }
 
-    // Find the replacement for THIS layout slot
-    const replacement = newVariants.find((v) => v.layout === existing.layout);
-    if (!replacement) {
-      return NextResponse.json(
-        { error: 'Planner did not return a variant for this layout' },
-        { status: 500 },
-      );
-    }
+  const replacement = newVariants.find((v) => v.layout === oldVariant.layout);
+  if (!replacement) {
+    return json({
+      ok: false,
+      error: 'Planner did not return a variant with the expected layout',
+      code: 'PLAN_FAILED',
+    });
+  }
 
-    // Ensure new variant id differs from old
-    if (replacement.id === existing.id) {
-      replacement.id = existing.id + '-r' + updatedMemory.regenerationCount;
-    }
-
-    // Render the replacement
-    const renderResult = await renderWithQuality({
+  let result: Awaited<ReturnType<typeof renderWithQuality>>;
+  try {
+    result = await renderWithQuality({
       variant: replacement,
       imageUrls: campaign.image_urls,
       analyses: campaign.analyses,
     });
-
-    // Swap in variants array
-    const updatedVariants = variants.map((v) =>
-      v.id === existing.id ? replacement : v,
-    );
-
-    // Update rendered_images: remove old entry, add new
-    const renderedImages = { ...(campaign.rendered_images || {}) };
-    delete renderedImages[existing.id];
-    renderedImages[replacement.id] = renderResult.imageUrl;
-
-    // Same for quality_reports
-    const qualityReports = { ...(campaign.quality_reports || {}) };
-    delete qualityReports[existing.id];
-    if (renderResult.qualityReport) {
-      qualityReports[replacement.id] = renderResult.qualityReport;
-    }
-
-    await svc
-      .from('campaigns' as any)
-      .update({
-        variants: updatedVariants,
-        memory: updatedMemory,
-        rendered_images: renderedImages,
-        quality_reports: qualityReports,
-      })
-      .eq('id', body.campaignId)
-      .eq('user_id', user.id);
-
-    return NextResponse.json({
-      ok: true,
-      variant: replacement,
-      imageUrl: renderResult.imageUrl,
-      engine: renderResult.engine,
-      qualityReport: renderResult.qualityReport,
-      retried: renderResult.retried,
-      memory: updatedMemory,
-    });
   } catch (err) {
-    console.error('[regenerate-variant] error:', err);
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Failed' },
-      { status: 500 },
+    const mapped = mapRenderError(err);
+    console.error(
+      '[regenerate] render failed',
+      JSON.stringify({
+        campaignId: body.campaignId,
+        variantId: body.variantId,
+        code: mapped.code,
+      }),
     );
+    return json(mapped);
   }
+
+  if (!result.imageUrl) {
+    return json({
+      ok: false,
+      error: 'Renderer returned empty URL',
+      code: 'GENERATION_FAILED',
+    });
+  }
+
+  const nextVariants = campaign.variants.map((v) =>
+    v.id === oldVariant.id ? replacement : v,
+  );
+
+  const nextImages = { ...(campaign.rendered_images || {}) };
+  delete nextImages[oldVariant.id];
+  nextImages[replacement.id] = result.imageUrl;
+
+  const nextReports = { ...(campaign.quality_reports || {}) };
+  delete nextReports[oldVariant.id];
+  if (result.qualityReport) {
+    nextReports[replacement.id] = result.qualityReport;
+  }
+
+  const { error: updErr } = await svc
+    .from('campaigns' as any)
+    .update({
+      variants: nextVariants,
+      memory: updatedMemory,
+      rendered_images: nextImages,
+      quality_reports: nextReports,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', body.campaignId)
+    .eq('user_id', user.id);
+
+  if (updErr) {
+    console.error(
+      '[regenerate] persist failed',
+      JSON.stringify({ campaignId: body.campaignId, error: updErr.message }),
+    );
+    return json({
+      ok: false,
+      error: 'Failed to persist regenerated variant',
+      code: 'INTERNAL',
+    });
+  }
+
+  return json({
+    ok: true,
+    variant: replacement,
+    imageUrl: result.imageUrl,
+    engine: result.engine,
+    qualityReport: result.qualityReport ?? null,
+    memory: updatedMemory,
+  });
+}
+
+function json(data: RegenResponse): NextResponse {
+  return NextResponse.json(data, { status: 200 });
+}
+
+function mapRenderError(err: unknown): RegenFail {
+  const anyErr = err as any;
+  const message = anyErr?.message || String(err);
+  const status =
+    anyErr?.response?.status ||
+    anyErr?.status ||
+    (typeof anyErr?.statusCode === 'number' ? anyErr.statusCode : undefined);
+
+  const msgLower = message.toLowerCase();
+
+  const is429 =
+    status === 429 ||
+    msgLower.includes('429') ||
+    msgLower.includes('rate limit') ||
+    msgLower.includes('too many');
+
+  if (is429) {
+    return {
+      ok: false,
+      error: 'Replicate rate limit hit. Try again in a few seconds.',
+      code: 'RATE_LIMITED',
+    };
+  }
+
+  if (msgLower.includes('timeout') || msgLower.includes('timed out')) {
+    return { ok: false, error: 'Render timed out.', code: 'TIMEOUT' };
+  }
+
+  if (
+    msgLower.includes('no url') ||
+    msgLower.includes('invalid output') ||
+    msgLower.includes('prediction failed') ||
+    msgLower.includes('canceled')
+  ) {
+    return { ok: false, error: message, code: 'GENERATION_FAILED' };
+  }
+
+  return { ok: false, error: message, code: 'INTERNAL' };
 }
