@@ -14,14 +14,12 @@ export default function BillingSuccessPage() {
       </div>
 
       <h1 className="font-display text-[32px]">
-        {t('billing.success.title', 'Welcome to Pro!')}
+        {t('billing.success.title') || 'Welcome to Pro!'}
       </h1>
 
       <p className="text-[14px] text-fg-muted leading-relaxed">
-        {t(
-          'billing.success.description',
-          'Your subscription is active. You now have access to all features in your plan. Start creating.'
-        )}
+        {t('billing.success.description') ||
+          'Your subscription is active. You now have access to all features in your plan. Start creating.'}
       </p>
 
       <div className="flex justify-center gap-3">
@@ -29,14 +27,14 @@ export default function BillingSuccessPage() {
           href="/dashboard"
           className="h-10 px-5 rounded-md gold-grad text-bg text-[13.5px] font-medium flex items-center hover:brightness-110 transition"
         >
-          {t('billing.success.dashboardCta', 'Go to dashboard')}
+          {t('billing.success.dashboardCta') || 'Go to dashboard'}
         </Link>
 
         <Link
           href="/billing"
           className="h-10 px-5 rounded-md border border-border bg-surface-2 text-[13.5px] text-fg-muted flex items-center hover:border-gold/40 transition"
         >
-          {t('billing.success.planCta', 'View my plan')}
+          {t('billing.success.planCta') || 'View my plan'}
         </Link>
       </div>
     </div>
