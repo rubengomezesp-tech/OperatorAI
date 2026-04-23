@@ -70,11 +70,11 @@ export async function POST(req: NextRequest) {
     .is('deleted_at', null)
     .single();
 
-  if (loadErr || !row) {
-    return json({ ok: false, error: 'Campaign not found', code: 'CAMPAIGN_NOT_FOUND' });
-  }
+  if (error || !row) {
+  return NextResponse.json({ error: 'Campaign not found' }, { status: 404 });
+}
 
-  const campaign = row as unknown as {
+const campaign = row as unknown as {
   analyses: ImageAnalysis[];
   brief: ProductBrief;
   variants: Variant[];
