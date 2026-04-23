@@ -1,114 +1,181 @@
 import 'server-only';
 import { generateWithFlux } from '@/features/image-studio/server/flux-client';
-import type { Variant, VisualStyle } from '../../types';
-import type { RenderInput, RenderOutput } from './canvas-renderer';
-import { VISUAL_STYLES, pickDefaultStyleForLayout } from '../../data/visual-styles';
+import type { Variant, VisualStyle, CampaignDirection } from '../../types';
+import type { RenderInput, RenderOutput } from '../render-router';
+import {
+  VISUAL_STYLES,
+  pickDefaultStyleForLayout,
+} from '../../data/visual-styles';
 
 /**
- * FLUX RENDERER v4A
- * - Uses real negative_prompt via flux-client
- * - Consumes visualDirection, styleHint, intensity, compositionHint from variant
- * - Reference grounding: logo + up to 3 support assets (never hero UI)
+ * FLUX RENDERER v8
+ *
+ * Objetivo:
+ * - dejar de sacar frames negros/vacíos
+ * - forzar composición usable para anuncios
+ * - mantener estética premium real
+ * - reservar espacio para copy sin pedir un frame muerto
  */
-export async function renderFlux(input: RenderInput): Promise<RenderOutput> {
-  const { variant, imageUrls } = input;
+export async function renderFlux(
+  input: RenderInput & { direction?: CampaignDirection },
+): Promise<RenderOutput> {
+  const { variant } = input;
 
   const style: VisualStyle =
     variant.styleHint ||
     pickDefaultStyleForLayout(variant.layout, variant.intensity);
+
   const styleSpec = VISUAL_STYLES[style];
 
-  const prompt = buildFluxPrompt(variant, styleSpec);
+  const prompt = buildFluxPrompt(variant, styleSpec, input.direction);
   const negativePrompt = buildNegativePrompt(styleSpec);
-
-  // Reference grounding: logo + up to 3 support assets.
-  // Hero/product screenshots are never sent because we never regenerate UI.
-  const refUrls: string[] = [];
-  if (variant.composition.logoIndex) {
-    const u = imageUrls[variant.composition.logoIndex - 1];
-    if (u) refUrls.push(u);
-  }
-  for (const idx of variant.composition.supportAssetIndices || []) {
-    const u = imageUrls[idx - 1];
-    if (u && refUrls.length < 4) refUrls.push(u);
-  }
 
   const result = await generateWithFlux({
     prompt,
     aspectRatio: variant.aspectRatio,
     model: 'flux-2-pro',
-    referenceImageUrls: refUrls.length > 0 ? refUrls : undefined,
     negativePrompt,
   });
 
   const imageUrl = result.urls?.[0];
+
   if (!imageUrl) {
     throw new Error('Flux renderer: generateWithFlux returned no URLs');
   }
 
+  if (
+    typeof imageUrl !== 'string' ||
+    (!imageUrl.startsWith('http') && !imageUrl.startsWith('data:image/'))
+  ) {
+    throw new Error(
+      'Flux renderer: returned invalid image URL: ' + String(imageUrl),
+    );
+  }
+
+  console.log('[renderFlux] imageUrl:', imageUrl.slice(0, 120));
+
   return { imageUrl, engine: 'flux' };
 }
 
-function buildFluxPrompt(variant: Variant, styleSpec: ReturnType<typeof getStyle>): string {
+function buildFluxPrompt(
+  variant: Variant,
+  styleSpec: (typeof VISUAL_STYLES)[VisualStyle],
+  direction?: CampaignDirection,
+): string {
   const parts: string[] = [];
 
-  // Intent + visual direction go first (most specific)
+  const safeCompositionHint =
+    variant.compositionHint ||
+    'Subject placed off-center, strong negative space on one side for headline overlay';
+
+  parts.push(
+    'premium commercial advertising scene with clearly visible subject matter, visible materials, visible surfaces, visible light detail, layered environment, realistic depth, readable scene structure',
+  );
+
   if (variant.visualDirection) parts.push(variant.visualDirection);
   if (variant.intent) parts.push(variant.intent);
 
-  // Style-driven art direction
+  if (direction) {
+    const lighting = direction.lightingDirection.replace('_', ' ');
+    const motion = direction.motionEnergy;
+    const archetype = direction.archetype;
+
+    parts.push('lighting style: ' + lighting);
+    parts.push('scene energy: ' + motion);
+    parts.push('campaign archetype: ' + archetype + ' advertising');
+
+    if (
+      direction.culturalReferences &&
+      direction.culturalReferences.length > 0
+    ) {
+      parts.push(
+        'inspired by: ' +
+          direction.culturalReferences.slice(0, 2).join(' and '),
+      );
+    }
+  }
+
   parts.push(...styleSpec.promptHints);
 
-  // Composition hint
-  if (variant.compositionHint) {
-    parts.push('composition: ' + variant.compositionHint);
-  } else {
-    parts.push(styleSpec.composition);
-  }
+  parts.push('composition: ' + safeCompositionHint);
 
-  // Intensity modifier
+  parts.push(
+    'clear negative space for text overlay, top or side reserved, subject NOT centered, asymmetric composition, advertising layout ready',
+  );
+
   if (variant.intensity === 'aggressive') {
-    parts.push('high energy, tight framing, dramatic contrast');
+    parts.push(
+      'high visual tension, strong contrast, bold framing, but subject and environment must remain clearly visible',
+    );
   } else if (variant.intensity === 'soft') {
-    parts.push('calm pacing, generous negative space, restrained palette');
+    parts.push(
+      'calm premium pacing, elegant negative space, restrained palette, but never empty or blank',
+    );
+  } else {
+    parts.push(
+      'balanced premium composition, clear focal subject, visible atmospheric depth',
+    );
   }
 
-  // Palette constraint
-  parts.push('color palette: ' + variant.palette.join(', '));
+  if (direction) {
+    parts.push(
+      'brand palette led by dominant ' +
+        direction.paletteDirection.dominant +
+        ' with accent ' +
+        direction.paletteDirection.accent,
+    );
+  } else if (variant.palette.length > 0) {
+    parts.push('palette: ' + variant.palette.join(', '));
+  }
 
-  // Absolutes
-  parts.push('no text, no letters, no words, text-free composition');
-  parts.push('commercial photography quality, award-winning brand advertising');
+  parts.push(
+    'the frame must not be empty, must not be a plain black background, must contain visible premium scene elements, realistic light falloff, material detail, and clear foreground-midground-background separation',
+  );
+
+  parts.push(
+    'leave controlled space for later text overlay while preserving a rich visible scene with subject and environment',
+  );
+
+  parts.push(
+    'no text, no letters, no words, no typography, no UI, no screenshots, text-free composition',
+  );
+
+  parts.push(
+    'premium commercial photography, editorial polish, high-end brand campaign image, visually readable',
+  );
 
   return parts.filter(Boolean).join('. ');
 }
 
-function buildNegativePrompt(styleSpec: ReturnType<typeof getStyle>): string {
+function buildNegativePrompt(
+  styleSpec: (typeof VISUAL_STYLES)[VisualStyle],
+): string {
   const base = [
-    'generic AI gradient',
-    'stock photo aesthetic',
-    'AI slop',
-    'random text',
-    'fake UI',
-    'clipart',
-    'isometric illustration',
-    '3D cartoon render',
-    'cheap drop shadows',
-    'pastel blobs',
-    'watermarks',
-    'generic SaaS illustration',
-    'Adobe Stock vibe',
+    'text',
+    'letters',
+    'words',
+    'typography',
+    'watermark',
+    'signature',
+    'captions',
+    'UI elements',
+    'screenshots',
     'blurry',
     'low quality',
-    'empty background',
-    'flat composition',
-    'centered symmetrical cliche',
+    'deformed composition',
+    'cheap stock photo',
+    'clipart',
+    'isometric illustration',
+    'cartoon render',
+    'cheap glow',
+    'messy layout',
+    'illegible scene',
+    'broken perspective',
+    'visual noise overload',
+    'plain black background',
+    'empty frame',
+    'dead center subject with no negative space',
   ];
-  return [...base, ...styleSpec.negativeHints].join(', ');
-}
 
-// Typed alias for readability (no runtime effect)
-function getStyle(v: Variant) {
-  const id: VisualStyle = v.styleHint || pickDefaultStyleForLayout(v.layout, v.intensity);
-  return VISUAL_STYLES[id];
+  return [...base, ...styleSpec.negativeHints].join(', ');
 }

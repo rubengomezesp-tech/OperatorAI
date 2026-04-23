@@ -3,22 +3,24 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type {
   ProductBrief,
   Variant,
-  ImageAnalysis,
-  CampaignMemory,
-  AspectRatio,
   CampaignIntent,
+  AspectRatio,
   QualityReport,
+  ImageAnalysis,
+  CampaignDirection,
+  CampaignMemory,
 } from '../types';
 
 export interface CampaignState {
   id: string;
   imageUrls: string[];
-  instructions?: string;
+  instructions: string;
   aspectRatio: AspectRatio;
   campaignIntent: CampaignIntent;
   locale: 'en' | 'es';
-  analyses: ImageAnalysis[] | null;
-  brief: ProductBrief | null;
+  analyses: ImageAnalysis[];
+  brief?: ProductBrief;
+  direction?: CampaignDirection;
   variants: Variant[];
   memory: CampaignMemory;
   renderedImages: Record<string, string>;

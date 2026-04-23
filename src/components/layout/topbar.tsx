@@ -1,4 +1,5 @@
 'use client';
+
 import { useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { Sparkles } from 'lucide-react';
@@ -28,26 +29,30 @@ const TITLES: Record<string, string> = {
 export function Topbar({ email, fullName }: { email: string; fullName: string | null }) {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
+
   const key = Object.keys(TITLES).find((k) => pathname === k || pathname.startsWith(k + '/'));
   const title = key ? TITLES[key] : '';
 
   return (
     <>
       <header className="sticky top-0 z-20 glass border-b border-border">
-        <div className="flex items-center justify-between h-14 px-5 lg:px-8">
+        <div className="flex items-center justify-between h-14 px-4 lg:px-8 min-w-0">
           <div className="flex items-center gap-3 min-w-0">
-            {/* Mobile: logo + menu button */}
-            <MobileMenuButton onClick={() => setMenuOpen(true)} />
+            <div className="lg:hidden">
+              <MobileMenuButton onClick={() => setMenuOpen(true)} />
+            </div>
 
-            {/* Desktop: breadcrumb */}
             <div className="hidden lg:flex items-center gap-2 text-[11px] uppercase tracking-[0.16em] text-fg-muted">
               <Sparkles className="h-3 w-3 text-gold" />
               Operator
             </div>
+
             <span className="hidden lg:inline text-fg-subtle">/</span>
+
             <h1 className="font-display text-[18px] truncate">{title}</h1>
           </div>
-          <div className="flex items-center gap-2">
+
+          <div className="flex items-center gap-2 shrink-0">
             <LanguageToggle />
             <UserMenu email={email} fullName={fullName} />
           </div>

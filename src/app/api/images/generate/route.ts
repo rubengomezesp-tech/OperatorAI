@@ -18,6 +18,13 @@ const BodySchema = z.object({
   referenceUrls: z.array(z.string().url()).max(8).optional(),
 });
 
+type PromptHint = 'editorial' | 'startup' | 'luxury';
+
+function coercePromptHint(value: unknown): PromptHint {
+  if (value === 'startup' || value === 'luxury') return value;
+  return 'editorial';
+}
+
 export async function POST(req: NextRequest) {
   const parsed = BodySchema.safeParse(await req.json().catch(() => ({})));
   if (!parsed.success) {
@@ -26,11 +33,17 @@ export async function POST(req: NextRequest) {
   const body = parsed.data;
 
   const ssr = await createSupabaseServerClient();
-  const { data: { user } } = await ssr.auth.getUser();
-  if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const {
+    data: { user },
+  } = await ssr.auth.getUser();
+
+  if (!user) {
+    return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  }
 
   const svc = createSupabaseServiceClient();
   let orgId: string;
+
   try {
     orgId = (await resolveOrgContext(svc, user.id)).orgId;
   } catch {
@@ -43,7 +56,8 @@ export async function POST(req: NextRequest) {
   let enhanced = body.prompt;
   if (body.enhance) {
     try {
-      enhanced = await enhancePrompt(body.prompt, (preset?.hint ?? 'editorial') as 'editorial');
+      const hint = coercePromptHint(preset?.hint);
+      enhanced = await enhancePrompt(body.prompt, hint);
     } catch {
       enhanced = body.prompt;
     }
@@ -75,8 +89,12 @@ export async function POST(req: NextRequest) {
     .single();
 
   if (insErr || !created) {
-    return NextResponse.json({ error: insErr?.message ?? 'Failed to create record' }, { status: 500 });
+    return NextResponse.json(
+      { error: insErr?.message ?? 'Failed to create record' },
+      { status: 500 }
+    );
   }
+
   const imageId = (created as { id: string }).id;
 
   try {
@@ -86,28 +104,33 @@ export async function POST(req: NextRequest) {
       aspectRatio: body.aspectRatio,
       model: selectedModel,
       seed: body.seed,
-      referenceImageUrls: body.referenceUrls,
     });
 
-    // Persist output images to Supabase storage
     const storagePaths: string[] = [];
+
     for (let i = 0; i < result.urls.length; i++) {
       const url = result.urls[i];
       try {
         const res = await fetch(url);
         if (!res.ok) continue;
+
         const buffer = Buffer.from(await res.arrayBuffer());
         const path = orgId + '/' + imageId + '-' + i + '.png';
+
         const { error: upErr } = await svc.storage
           .from('image-outputs')
-          .upload(path, buffer, { contentType: 'image/png', cacheControl: '3600', upsert: true });
+          .upload(path, buffer, {
+            contentType: 'image/png',
+            cacheControl: '3600',
+            upsert: true,
+          });
+
         if (!upErr) storagePaths.push(path);
       } catch {
         // continue with remote URL only
       }
     }
 
-    // Flux 2 Pro: ~$0.03-0.06 per image depending on megapixels
     const baseCost = hasReferences ? 0.06 : 0.03;
     const costUsd = baseCost * result.urls.length;
 
@@ -141,10 +164,12 @@ export async function POST(req: NextRequest) {
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Generation failed';
+
     await svc
       .from('image_generations')
       .update({ status: 'failed', error_message: message } as never)
       .eq('id', imageId);
+
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

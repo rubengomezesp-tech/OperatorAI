@@ -1,170 +1,268 @@
-import 'server-only';
-import type { Variant, ImageAnalysis, QualityReport } from '../types';
-import {
-  renderCanvas,
-  type RenderInput,
-  type RenderOutput,
-} from './renderers/canvas-renderer';
-import { renderFlux } from './renderers/flux-renderer';
-import { renderHybrid } from './renderers/hybrid-renderer';
-import { evaluateVariant } from './quality-gate';
+import { NextResponse, type NextRequest } from 'next/server';
+import { z } from 'zod';
+import { createSupabaseServerClient } from '@/lib/supabase/server';
+import { createSupabaseServiceClient } from '@/lib/supabase/service';
+import { renderFlux } from '@/features/creative-studio/server/renderers/flux-renderer';
+import { evaluateVariant } from '@/features/creative-studio/server/quality-gate';
+import { FluxError } from '@/features/image-studio/server/flux-client';
+import type {
+  Variant,
+  ImageAnalysis,
+  CampaignDirection,
+  QualityReport,
+} from '@/features/creative-studio/types';
 
-export interface FullRenderResult extends RenderOutput {
-  qualityReport?: QualityReport;
+export const runtime = 'nodejs';
+export const maxDuration = 300;
+
+// ═══════════════════════════════════════════════════════════
+// Request schema
+// ═══════════════════════════════════════════════════════════
+
+const Body = z.object({
+  campaignId: z.string().uuid(),
+  variantId: z.string(),
+  force: z.boolean().optional(), // bypass idempotency cache
+});
+
+// ═══════════════════════════════════════════════════════════
+// Response contract — ALWAYS 200, always this shape
+// ═══════════════════════════════════════════════════════════
+
+type RenderOk = {
+  ok: true;
+  imageUrl: string;
+  cached: boolean;
   retried: boolean;
-}
+  qualityReport: QualityReport | null;
+};
 
-const PASS_THRESHOLD = 75;
+type RenderFail = {
+  ok: false;
+  error: string;
+  code:
+    | 'NOT_AUTHENTICATED'
+    | 'CAMPAIGN_NOT_FOUND'
+    | 'VARIANT_NOT_FOUND'
+    | 'RATE_LIMITED'
+    | 'TIMEOUT'
+    | 'GENERATION_FAILED'
+    | 'INVALID_INPUT'
+    | 'INTERNAL';
+};
 
-/**
- * Orchestrates the render pipeline:
- * 1. Pick engine (with heroScore override)
- * 2. Render
- * 3. Quality gate (flux/hybrid get a real score; canvas gets fail-open until browser evaluates)
- * 4. If score < 75 and engine ∈ {flux, hybrid}: ONE aggressive retry
- * 5. Return result + report
- *
- * Canvas variants: if quality gate later flags them via /api/creative/validate,
- * the frontend triggers /api/creative/regenerate-variant (Tanda 4B wiring).
- * No hidden loops. No uncontrolled spend. Max 1 retry.
- */
-export async function renderWithQuality(
-  input: RenderInput,
-): Promise<FullRenderResult> {
-  const variant = selectEngineForVariant(input.variant, input.analyses);
-  const inputWithEngine: RenderInput = { ...input, variant };
+type RenderResponse = RenderOk | RenderFail;
 
-  let result: RenderOutput;
-  try {
-    result = await runEngine(inputWithEngine);
-  } catch (err) {
-    console.error('[render-router] primary engine failed:', err);
-    result = await renderCanvas(inputWithEngine);
+// Quality gate flag — OFF by default, can be enabled per-env.
+const QG_ENABLED = process.env.FLUX_QUALITY_GATE === 'true';
+
+// ═══════════════════════════════════════════════════════════
+// Handler
+// ═══════════════════════════════════════════════════════════
+
+export async function POST(req: NextRequest) {
+  const body = await parseBody(req);
+  if (!body) return json({ ok: false, error: 'Invalid request body', code: 'INVALID_INPUT' });
+
+  const { campaignId, variantId, force } = body;
+
+  const ssr = await createSupabaseServerClient();
+  const { data: { user } } = await ssr.auth.getUser();
+  if (!user) {
+    return json({ ok: false, error: 'Not authenticated', code: 'NOT_AUTHENTICATED' });
   }
 
-  // Canvas variants: evaluation happens client-side
-  if (!result.imageUrl.startsWith('http')) {
-    return { ...result, retried: false };
+  const svc = createSupabaseServiceClient();
+
+  // 1. Load campaign
+  const { data: row, error: loadErr } = await svc
+    .from('campaigns' as any)
+    .select('image_urls, analyses, variants, direction, rendered_images, quality_reports')
+    .eq('id', campaignId)
+    .eq('user_id', user.id)
+    .is('deleted_at', null)
+    .single();
+
+  if (loadErr || !row) {
+    return json({ ok: false, error: 'Campaign not found', code: 'CAMPAIGN_NOT_FOUND' });
   }
 
-  const report = await evaluateVariant(variant, result.imageUrl);
-  if (report.passed) {
-    return { ...result, qualityReport: report, retried: false };
-  }
-
-  if (result.engine === 'canvas') {
-    // Shouldn't happen (canvas does not produce http), but safeguard
-    return { ...result, qualityReport: report, retried: false };
-  }
-
-  console.warn(
-    '[render-router] quality gate score ' +
-      report.score +
-      ' below ' +
-      PASS_THRESHOLD +
-      ', retrying once for variant ' +
-      variant.id,
-  );
-
-  const retryVariant = applyAggressiveRetry(variant, report);
-  const retryInput: RenderInput = { ...input, variant: retryVariant };
-
-  let retried: RenderOutput;
-  try {
-    retried = await runEngine(retryInput);
-  } catch (err) {
-    console.error('[render-router] retry failed, returning original:', err);
-    return { ...result, qualityReport: report, retried: true };
-  }
-
-  if (!retried.imageUrl.startsWith('http')) {
-    return { ...retried, qualityReport: report, retried: true };
-  }
-
-  const retryReport = await evaluateVariant(retryVariant, retried.imageUrl);
-
-  // Pick whichever is better
-  if (retryReport.score >= report.score) {
-    return { ...retried, qualityReport: retryReport, retried: true };
-  }
-  return { ...result, qualityReport: report, retried: true };
-}
-
-function runEngine(input: RenderInput): Promise<RenderOutput> {
-  switch (input.variant.engine) {
-    case 'flux':
-      return renderFlux(input);
-    case 'hybrid':
-      return renderHybrid(input);
-    case 'canvas':
-    default:
-      return renderCanvas(input);
-  }
-}
-
-/**
- * Engine override based on hero quality:
- * - hero score < 40 and engine is canvas and layout is not feature_grid/ui_focus
- *   -> promote to hybrid (Flux fills weak background, canvas overlays real UI)
- */
-function selectEngineForVariant(
-  variant: Variant,
-  analyses: ImageAnalysis[],
-): Variant {
-  if (variant.engine !== 'canvas') return variant;
-  if (variant.layout === 'feature_grid' || variant.layout === 'ui_focus') {
-    return variant;
-  }
-  const heroAnalysis = analyses.find(
-    (a) => a.index === variant.composition.heroAssetIndex,
-  );
-  const heroScore = heroAnalysis?.importanceScore ?? 60;
-  if (heroScore < 40) return { ...variant, engine: 'hybrid' };
-  return variant;
-}
-
-/**
- * Aggressive retry: raise intensity, switch styleHint, tighten visual direction,
- * and address the specific issues from the report.
- */
-function applyAggressiveRetry(variant: Variant, report: QualityReport): Variant {
-  const issues = report.issues.join(' ').toLowerCase();
-  const sub = report.subscores;
-
-  const additions: string[] = [];
-
-  if (sub) {
-    if (sub.legibility < 65 || issues.includes('legibility') || issues.includes('contrast')) {
-      additions.push(
-        'strong directional light creating clear negative space for copy, deep vignette around text zone, pronounced contrast between text area and surroundings',
-      );
-    }
-    if (sub.depth < 65 || issues.includes('flat') || issues.includes('background')) {
-      additions.push(
-        'three distinct depth layers: clear foreground element, defined midground subject, receding atmospheric background with haze',
-      );
-    }
-    if (sub.hierarchy < 65 || issues.includes('hierarchy') || issues.includes('focal')) {
-      additions.push(
-        'single dominant focal point occupying one third of the frame, minimal competing elements',
-      );
-    }
-    if (sub.slopFree < 65 || issues.includes('slop') || issues.includes('stock') || issues.includes('ai')) {
-      additions.push(
-        'editorial photography feel, specific cultural reference, avoid symmetric center framing',
-      );
-    }
-    if (sub.brandCoherence < 65 || issues.includes('brand') || issues.includes('palette')) {
-      additions.push(
-        'strictly honor the declared color palette, drop any off-palette hues, saturation anchored to brand primary',
-      );
-    }
-  }
-
-  return {
-    ...variant,
-    intensity: 'aggressive',
-    styleHint: variant.styleHint === 'aggressive' ? 'cinematic' : 'aggressive',
-    visualDirection: [variant.visualDirection, ...additions].filter(Boolean).join('. '),
+  const campaign = row as {
+    image_urls: string[];
+    analyses: ImageAnalysis[];
+    variants: Variant[];
+    direction: CampaignDirection | null;
+    rendered_images: Record<string, string> | null;
+    quality_reports: Record<string, QualityReport> | null;
   };
+
+  // 2. Idempotency: if we already have a valid image and not forcing, return it
+  const existingUrl = campaign.rendered_images?.[variantId];
+  if (!force && existingUrl && existingUrl.startsWith('http')) {
+    return json({
+      ok: true,
+      imageUrl: existingUrl,
+      cached: true,
+      retried: false,
+      qualityReport: campaign.quality_reports?.[variantId] ?? null,
+    });
+  }
+
+  // 3. Find variant
+  const variant = campaign.variants.find((v) => v.id === variantId);
+  if (!variant) {
+    return json({ ok: false, error: 'Variant not found', code: 'VARIANT_NOT_FOUND' });
+  }
+
+  // 4. Render with Flux. Quality gate is opt-in and NEVER breaks delivery.
+  let imageUrl: string;
+  try {
+    const result = await renderFlux({
+      variant,
+      imageUrls: campaign.image_urls,
+      analyses: campaign.analyses,
+      direction: campaign.direction || undefined,
+    } as any); // renderFlux accepts the extended input shape in v6
+    imageUrl = result.imageUrl;
+  } catch (err) {
+    const mapped = mapRenderError(err);
+    console.error(
+      '[render] flux failed',
+      JSON.stringify({ campaignId, variantId, code: mapped.code, error: mapped.error }),
+    );
+    return json(mapped);
+  }
+
+  if (!imageUrl || !imageUrl.startsWith('http')) {
+    return json({
+      ok: false,
+      error: 'Renderer returned invalid URL',
+      code: 'GENERATION_FAILED',
+    });
+  }
+
+  // 5. Persist the image FIRST so the frontend can show it even if QG fails
+  let qualityReport: QualityReport | null = null;
+  try {
+    await persistRender(svc, campaignId, user.id, variantId, imageUrl, null);
+  } catch (err) {
+    console.error(
+      '[render] persist failed (continuing to QG)',
+      JSON.stringify({ campaignId, variantId, error: String(err) }),
+    );
+    // Don't fail the response — we still have the URL to return
+  }
+
+  // 6. Quality gate — optional, isolated in try/catch, never blocks delivery
+  if (QG_ENABLED) {
+    try {
+      qualityReport = await evaluateVariant(variant, imageUrl);
+      // Update quality_reports separately
+      await persistRender(svc, campaignId, user.id, variantId, imageUrl, qualityReport);
+    } catch (err) {
+      console.warn(
+        '[render] quality gate error (non-fatal)',
+        JSON.stringify({ campaignId, variantId, error: String(err) }),
+      );
+      qualityReport = null;
+    }
+  }
+
+  return json({
+    ok: true,
+    imageUrl,
+    cached: false,
+    retried: false,
+    qualityReport,
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+// Helpers
+// ═══════════════════════════════════════════════════════════
+
+async function parseBody(req: NextRequest): Promise<z.infer<typeof Body> | null> {
+  try {
+    const raw = await req.json();
+    return Body.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+function json(data: RenderResponse): NextResponse {
+  // ALWAYS 200. Status lives inside body via `ok`.
+  return NextResponse.json(data, { status: 200 });
+}
+
+function mapRenderError(err: unknown): RenderFail {
+  if (err instanceof FluxError) {
+    if (err.code === 'RATE_LIMITED') {
+      return {
+        ok: false,
+        error: 'Replicate rate limit hit. Try again in a few seconds.',
+        code: 'RATE_LIMITED',
+      };
+    }
+    if (err.code === 'TIMEOUT') {
+      return {
+        ok: false,
+        error: 'Render timed out. The prediction took too long.',
+        code: 'TIMEOUT',
+      };
+    }
+    if (err.code === 'GENERATION_FAILED' || err.code === 'INVALID_OUTPUT') {
+      return {
+        ok: false,
+        error: err.message,
+        code: 'GENERATION_FAILED',
+      };
+    }
+  }
+  const msg = err instanceof Error ? err.message : String(err);
+  return { ok: false, error: msg, code: 'INTERNAL' };
+}
+
+async function persistRender(
+  svc: ReturnType<typeof createSupabaseServiceClient>,
+  campaignId: string,
+  userId: string,
+  variantId: string,
+  imageUrl: string,
+  qualityReport: QualityReport | null,
+): Promise<void> {
+  // Read current values first, to avoid clobbering other variants being written in parallel.
+  // Using JSONB merge with select+update instead of a raw SQL call for simplicity.
+  const { data: current } = await svc
+    .from('campaigns' as any)
+    .select('rendered_images, quality_reports')
+    .eq('id', campaignId)
+    .eq('user_id', userId)
+    .single();
+
+  const currentRow = (current as any) || {};
+  const nextImages = {
+    ...(currentRow.rendered_images || {}),
+    [variantId]: imageUrl,
+  };
+  const nextReports = qualityReport
+    ? {
+        ...(currentRow.quality_reports || {}),
+        [variantId]: qualityReport,
+      }
+    : currentRow.quality_reports || {};
+
+  const { error } = await svc
+    .from('campaigns' as any)
+    .update({
+      rendered_images: nextImages,
+      quality_reports: nextReports,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', campaignId)
+    .eq('user_id', userId);
+
+  if (error) {
+    throw new Error('Persist failed: ' + error.message);
+  }
 }

@@ -1,70 +1,276 @@
-'use client';
 import Link from 'next/link';
-import { Rocket, MessageSquare, Sparkles, Zap, Target, ArrowRight } from 'lucide-react';
-import { useI18n } from '@/lib/i18n';
-export default function DashboardPage() {
-  const { t } = useI18n();
+import { redirect } from 'next/navigation';
+import {
+  Sparkles,
+  MessageSquare,
+  Palette,
+  ArrowRight,
+  FolderOpen,
+  FileText,
+  Bot,
+  Video,
+} from 'lucide-react';
+import { createSupabaseServerClient } from '@/lib/supabase/server';
+import { DashboardRecentImages } from './dashboard-recent';
+
+export const dynamic = 'force-dynamic';
+
+/**
+ * Dashboard — product entry point.
+ */
+export default async function DashboardPage() {
+  const ssr = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await ssr.auth.getUser();
+
+  if (!user) redirect('/login');
+
+  const { data: meRaw } = await ssr
+    .from('users')
+    .select('full_name, email, locale')
+    .eq('id', user.id)
+    .single();
+
+  const me = meRaw as {
+    full_name: string | null;
+    email: string;
+    locale: string | null;
+  } | null;
+
+  const locale: 'en' | 'es' = me?.locale === 'es' ? 'es' : 'en';
+  const es = locale === 'es';
+
+  const firstName =
+    me?.full_name?.split(' ')[0] ||
+    me?.email?.split('@')[0]?.split('.')[0] ||
+    '';
+
+  const greetingName = firstName
+    ? firstName.charAt(0).toUpperCase() + firstName.slice(1)
+    : '';
+
+  const greeting = greetingName
+    ? (es ? 'Hola, ' : 'Hello, ') + greetingName + '.'
+    : es
+      ? 'Hola.'
+      : 'Hello.';
+
   return (
-    <div className="min-h-screen">
-      <section className="relative px-6 lg:px-10 pt-10 lg:pt-14 pb-10 overflow-hidden">
-        <div className="absolute -top-24 left-1/2 -translate-x-1/2 h-72 w-[600px] rounded-full gold-grad opacity-[0.04] blur-3xl pointer-events-none" />
-        <div className="relative max-w-[960px] mx-auto">
-          <div className="text-[11px] uppercase tracking-[0.18em] text-gold mb-2">Operator AI</div>
-          <h1 className="font-display text-[40px] lg:text-[52px] leading-[1.02] mb-4">{t('dash.hero1')} <span className="text-gold-grad">{t('dash.hero2')}</span></h1>
-          <p className="text-[15px] text-fg-muted max-w-[540px] leading-relaxed mb-8">{t('dash.sub')}</p>
+    <div className="w-full max-w-full min-w-0 overflow-x-hidden px-4 lg:px-10 py-8 mx-auto space-y-10">
+      <header className="min-w-0">
+        <h1 className="font-display text-[28px] lg:text-[34px] leading-[1.1] break-words">
+          {greeting}
+        </h1>
+        <p className="text-[14px] text-fg-muted mt-1.5">
+          {es ? 'Que quieres crear hoy?' : 'What are we making today?'}
+        </p>
+      </header>
+
+      <section className="min-w-0">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 min-w-0">
+          <PrimaryAction
+            href="/creative-studio"
+            eyebrow={es ? 'Campanas' : 'Campaigns'}
+            title={es ? 'Crear campana' : 'Create campaign'}
+            description={
+              es
+                ? 'Sube producto, genera 5 anuncios listos para publicar.'
+                : 'Upload a product, get 5 publish-ready ads.'
+            }
+            icon={Sparkles}
+            accent
+          />
+          <PrimaryAction
+            href="/chat"
+            eyebrow={es ? 'Conversacion' : 'Conversation'}
+            title={es ? 'Chat con tu asistente' : 'Chat with your assistant'}
+            description={
+              es
+                ? 'Pide, itera y planifica en lenguaje natural.'
+                : 'Ask, iterate, and plan in plain language.'
+            }
+            icon={MessageSquare}
+          />
+          <PrimaryAction
+            href="/brand-os"
+            eyebrow={es ? 'Marca' : 'Brand'}
+            title={es ? 'Configurar Brand OS' : 'Set up Brand OS'}
+            description={
+              es
+                ? 'Paleta, voz, identidad. Todo lo que sale, coherente.'
+                : 'Palette, voice, identity. Everything you ship stays on brand.'
+            }
+            icon={Palette}
+          />
         </div>
       </section>
-      <section className="px-6 lg:px-10 pb-6">
-        <div className="max-w-[960px] mx-auto">
-          <Link href="/missions" className="group block relative rounded-2xl border border-gold/30 bg-gradient-to-br from-surface via-surface-2 to-bg p-8 lg:p-10 overflow-hidden hover:border-gold/60 transition-all">
-            <div className="absolute -top-10 -right-10 h-48 w-48 rounded-full gold-grad opacity-[0.10] blur-3xl pointer-events-none group-hover:opacity-[0.18] transition-opacity" />
-            <div className="relative flex items-start justify-between gap-6">
-              <div className="flex-1 min-w-0">
-                <div className="inline-flex items-center gap-1.5 text-[10.5px] uppercase tracking-[0.18em] text-gold bg-gold/10 border border-gold/20 rounded px-2 py-0.5 mb-3"><span className="h-1.5 w-1.5 rounded-full bg-gold animate-pulse" /><span>{t('dash.paradigm')}</span></div>
-                <h2 className="font-display text-[28px] lg:text-[34px] leading-tight mb-2.5">{t('dash.first')} <span className="text-gold-grad">{t('dash.mission')}</span>.</h2>
-                <p className="text-[14px] text-fg-muted leading-relaxed max-w-[440px] mb-5">{t('dash.mission_desc')}</p>
-                <div className="inline-flex items-center gap-2 h-9 px-4 rounded-md gold-grad text-bg text-[13px] font-medium group-hover:brightness-110 transition"><Rocket className="h-3.5 w-3.5" /><span>{t('dash.deploy')}</span><ArrowRight className="h-3 w-3 ml-1" /></div>
-              </div>
-              <div className="hidden lg:flex shrink-0 h-28 w-28 rounded-2xl border border-gold/30 bg-gold/5 items-center justify-center"><Rocket className="h-12 w-12 text-gold" /></div>
-            </div>
-          </Link>
+
+      <section className="grid grid-cols-1 lg:grid-cols-2 gap-8 min-w-0">
+        <div className="min-w-0">
+          <SectionHeader
+            title={es ? 'Imagenes recientes' : 'Recent images'}
+            href="/studio/image"
+            linkLabel={es ? 'Abrir Image Studio' : 'Open Image Studio'}
+          />
+          <DashboardRecentImages locale={locale} />
         </div>
-      </section>
-      <section className="px-6 lg:px-10 pb-12">
-        <div className="max-w-[960px] mx-auto">
-          <div className="text-[10.5px] uppercase tracking-[0.18em] text-fg-subtle mb-3">{t('dash.core')}</div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <T href="/chat" icon={MessageSquare} l={t('dash.chat')} d={t('dash.chat_d')} k="G+C" b={t('dash.new')} />
-            <T href="/studio" icon={Sparkles} l={t('dash.stud')} d={t('dash.stud_d')} k="G+I" b={t('dash.new')} />
-            
-            <T href="/brand-os" icon={Target} l={t('dash.bos')} d={t('dash.bos_d')} k="G+B" b={t('dash.new')} n />
-          </div>
-        </div>
-      </section>
-      <section className="px-6 lg:px-10 pb-16">
-        <div className="max-w-[960px] mx-auto">
-          <div className="text-[10.5px] uppercase tracking-[0.18em] text-fg-subtle mb-3">{t('dash.also')}</div>
-          <div className="flex flex-wrap gap-2">
-            {[{h:'/projects',k:'nav.projects'},{h:'/knowledge',k:'nav.knowledge'},{h:'/files',k:'dash.files'},{h:'/voice',k:'dash.voice'},{h:'/assistants',k:'dash.agents'},{h:'/settings/integrations',k:'nav.integrations'},{h:'/settings/memory',k:'nav.memory'},{h:'/settings/billing',k:'nav.billing'}].map(l=>(
-              <Link key={l.h} href={l.h} className="inline-flex items-center h-8 px-3 rounded-full border border-border bg-surface-2 text-[12px] text-fg-muted hover:text-gold hover:border-gold/40 transition"><span>{t(l.k)}</span></Link>
-            ))}
+
+        <div className="min-w-0">
+          <SectionHeader
+            title={es ? 'Organizacion' : 'Organization'}
+            href="/projects"
+            linkLabel={es ? 'Ver proyectos' : 'View projects'}
+          />
+          <div className="grid grid-cols-1 gap-2 min-w-0">
+            <QuickLink
+              href="/projects"
+              icon={FolderOpen}
+              title={es ? 'Proyectos' : 'Projects'}
+              description={
+                es
+                  ? 'Agrupa campanas y assets por cliente o linea.'
+                  : 'Group campaigns and assets by client or line.'
+              }
+            />
+            <QuickLink
+              href="/knowledge"
+              icon={FileText}
+              title="Knowledge"
+              description={
+                es
+                  ? 'Sube documentos. Tu asistente los usa como contexto.'
+                  : 'Upload documents. Your assistant uses them as context.'
+              }
+            />
+            <QuickLink
+              href="/assistants"
+              icon={Bot}
+              title={es ? 'Asistentes' : 'Assistants'}
+              description={
+                es
+                  ? 'Crea agentes especializados con instrucciones propias.'
+                  : 'Build specialized agents with custom instructions.'
+              }
+            />
+            <QuickLink
+              href="/studio/video"
+              icon={Video}
+              title="Video"
+              description={
+                es
+                  ? 'Genera video corto con IA.'
+                  : 'Generate short video with AI.'
+              }
+            />
           </div>
         </div>
       </section>
     </div>
   );
 }
-function T({href,icon:I,l,d,k,b,n}:{href:string;icon:React.ComponentType<{className?:string}>;l:string;d:string;k?:string;b:string;n?:boolean}){
-  return(
-    <Link href={href} className="group relative rounded-xl border border-border bg-surface p-5 hover:border-gold/40 hover:bg-surface-2 transition-all">
-      <div className="flex items-start gap-4">
-        <div className="h-11 w-11 rounded-lg bg-gold/10 border border-gold/20 flex items-center justify-center shrink-0 group-hover:bg-gold/15 transition-colors"><I className="h-5 w-5 text-gold"/></div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1"><span className="font-display text-[17px] group-hover:text-gold transition-colors">{l}</span>{n&&<span className="text-[9px] px-1.5 py-0.5 rounded bg-gold text-bg font-bold uppercase tracking-[0.1em]">{b}</span>}</div>
-          <p className="text-[12.5px] text-fg-muted leading-relaxed">{d}</p>
+
+function PrimaryAction({
+  href,
+  eyebrow,
+  title,
+  description,
+  icon: Icon,
+  accent = false,
+}: {
+  href: string;
+  eyebrow: string;
+  title: string;
+  description: string;
+  icon: typeof Sparkles;
+  accent?: boolean;
+}) {
+  return (
+    <Link
+      href={href}
+      className={
+        'group relative min-w-0 rounded-2xl border p-5 transition-all overflow-hidden ' +
+        (accent
+          ? 'border-gold/30 bg-gradient-to-br from-gold/[0.08] via-surface to-surface hover:border-gold/50'
+          : 'border-border bg-surface hover:border-gold/30')
+      }
+    >
+      <div className="flex items-start justify-between mb-6 gap-3 min-w-0">
+        <div
+          className={
+            'h-9 w-9 rounded-lg flex items-center justify-center shrink-0 ' +
+            (accent
+              ? 'bg-gold text-bg'
+              : 'bg-surface-2 text-fg-muted border border-border')
+          }
+        >
+          <Icon className="h-[18px] w-[18px]" />
         </div>
-        {k&&<div className="hidden lg:flex shrink-0 gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">{k.split('+').map((c,i)=>(<kbd key={i} className="min-w-[18px] h-5 px-1 rounded bg-surface-3 border border-border text-[9.5px] font-mono text-fg-subtle flex items-center justify-center">{c}</kbd>))}</div>}
+        <ArrowRight className="h-4 w-4 shrink-0 text-fg-subtle group-hover:text-gold group-hover:translate-x-0.5 transition-all" />
       </div>
+
+      <div className="text-[10px] uppercase tracking-[0.16em] text-fg-subtle mb-1 break-words">
+        {eyebrow}
+      </div>
+      <div className="font-display text-[18px] mb-1 group-hover:text-gold transition-colors break-words">
+        {title}
+      </div>
+      <p className="text-[12.5px] text-fg-muted leading-snug break-words">
+        {description}
+      </p>
+    </Link>
+  );
+}
+
+function SectionHeader({
+  title,
+  href,
+  linkLabel,
+}: {
+  title: string;
+  href: string;
+  linkLabel: string;
+}) {
+  return (
+    <div className="flex items-end justify-between gap-3 mb-3 min-w-0">
+      <h2 className="font-display text-[18px] break-words">{title}</h2>
+      <Link
+        href={href}
+        className="shrink-0 text-[11px] text-fg-muted hover:text-gold flex items-center gap-1 transition-colors"
+      >
+        {linkLabel}
+        <ArrowRight className="h-3 w-3" />
+      </Link>
+    </div>
+  );
+}
+
+function QuickLink({
+  href,
+  icon: Icon,
+  title,
+  description,
+}: {
+  href: string;
+  icon: typeof Sparkles;
+  title: string;
+  description: string;
+}) {
+  return (
+    <Link
+      href={href}
+      className="group flex items-center gap-3 min-w-0 p-3 rounded-lg border border-border bg-surface hover:border-gold/30 transition-colors"
+    >
+      <div className="h-8 w-8 rounded-md bg-surface-2 border border-border flex items-center justify-center text-fg-muted group-hover:text-gold transition-colors shrink-0">
+        <Icon className="h-4 w-4" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="text-[13px] font-medium group-hover:text-gold transition-colors break-words">
+          {title}
+        </div>
+        <div className="text-[11px] text-fg-subtle truncate">{description}</div>
+      </div>
+      <ArrowRight className="h-3.5 w-3.5 shrink-0 text-fg-subtle group-hover:text-gold group-hover:translate-x-0.5 transition-all" />
     </Link>
   );
 }

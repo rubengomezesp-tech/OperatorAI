@@ -1,8 +1,8 @@
-export default function Stub() {
-  return (
-    <div className="px-6 lg:px-10 py-12 max-w-[860px] mx-auto text-center">
-      <div className="font-display text-[28px] mb-2">Memory</div>
-      <p className="text-[14px] text-fg-muted">Arrives in Week 5.</p>
-    </div>
-  );
+import { redirect } from 'next/navigation';
+
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+export default function MemoryPage() {
+  redirect('/settings/memory');
 }

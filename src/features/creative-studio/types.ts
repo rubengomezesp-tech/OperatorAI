@@ -13,7 +13,6 @@ export type RenderEngine = 'canvas' | 'flux' | 'hybrid';
 export type AspectRatio = '9:16' | '1:1' | '4:5';
 export type ImageRole = 'logo' | 'hero' | 'feature' | 'support' | 'lifestyle';
 
-// NEW in Tanda 4A — marketing angles (more specific than before)
 export type VariantAngle =
   | 'pain'
   | 'result'
@@ -35,6 +34,67 @@ export type LogoPosition =
   | 'top-right'
   | 'top-center'
   | 'bottom-center';
+
+// ═══════════════════════════════════════════════════════════
+// NEW in Tanda 5 — Creative Brain types
+// ═══════════════════════════════════════════════════════════
+
+export type CampaignArchetype =
+  | 'luxury'
+  | 'performance'
+  | 'viral'
+  | 'launch'
+  | 'editorial';
+
+export type VisualRegister =
+  | 'cinematic'
+  | 'editorial'
+  | 'startup'
+  | 'aggressive'
+  | 'minimal';
+
+export type HeroStrategy =
+  | 'device_centered'
+  | 'device_angled'
+  | 'contextual'
+  | 'product_implied'
+  | 'brand_only';
+
+export type CopyStrategy =
+  | 'text_dominant'
+  | 'visual_dominant'
+  | 'balanced'
+  | 'text_free';
+
+export type LightingDirection =
+  | 'dark_premium'
+  | 'high_key'
+  | 'chiaroscuro'
+  | 'ambient_glow'
+  | 'flat_editorial';
+
+export type MotionEnergy = 'static' | 'kinetic' | 'atmospheric';
+
+export interface CampaignDirection {
+  archetype: CampaignArchetype;
+  visualRegister: VisualRegister;
+  heroStrategy: HeroStrategy;
+  copyStrategy: CopyStrategy;
+  lightingDirection: LightingDirection;
+  motionEnergy: MotionEnergy;
+  paletteDirection: {
+    dominant: string;
+    accent: string;
+    support: string[];
+  };
+  culturalReferences: string[];
+  directionStatement: string;
+  rationale: string;
+}
+
+// ═══════════════════════════════════════════════════════════
+// Existing types
+// ═══════════════════════════════════════════════════════════
 
 export interface ImageAnalysis {
   index: number;
@@ -94,10 +154,8 @@ export interface Variant {
   reasoningSummary: string;
   aspectRatio: AspectRatio;
   renderPrompt?: string;
-
-  // NEW in Tanda 4A
-  visualDirection: string; // sentence describing scene, light, depth
-  compositionHint: string; // layout hint for canvas/hybrid
+  visualDirection: string;
+  compositionHint: string;
   intensity: Intensity;
   styleHint: VisualStyle;
 }
@@ -116,16 +174,15 @@ export interface HeroScore {
   reasons: string[];
 }
 
-// EXTENDED in Tanda 4A — 6 tests, threshold 75, retry recommendation
 export interface QualityReport {
   variantId: string;
   score: number;
   passed: boolean;
   issues: string[];
   suggestions: string[];
-  autoRetryRecommended?: boolean; // frontend reads this to trigger regenerate
+  autoRetryRecommended?: boolean;
   subscores?: {
-    legibility: number; // 0-100
+    legibility: number;
     hierarchy: number;
     contrast: number;
     depth: number;
@@ -142,6 +199,7 @@ export interface PersistedCampaign {
   instructions?: string;
   brief: ProductBrief;
   analyses: ImageAnalysis[];
+  direction?: CampaignDirection; // NEW in Tanda 5
   variants: Variant[];
   memory: CampaignMemory;
   aspectRatio: AspectRatio;

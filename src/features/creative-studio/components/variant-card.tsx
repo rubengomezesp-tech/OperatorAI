@@ -1,11 +1,13 @@
 'use client';
-import { useRef } from 'react';
-import { Loader2, RefreshCw, Download, Edit3, AlertTriangle } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { memo } from 'react';
 import {
-  CanvasSpecRenderer,
-  type CanvasSpecRendererHandle,
-} from './canvas-spec-renderer';
+  Loader2,
+  RefreshCw,
+  Download,
+  Edit3,
+  AlertTriangle,
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
 import type { Variant, QualityReport } from '../types';
 
 const LAYOUT_LABELS: Record<string, { en: string; es: string }> = {
@@ -24,11 +26,10 @@ interface Props {
   locale: 'en' | 'es';
   onSelect: () => void;
   onRegenerate: () => void;
-  onRendered?: (variantId: string, dataUrl: string) => void;
   isSelected?: boolean;
 }
 
-export function VariantCard({
+function VariantCardInner({
   variant,
   imageUrl,
   loading,
@@ -36,10 +37,8 @@ export function VariantCard({
   locale,
   onSelect,
   onRegenerate,
-  onRendered,
   isSelected,
 }: Props) {
-  const rendererRef = useRef<CanvasSpecRendererHandle>(null);
   const label = LAYOUT_LABELS[variant.layout]?.[locale] || variant.layout;
   const aspect =
     variant.aspectRatio === '1:1'
@@ -49,11 +48,45 @@ export function VariantCard({
       : '9/16';
 
   const qualityWarn = qualityReport && !qualityReport.passed;
+  const hasRenderableImage =
+    !!imageUrl &&
+    (imageUrl.startsWith('http') || imageUrl.startsWith('data:image/'));
 
-  async function handleDownload() {
-    if (!rendererRef.current) return;
-    const filename = variant.layout + '-' + variant.id;
-    await rendererRef.current.download(filename);
+  async function handleDownload(e: React.MouseEvent) {
+    e.stopPropagation();
+    if (!imageUrl) return;
+
+    try {
+      if (imageUrl.startsWith('data:image/')) {
+        const a = document.createElement('a');
+        a.href = imageUrl;
+        a.download = variant.layout + '-' + variant.id + '.png';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        return;
+      }
+
+      const res = await fetch(imageUrl);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = variant.layout + '-' + variant.id + '.png';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch {
+      if (imageUrl.startsWith('http')) {
+        window.open(imageUrl, '_blank', 'noopener');
+      }
+    }
+  }
+
+  function handleRegenerate(e: React.MouseEvent) {
+    e.stopPropagation();
+    onRegenerate();
   }
 
   return (
@@ -71,7 +104,9 @@ export function VariantCard({
         <span className="text-[10px] uppercase tracking-[0.12em] text-gold font-medium truncate">
           {label}
         </span>
-        <span className="text-[9px] text-fg-subtle">{variant.engine}</span>
+        <span className="text-[9px] text-fg-subtle uppercase tracking-wide">
+          {variant.angle}
+        </span>
       </div>
 
       <div className="relative bg-black" style={{ aspectRatio: aspect }}>
@@ -84,12 +119,21 @@ export function VariantCard({
               </span>
             </div>
           </div>
-        ) : imageUrl ? (
-          <CanvasSpecRenderer
-            ref={rendererRef}
-            specUrl={imageUrl}
-            onRendered={(dataUrl) => onRendered?.(variant.id, dataUrl)}
-            className="absolute inset-0 w-full h-full"
+        ) : hasRenderableImage ? (
+          <img
+            src={imageUrl!}
+            alt={variant.copy.headline || variant.layout}
+            className="absolute inset-0 w-full h-full object-cover"
+            loading="lazy"
+            decoding="async"
+            onError={(e) => {
+  console.error('[VariantCard] image failed to load:', imageUrl);
+  console.error(
+    '[VariantCard] current src:',
+    (e.currentTarget as HTMLImageElement).currentSrc,
+  );
+  (e.currentTarget as HTMLImageElement).style.display = 'none';
+}}
           />
         ) : (
           <div className="absolute inset-0 flex items-center justify-center">
@@ -99,8 +143,8 @@ export function VariantCard({
           </div>
         )}
 
-        {!loading && imageUrl && (
-          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+        {!loading && hasRenderableImage && (
+          <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
             <button
               onClick={onSelect}
               className="h-9 px-3 rounded-lg bg-gold text-black text-[11px] font-medium flex items-center gap-1.5 hover:brightness-110"
@@ -109,7 +153,7 @@ export function VariantCard({
               {locale === 'es' ? 'Editar' : 'Edit'}
             </button>
             <button
-              onClick={onRegenerate}
+              onClick={handleRegenerate}
               className="h-9 w-9 rounded-lg bg-surface-2 border border-border text-fg flex items-center justify-center hover:border-gold/40"
               title={locale === 'es' ? 'Regenerar' : 'Regenerate'}
             >
@@ -136,9 +180,28 @@ export function VariantCard({
         )}
       </div>
 
-      <div className="px-3 py-2 text-[10px] text-fg-muted italic truncate">
-        {variant.reasoningSummary}
+      <div className="px-3 py-2">
+        <p className="text-[11px] text-fg font-medium truncate">
+          {variant.copy.headline || (locale === 'es' ? 'Sin titular' : 'No headline')}
+        </p>
+        {variant.reasoningSummary && (
+          <p className="text-[10px] text-fg-muted italic truncate mt-0.5">
+            {variant.reasoningSummary}
+          </p>
+        )}
       </div>
     </div>
   );
 }
+
+export const VariantCard = memo(VariantCardInner, (prev, next) => {
+  return (
+    prev.variant.id === next.variant.id &&
+    prev.imageUrl === next.imageUrl &&
+    prev.loading === next.loading &&
+    prev.qualityReport?.score === next.qualityReport?.score &&
+    prev.qualityReport?.passed === next.qualityReport?.passed &&
+    prev.isSelected === next.isSelected &&
+    prev.locale === next.locale
+  );
+});
