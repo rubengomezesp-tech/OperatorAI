@@ -13,6 +13,20 @@ const Body = z.object({
   variantId: z.string(),
 });
 
+function decodeDataUrl(dataUrl: string): { mime: string; buffer: Buffer } {
+  const match = dataUrl.match(/^data:(.+?);base64,(.+)$/);
+  if (!match) {
+    throw new Error('Invalid data URL format');
+  }
+
+  const mime = match[1];
+  const base64 = match[2];
+  return {
+    mime,
+    buffer: Buffer.from(base64, 'base64'),
+  };
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = Body.parse(await req.json());
@@ -21,6 +35,7 @@ export async function POST(req: NextRequest) {
     const {
       data: { user },
     } = await ssr.auth.getUser();
+
     if (!user) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
@@ -37,11 +52,13 @@ export async function POST(req: NextRequest) {
     if (error || !row) {
       return NextResponse.json({ error: 'Campaign not found' }, { status: 404 });
     }
+
     const campaign = row as any;
 
     const variant = (campaign.variants as Variant[]).find(
       (v) => v.id === body.variantId,
     );
+
     if (!variant) {
       return NextResponse.json(
         { error: 'Variant not found in campaign' },
@@ -50,17 +67,65 @@ export async function POST(req: NextRequest) {
     }
 
     const result = await renderWithQuality({
-  variant,
-  imageUrls: campaign.image_urls,
-  analyses: campaign.analyses,
-  direction: campaign.direction ?? undefined,
-});
+      variant,
+      imageUrls: campaign.image_urls,
+      analyses: campaign.analyses,
+      direction: campaign.direction ?? undefined,
+    });
 
-    // Persist rendered image + quality report
+    let finalImageUrl = result.imageUrl;
+
+    // Si Flux devolvió data URL, la subimos a Supabase Storage
+    if (typeof finalImageUrl === 'string' && finalImageUrl.startsWith('data:image/')) {
+      const { mime, buffer } = decodeDataUrl(finalImageUrl);
+      const ext = mime.includes('jpeg') || mime.includes('jpg') ? 'jpg' : 'png';
+      const path =
+        'creative-renders/' +
+        user.id +
+        '/' +
+        body.campaignId +
+        '/' +
+        body.variantId +
+        '-' +
+        Date.now() +
+        '.' +
+        ext;
+
+      const upload = await svc.storage
+        .from('images')
+        .upload(path, buffer, {
+          contentType: mime,
+          upsert: true,
+        });
+
+      if (upload.error) {
+        console.error('[render] storage upload failed:', upload.error);
+        return NextResponse.json(
+          { error: 'Failed to upload rendered image' },
+          { status: 500 },
+        );
+      }
+
+      const signed = await svc.storage
+        .from('images')
+        .createSignedUrl(path, 60 * 60 * 24 * 7);
+
+      if (signed.error || !signed.data?.signedUrl) {
+        console.error('[render] signed url failed:', signed.error);
+        return NextResponse.json(
+          { error: 'Failed to create signed URL for rendered image' },
+          { status: 500 },
+        );
+      }
+
+      finalImageUrl = signed.data.signedUrl;
+    }
+
     const renderedImages = {
       ...(campaign.rendered_images || {}),
-      [variant.id]: result.imageUrl,
+      [variant.id]: finalImageUrl,
     };
+
     const qualityReports = {
       ...(campaign.quality_reports || {}),
       ...(result.qualityReport ? { [variant.id]: result.qualityReport } : {}),
@@ -77,7 +142,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       ok: true,
-      imageUrl: result.imageUrl,
+      imageUrl: finalImageUrl,
       engine: result.engine,
       qualityReport: result.qualityReport,
       retried: result.retried,
