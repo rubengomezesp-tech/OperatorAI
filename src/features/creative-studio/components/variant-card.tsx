@@ -48,12 +48,25 @@ function VariantCardInner({
       : '9/16';
 
   const qualityWarn = qualityReport && !qualityReport.passed;
-  const isHttpImage = !!imageUrl && imageUrl.startsWith('http');
+  const hasRenderableImage =
+    !!imageUrl &&
+    (imageUrl.startsWith('http') || imageUrl.startsWith('data:image/'));
 
   async function handleDownload(e: React.MouseEvent) {
     e.stopPropagation();
-    if (!isHttpImage || !imageUrl) return;
+    if (!imageUrl) return;
+
     try {
+      if (imageUrl.startsWith('data:image/')) {
+        const a = document.createElement('a');
+        a.href = imageUrl;
+        a.download = variant.layout + '-' + variant.id + '.png';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        return;
+      }
+
       const res = await fetch(imageUrl);
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
@@ -65,8 +78,9 @@ function VariantCardInner({
       document.body.removeChild(a);
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch {
-      // fallback: open in new tab
-      window.open(imageUrl, '_blank', 'noopener');
+      if (imageUrl.startsWith('http')) {
+        window.open(imageUrl, '_blank', 'noopener');
+      }
     }
   }
 
@@ -105,13 +119,17 @@ function VariantCardInner({
               </span>
             </div>
           </div>
-        ) : isHttpImage ? (
+        ) : hasRenderableImage ? (
           <img
             src={imageUrl!}
             alt={variant.copy.headline || variant.layout}
             className="absolute inset-0 w-full h-full object-cover"
             loading="lazy"
             decoding="async"
+            onError={(e) => {
+              console.error('[VariantCard] image failed to load:', imageUrl);
+              (e.currentTarget as HTMLImageElement).style.display = 'none';
+            }}
           />
         ) : (
           <div className="absolute inset-0 flex items-center justify-center">
@@ -121,7 +139,7 @@ function VariantCardInner({
           </div>
         )}
 
-        {!loading && isHttpImage && (
+        {!loading && hasRenderableImage && (
           <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
             <button
               onClick={onSelect}
@@ -172,10 +190,6 @@ function VariantCardInner({
   );
 }
 
-/**
- * Memoized to prevent grid-wide re-renders when a single variant state changes.
- * Re-render only when imageUrl, loading, qualityReport, or selection changes.
- */
 export const VariantCard = memo(VariantCardInner, (prev, next) => {
   return (
     prev.variant.id === next.variant.id &&
