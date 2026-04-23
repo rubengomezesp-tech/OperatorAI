@@ -3,11 +3,11 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type {
   ProductBrief,
   Variant,
-  ImageAnalysis,
-  CampaignMemory,
-  AspectRatio,
   CampaignIntent,
+  AspectRatio,
   QualityReport,
+  ImageAnalysis,
+  CampaignDirection,
 } from '../types';
 
 export interface CampaignState {
