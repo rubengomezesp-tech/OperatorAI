@@ -8,7 +8,6 @@ export interface GenerateInput {
   seed?: number;
   referenceImageUrls?: string[];
   model?: 'flux-2-pro' | 'flux-1.1-pro';
-  // NEW in Tanda 4A: real negative prompt passed to Replicate
   negativePrompt?: string;
 }
 
@@ -26,18 +25,6 @@ const ASPECT_TO_SIZE: Record<string, { w: number; h: number }> = {
   '3:2': { w: 1216, h: 832 },
 };
 
-const MAX_RETRIES = 3;
-const RETRY_DELAY_MS = 12000; // 12s between retries (Replicate rate limit is 6/min)
-
-const MODEL_TO_VERSION: Record<string, `${string}/${string}`> = {
-  'flux-2-pro': 'black-forest-labs/flux-1.1-pro',
-  'flux-1.1-pro': 'black-forest-labs/flux-1.1-pro',
-};
-
-async function sleep(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
 export async function generateWithFlux(
   input: GenerateInput,
 ): Promise<GenerateOutput> {
@@ -45,99 +32,64 @@ export async function generateWithFlux(
     throw new Error('REPLICATE_API_TOKEN not set');
   }
 
-  const client = new Replicate({ auth: serverEnv.REPLICATE_API_TOKEN });
-  const seed = input.seed ?? Math.floor(Math.random() * 2147483647);
-  const started = Date.now();
-  const size = ASPECT_TO_SIZE[input.aspectRatio] ?? ASPECT_TO_SIZE['1:1'];
-  const hasReferences =
-    !!input.referenceImageUrls && input.referenceImageUrls.length > 0;
+  const client = new Replicate({
+    auth: serverEnv.REPLICATE_API_TOKEN,
+  });
 
-  const payload: Record<string, unknown> = {
-    prompt: input.prompt,
-    aspect_ratio: input.aspectRatio,
+  const seed = input.seed ?? Math.floor(Math.random() * 999999999);
+  const started = Date.now();
+
+  const size = ASPECT_TO_SIZE[input.aspectRatio] ?? ASPECT_TO_SIZE['1:1'];
+
+  // 🔥 PAYLOAD MINIMAL (CLAVE)
+  const payload: any = {
+    prompt: String(input.prompt),
     width: size.w,
     height: size.h,
-    output_format: 'png',
+    num_outputs: 1,
     seed,
   };
 
-  if (hasReferences) {
-    payload.input_images = input.referenceImageUrls!.slice(0, 8);
+  if (input.negativePrompt && typeof input.negativePrompt === 'string') {
+    payload.negative_prompt = input.negativePrompt;
   }
 
-  // NEW in Tanda 4A: real negative_prompt
-  if (input.negativePrompt && input.negativePrompt.trim().length > 0) {
-    payload.negative_prompt = input.negativePrompt.trim();
-  }
+  // ⚠️ NO references, NO aspect_ratio
+  // esto estaba rompiendo todo
 
-  const modelKey = input.model || 'flux-2-pro';
-  const versionedModel = MODEL_TO_VERSION[modelKey] || MODEL_TO_VERSION['flux-2-pro'];
+  console.log('[flux-client] payload:', payload);
 
-  let lastError: Error | null = null;
-  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
-    try {
-      const output = await client.run(versionedModel, { input: payload });
+  const model = 'black-forest-labs/flux-1.1-pro';
 
-      const urls: string[] = [];
-      if (typeof output === 'string') urls.push(output);
-      else if (Array.isArray(output)) {
-        for (const item of output) {
-          if (typeof item === 'string') urls.push(item);
-          else if (item && typeof (item as any).url === 'function') {
-            urls.push(await (item as any).url());
-          } else if (item && (item as any).url) {
-            urls.push(String((item as any).url));
-          }
-        }
-      } else if (output && typeof (output as any).url === 'function') {
-        urls.push(await (output as any).url());
-      } else if (output && (output as any).url) {
-        urls.push(String((output as any).url));
+  try {
+    const output = await client.run(model, {
+      input: payload,
+    });
+
+    let urls: string[] = [];
+
+    if (typeof output === 'string') {
+      urls = [output];
+    } else if (Array.isArray(output)) {
+      urls = output.map((o) => String(o));
+    } else if (output && typeof output === 'object') {
+      const maybeUrl = (output as any).url;
+      if (typeof maybeUrl === 'string') {
+        urls = [maybeUrl];
       }
-
-      if (urls.length === 0) {
-        throw new Error('Flux returned no URL');
-      }
-
-      return {
-        urls,
-        seed,
-        latencyMs: Date.now() - started,
-      };
-    } catch (err) {
-      lastError = err instanceof Error ? err : new Error(String(err));
-      const msg = lastError.message.toLowerCase();
-
-      // Rate limit: wait and retry
-      if (
-        msg.includes('rate') ||
-        msg.includes('429') ||
-        msg.includes('too many')
-      ) {
-        if (attempt < MAX_RETRIES - 1) {
-          await sleep(RETRY_DELAY_MS);
-          continue;
-        }
-      }
-
-      // Other errors: throw immediately
-      throw lastError;
     }
+
+    if (!urls.length) {
+      throw new Error('No image returned from Flux');
+    }
+
+    return {
+      urls,
+      seed,
+      latencyMs: Date.now() - started,
+    };
+  } catch (err) {
+    console.error('[flux-client] ERROR:', err);
+    throw err;
   }
-
-  throw lastError || new Error('Flux generation failed');
-}
-
-export function enhancePrompt(
-  prompt: string,
-  preset?: 'editorial' | 'startup' | 'luxury',
-): string {
-  if (!preset) return prompt;
-  const suffix = {
-    editorial:
-      ' editorial photography, magazine-grade composition, cinematic color grading',
-    startup: ' modern product photography, clean lighting, startup aesthetic',
-    luxury: ' luxury product photography, premium lighting, refined palette',
-  }[preset];
-  return prompt + suffix;
 }
