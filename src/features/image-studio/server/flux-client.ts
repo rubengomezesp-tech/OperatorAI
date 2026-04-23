@@ -6,7 +6,6 @@ export interface GenerateInput {
   prompt: string;
   aspectRatio: '1:1' | '16:9' | '9:16' | '4:5' | '3:2';
   seed?: number;
-  referenceImageUrls?: string[];
   model?: 'flux-2-pro' | 'flux-1.1-pro';
   negativePrompt?: string;
 }
@@ -39,23 +38,27 @@ export async function generateWithFlux(
   const seed = input.seed ?? Math.floor(Math.random() * 999999999);
   const started = Date.now();
 
-  const size = ASPECT_TO_SIZE[input.aspectRatio] ?? ASPECT_TO_SIZE['1:1'];
+  const size =
+    ASPECT_TO_SIZE[input.aspectRatio] ?? ASPECT_TO_SIZE['1:1'];
 
-  // 🔥 PAYLOAD MINIMAL (CLAVE)
+  // ✅ PAYLOAD CORRECTO PARA FLUX
   const payload: any = {
-    prompt: String(input.prompt),
+    prompt: String(input.prompt || ''),
     width: size.w,
     height: size.h,
-    num_outputs: 1,
+    num_images: 1, // 🔥 CLAVE (NO num_outputs)
     seed,
   };
 
+  // Validación básica (evita llamadas basura)
+  if (!payload.prompt || payload.prompt.length < 10) {
+    throw new Error('Invalid prompt sent to Flux');
+  }
+
+  // Negative prompt opcional
   if (input.negativePrompt && typeof input.negativePrompt === 'string') {
     payload.negative_prompt = input.negativePrompt;
   }
-
-  // ⚠️ NO references, NO aspect_ratio
-  // esto estaba rompiendo todo
 
   console.log('[flux-client] payload:', payload);
 
@@ -68,18 +71,32 @@ export async function generateWithFlux(
 
     let urls: string[] = [];
 
+    // 🔥 PARSEO ROBUSTO (IMPORTANTE)
     if (typeof output === 'string') {
       urls = [output];
     } else if (Array.isArray(output)) {
-      urls = output.map((o) => String(o));
+      for (const item of output) {
+        if (typeof item === 'string') {
+          urls.push(item);
+        } else if (item && typeof item === 'object') {
+          if (typeof (item as any).url === 'string') {
+            urls.push((item as any).url);
+          } else if (typeof (item as any).url === 'function') {
+            urls.push(await (item as any).url());
+          }
+        }
+      }
     } else if (output && typeof output === 'object') {
       const maybeUrl = (output as any).url;
       if (typeof maybeUrl === 'string') {
         urls = [maybeUrl];
+      } else if (typeof maybeUrl === 'function') {
+        urls = [await maybeUrl()];
       }
     }
 
     if (!urls.length) {
+      console.error('[flux-client] RAW OUTPUT:', output);
       throw new Error('No image returned from Flux');
     }
 
@@ -93,6 +110,8 @@ export async function generateWithFlux(
     throw err;
   }
 }
+
+// ✅ Esto lo necesitas para que no rompa el build
 export function enhancePrompt(
   prompt: string,
   preset?: 'editorial' | 'startup' | 'luxury',
