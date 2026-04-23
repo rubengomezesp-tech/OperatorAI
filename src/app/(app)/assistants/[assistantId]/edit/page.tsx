@@ -5,18 +5,25 @@ import { resolveOrgContext } from '@/features/chat/server/resolve-org-context';
 import { getAssistantById } from '@/features/assistants/server/queries';
 import { OnboardingWizard } from '@/features/assistants/components/onboarding-wizard';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 interface PageProps {
-  params: Promise<{ assistantId: string }>;
+  params: { assistantId: string };
 }
 
 export default async function EditAssistantPage({ params }: PageProps) {
-  const { assistantId } = await params;
+  const { assistantId } = params;
 
   const ssr = await createSupabaseServerClient();
-  const { data: { user } } = await ssr.auth.getUser();
+  const {
+    data: { user },
+  } = await ssr.auth.getUser();
+
   if (!user) redirect('/login');
 
   const svc = createSupabaseServiceClient();
+
   let orgId: string;
   try {
     orgId = (await resolveOrgContext(svc, user.id)).orgId;
