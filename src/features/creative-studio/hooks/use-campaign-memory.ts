@@ -8,6 +8,7 @@ import type {
   QualityReport,
   ImageAnalysis,
   CampaignDirection,
+  CampaignMemory,
 } from '../types';
 
 export interface CampaignState {
