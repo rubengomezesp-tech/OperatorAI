@@ -6,26 +6,31 @@ import type {
   QualityReport,
 } from '@/features/creative-studio/types';
 
-export interface RenderWithQualityInput {
+export interface RenderInput {
   variant: Variant;
   imageUrls: string[];
   analyses: ImageAnalysis[];
   direction?: CampaignDirection | null;
 }
 
-export interface RenderWithQualityOutput {
+export interface RenderOutput {
   imageUrl: string;
   engine: 'flux';
+}
+
+export interface RenderWithQualityOutput extends RenderOutput {
   retried: boolean;
   qualityReport: QualityReport | null;
 }
 
 /**
- * 🔧 Router simplificado (sin Supabase, sin errores de tipos)
- * Solo renderiza usando Flux
+ * Router simplificado:
+ * - renderiza con Flux
+ * - no usa quality gate por ahora
+ * - mantiene compatibilidad con flux-renderer.ts
  */
 export async function renderWithQuality(
-  input: RenderWithQualityInput,
+  input: RenderInput,
 ): Promise<RenderWithQualityOutput> {
   try {
     const result = await renderFlux({
@@ -43,7 +48,7 @@ export async function renderWithQuality(
       imageUrl: result.imageUrl,
       engine: 'flux',
       retried: false,
-      qualityReport: null, // ⚠️ Quality gate OFF por ahora
+      qualityReport: null,
     };
   } catch (err: any) {
     console.error('[render-router] error:', err?.message || err);
