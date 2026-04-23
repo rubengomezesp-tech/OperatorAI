@@ -25,32 +25,34 @@ const ASPECT_TO_SIZE: Record<string, { w: number; h: number }> = {
   '3:2': { w: 1216, h: 832 },
 };
 
-function isReadableStreamLike(value: unknown): value is ReadableStream<Uint8Array> {
-  return !!value && typeof value === 'object' && 'getReader' in (value as any);
-}
+async function toBufferFromUnknownBinary(value: unknown): Promise<Buffer | null> {
+  if (!value) return null;
 
-async function readableStreamToBuffer(
-  stream: ReadableStream<Uint8Array>,
-): Promise<Buffer> {
-  const reader = stream.getReader();
-  const chunks: Uint8Array[] = [];
-
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    if (value) chunks.push(value);
+  try {
+    // Web ReadableStream / stream-like objects
+    const res = new Response(value as BodyInit);
+    const ab = await res.arrayBuffer();
+    if (ab.byteLength > 0) return Buffer.from(ab);
+  } catch {
+    // continue
   }
 
-  const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
-  const merged = new Uint8Array(totalLength);
-
-  let offset = 0;
-  for (const chunk of chunks) {
-    merged.set(chunk, offset);
-    offset += chunk.length;
+  try {
+    // Blob-like
+    if (
+      typeof value === 'object' &&
+      value !== null &&
+      'arrayBuffer' in (value as any) &&
+      typeof (value as any).arrayBuffer === 'function'
+    ) {
+      const ab = await (value as any).arrayBuffer();
+      if (ab?.byteLength > 0) return Buffer.from(ab);
+    }
+  } catch {
+    // continue
   }
 
-  return Buffer.from(merged);
+  return null;
 }
 
 export async function generateWithFlux(
@@ -104,17 +106,26 @@ export async function generateWithFlux(
       for (const item of output) {
         if (typeof item === 'string') {
           urls.push(item);
-        } else if (item && typeof item === 'object') {
+          continue;
+        }
+
+        if (item && typeof item === 'object') {
           const maybeUrl = (item as any).url;
 
           if (typeof maybeUrl === 'string') {
             urls.push(maybeUrl);
-          } else if (typeof maybeUrl === 'function') {
-            urls.push(await maybeUrl());
-          } else if (isReadableStreamLike(item)) {
-            buffers.push(await readableStreamToBuffer(item));
+            continue;
+          }
+
+          if (typeof maybeUrl === 'function') {
+            const resolved = await maybeUrl();
+            if (typeof resolved === 'string') urls.push(resolved);
+            continue;
           }
         }
+
+        const buf = await toBufferFromUnknownBinary(item);
+        if (buf) buffers.push(buf);
       }
     } else if (output && typeof output === 'object') {
       const maybeUrl = (output as any).url;
@@ -122,9 +133,11 @@ export async function generateWithFlux(
       if (typeof maybeUrl === 'string') {
         urls.push(maybeUrl);
       } else if (typeof maybeUrl === 'function') {
-        urls.push(await maybeUrl());
-      } else if (isReadableStreamLike(output)) {
-        buffers.push(await readableStreamToBuffer(output));
+        const resolved = await maybeUrl();
+        if (typeof resolved === 'string') urls.push(resolved);
+      } else {
+        const buf = await toBufferFromUnknownBinary(output);
+        if (buf) buffers.push(buf);
       }
     }
 
@@ -166,12 +179,9 @@ export function enhancePrompt(
   if (!preset) return prompt;
 
   const suffix = {
-    editorial:
-      ' editorial photography, cinematic lighting, magazine style',
-    startup:
-      ' modern product shot, clean lighting, startup aesthetic',
-    luxury:
-      ' luxury photography, premium lighting, high-end composition',
+    editorial: ' editorial photography, cinematic lighting, magazine style',
+    startup: ' modern product shot, clean lighting, startup aesthetic',
+    luxury: ' luxury photography, premium lighting, high-end composition',
   }[preset];
 
   return prompt + suffix;
