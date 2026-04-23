@@ -32,7 +32,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#C9A863" />
       </head>
-      <body className="min-h-screen bg-bg text-fg antialiased">
+      <body className="min-h-screen w-full overflow-x-hidden bg-bg text-fg antialiased">
         <RootProviders><I18nProvider>{<SplashScreen>{children}</SplashScreen>}</I18nProvider></RootProviders>
       
         <script dangerouslySetInnerHTML={{__html: `
