@@ -70,7 +70,7 @@ export async function POST(req: NextRequest) {
     .is('deleted_at', null)
     .single();
 
-  if (error || !row) {
+  if (loadErr || !row) {
   return NextResponse.json({ error: 'Campaign not found' }, { status: 404 });
 }
 
