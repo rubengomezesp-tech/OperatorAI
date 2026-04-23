@@ -192,6 +192,7 @@ export function CreativeStudioView() {
   // ═════════════════════════════════════════════════════
   async function runPlanAndRender(briefOverride?: ProductBrief) {
   if (!campaign) return;
+  const campaignId = campaign.id;
   const briefToUse = briefOverride || campaign.brief;
   if (!briefToUse) return;
 
@@ -201,7 +202,7 @@ export function CreativeStudioView() {
     const planRes = await fetch('/api/creative/plan', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ campaignId: campaign.id }),
+      body: JSON.stringify({ campaignId }),
     });
 
     const planData = await planRes.json();
@@ -225,7 +226,7 @@ export function CreativeStudioView() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            campaignId: campaign.id,
+            campaignId,
             variantId: v.id,
           }),
         });
