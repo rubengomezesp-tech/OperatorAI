@@ -1,5 +1,5 @@
 'use client';
-import { useRef, useState } from 'react';
+import { useRef, useState, useCallback } from 'react';
 import {
   Upload,
   Loader2,
@@ -9,21 +9,24 @@ import {
   Edit3,
   RotateCcw,
   ArrowLeft,
-  Compass,
+  AlertTriangle,
+  RefreshCw,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useI18n } from '@/lib/i18n';
 import { VariantCard } from './variant-card';
 import { AdEditor } from './ad-editor';
-import { useCampaignMemory, type CampaignState } from '../hooks/use-campaign-memory';
+import {
+  useCampaignMemory,
+  type CampaignState,
+} from '../hooks/use-campaign-memory';
 import type {
   ProductBrief,
   Variant,
   CampaignIntent,
   AspectRatio,
   QualityReport,
-  CampaignDirection,
 } from '../types';
 
 type Step =
@@ -34,10 +37,24 @@ type Step =
   | 'grid'
   | 'editor';
 
+type VariantStatus = 'queued' | 'running' | 'done' | 'failed';
+
+interface VariantRenderState {
+  status: VariantStatus;
+  errorCode?: string;
+  errorMessage?: string;
+}
+
 interface UploadedImage {
   url: string;
   preview: string;
 }
+
+// Concurrency: Replicate Pro tier is 6 RPM; 2 parallel with polling every 3s
+// stays well inside the budget.
+const RENDER_CONCURRENCY = 2;
+
+// ═══════════════════════════════════════════════════════════
 
 export function CreativeStudioView() {
   const { locale } = useI18n();
@@ -46,7 +63,6 @@ export function CreativeStudioView() {
   const { campaign, loading: loadingCampaign, load, setCampaign, patchCampaign, reset } =
     useCampaignMemory();
 
-  // Local UI state
   const [step, setStep] = useState<Step>('upload');
   const [images, setImages] = useState<UploadedImage[]>([]);
   const [instructions, setInstructions] = useState('');
@@ -54,28 +70,33 @@ export function CreativeStudioView() {
   const [campaignIntent, setCampaignIntent] = useState<CampaignIntent>('launch');
 
   const [analysisLog, setAnalysisLog] = useState<string[]>([]);
-  const [renderLoading, setRenderLoading] = useState<Record<string, boolean>>({});
-  const [regenerating, setRegenerating] = useState<Record<string, boolean>>({});
+  const [renderStates, setRenderStates] = useState<
+    Record<string, VariantRenderState>
+  >({});
   const [selectedVariant, setSelectedVariant] = useState<Variant | null>(null);
   const [briefEdit, setBriefEdit] = useState(false);
 
   const fileRef = useRef<HTMLInputElement>(null);
 
-  // If a campaign loaded from URL, hydrate step/grid
+  // campaign ref for callbacks that close over stale state
+  const campaignRef = useRef<CampaignState | null>(null);
+  campaignRef.current = campaign;
+
+  // If a campaign loaded from URL, hydrate step
   if (campaign && step === 'upload' && !loadingCampaign) {
-    // Decide where to land
     if (campaign.variants?.length > 0) {
       setStep('grid');
     } else if (campaign.brief) {
       setStep('brief');
-      if (campaign.brief.campaignIntent) setCampaignIntent(campaign.brief.campaignIntent);
+      if (campaign.brief.campaignIntent)
+        setCampaignIntent(campaign.brief.campaignIntent);
       setAspectRatio(campaign.aspectRatio);
     }
   }
 
-  // ═════════════════════════════════════════════════════
-  // Upload
-  // ═════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════
+  // Upload handlers
+  // ═══════════════════════════════════════════════════
   async function handleFiles(e: React.ChangeEvent<HTMLInputElement>) {
     if (!e.target.files) return;
     for (const file of Array.from(e.target.files).slice(0, 10 - images.length)) {
@@ -108,9 +129,9 @@ export function CreativeStudioView() {
     });
   }
 
-  // ═════════════════════════════════════════════════════
-  // Step 2: analyze
-  // ═════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════
+  // Step: analyze
+  // ═══════════════════════════════════════════════════
   async function runAnalyze() {
     if (!images.length) return;
     setStep('analyzing');
@@ -123,6 +144,7 @@ export function CreativeStudioView() {
           'Identificando pantallas...',
           'Extrayendo texto (OCR)...',
           'Sintetizando producto...',
+          'Derivando direccion creativa...',
         ]
       : [
           'Analyzing images...',
@@ -130,6 +152,7 @@ export function CreativeStudioView() {
           'Identifying screens...',
           'Extracting text (OCR)...',
           'Synthesizing product...',
+          'Deriving creative direction...',
         ];
 
     let li = 0;
@@ -178,7 +201,6 @@ export function CreativeStudioView() {
         qualityReports: {},
       };
       setCampaign(state);
-
       setTimeout(() => setStep('brief'), 600);
     } catch (err) {
       clearInterval(interval);
@@ -187,106 +209,152 @@ export function CreativeStudioView() {
     }
   }
 
-  // ═════════════════════════════════════════════════════
-  // Step 3: plan + render (parallel)
-  // ═════════════════════════════════════════════════════
-  async function runPlanAndRender(briefOverride?: ProductBrief) {
-  if (!campaign) return;
-  const campaignId = campaign.id;
-  const briefToUse = briefOverride || campaign.brief;
-  if (!briefToUse) return;
+  // ═══════════════════════════════════════════════════
+  // Step: plan + render (queue with concurrency)
+  // ═══════════════════════════════════════════════════
+  async function runPlanAndRender() {
+    if (!campaign) return;
+    setStep('planning');
 
-  setStep('planning');
+    let variants: Variant[] = [];
+    try {
+      const planRes = await fetch('/api/creative/plan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ campaignId: campaign.id }),
+      });
+      const planData = await planRes.json();
+      if (!planRes.ok) throw new Error(planData.error || 'Plan failed');
+      variants = planData.variants;
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed');
+      setStep('brief');
+      return;
+    }
 
-  try {
-    const planRes = await fetch('/api/creative/plan', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ campaignId }),
-    });
-
-    const planData = await planRes.json();
-    if (!planRes.ok) throw new Error(planData.error || 'Plan failed');
-
-    const variants: Variant[] = planData.variants;
     patchCampaign({ variants });
     setStep('grid');
 
-    const initial: Record<string, boolean> = {};
+    // Initialize all variants to 'queued'
+    const initial: Record<string, VariantRenderState> = {};
     variants.forEach((v) => {
-      initial[v.id] = true;
+      initial[v.id] = { status: 'queued' };
     });
-    setRenderLoading(initial);
+    setRenderStates(initial);
 
-    const concurrency = 2;
+    // Launch queue with concurrency limit
+    await renderQueue(variants, RENDER_CONCURRENCY);
+  }
 
-    async function renderOne(v: Variant) {
+  // ═══════════════════════════════════════════════════
+  // Render queue — concurrency-limited, per-variant states
+  // ═══════════════════════════════════════════════════
+  const renderQueue = useCallback(
+    async (variants: Variant[], concurrency: number) => {
+      const queue = [...variants];
+
+      const worker = async () => {
+        while (queue.length > 0) {
+          const v = queue.shift();
+          if (!v) break;
+          await renderOneVariant(v);
+        }
+      };
+
+      await Promise.all(
+        Array.from({ length: Math.min(concurrency, variants.length) }, worker),
+      );
+    },
+    [],
+  );
+
+  const renderOneVariant = useCallback(async (variant: Variant) => {
+    const campaignId = campaignRef.current?.id;
+    if (!campaignId) return;
+
+    setRenderStates((prev) => ({
+      ...prev,
+      [variant.id]: { status: 'running' },
+    }));
+
+    try {
+      const res = await fetch('/api/creative/render', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          campaignId,
+          variantId: variant.id,
+        }),
+      });
+
+      // Backend always returns 200 with {ok: true|false}. Any non-JSON or
+      // non-200 is a real infrastructure failure.
+      let data: any = null;
       try {
-        const res = await fetch('/api/creative/render', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            campaignId,
-            variantId: v.id,
-          }),
-        });
+        data = await res.json();
+      } catch {
+        throw new Error('Invalid server response');
+      }
 
-        const data = await res.json();
-
-        if (!res.ok) {
-          console.error('[render] failed', v.id, data);
-          throw new Error(data?.error || 'Render failed');
-        }
-
-        if (!data?.imageUrl) {
-          console.error('[render] missing imageUrl', v.id, data);
-          throw new Error('Render returned no imageUrl');
-        }
-
+      if (data.ok) {
+        setRenderStates((prev) => ({
+          ...prev,
+          [variant.id]: { status: 'done' },
+        }));
         patchCampaign({
           renderedImages: {
             ...(campaignRef.current?.renderedImages || {}),
-            [v.id]: data.imageUrl,
+            [variant.id]: data.imageUrl,
           },
           qualityReports: data.qualityReport
             ? {
                 ...(campaignRef.current?.qualityReports || {}),
-                [v.id]: data.qualityReport,
+                [variant.id]: data.qualityReport,
               }
             : campaignRef.current?.qualityReports || {},
         });
-      } catch (err) {
-        console.error('[render] variant', v.id, err);
-        toast.error(
-          es
-            ? `Falló el render de la variante ${v.id}`
-            : `Render failed for variant ${v.id}`,
-        );
-      } finally {
-        setRenderLoading((prev) => ({ ...prev, [v.id]: false }));
+      } else {
+        setRenderStates((prev) => ({
+          ...prev,
+          [variant.id]: {
+            status: 'failed',
+            errorCode: data.code || 'UNKNOWN',
+            errorMessage: data.error || 'Unknown error',
+          },
+        }));
       }
+    } catch (err) {
+      setRenderStates((prev) => ({
+        ...prev,
+        [variant.id]: {
+          status: 'failed',
+          errorCode: 'NETWORK',
+          errorMessage: err instanceof Error ? err.message : 'Network error',
+        },
+      }));
     }
+  }, [patchCampaign]);
 
-    for (let i = 0; i < variants.length; i += concurrency) {
-      const batch = variants.slice(i, i + concurrency);
-      await Promise.all(batch.map(renderOne));
-    }
-  } catch (err) {
-    toast.error(err instanceof Error ? err.message : 'Failed');
-    setStep('brief');
-  }
-}
+  // ═══════════════════════════════════════════════════
+  // Manual retry for a single failed variant
+  // ═══════════════════════════════════════════════════
+  const retryVariant = useCallback(
+    async (variant: Variant) => {
+      await renderOneVariant(variant);
+    },
+    [renderOneVariant],
+  );
 
-  // We need a ref to campaign for parallel callbacks (setCampaign batching)
-  const campaignRef = useRef<CampaignState | null>(null);
-  campaignRef.current = campaign;
-
-  // ═════════════════════════════════════════════════════
-  // Regenerate single variant
-  // ═════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════
+  // Regenerate (different variant, uses memory)
+  // ═══════════════════════════════════════════════════
   async function handleRegenerate(variant: Variant) {
     if (!campaign) return;
-    setRegenerating((prev) => ({ ...prev, [variant.id]: true }));
+
+    setRenderStates((prev) => ({
+      ...prev,
+      [variant.id]: { status: 'running' },
+    }));
 
     try {
       const res = await fetch('/api/creative/regenerate-variant', {
@@ -304,7 +372,6 @@ export function CreativeStudioView() {
       const newImageUrl: string = data.imageUrl;
       const newReport: QualityReport | undefined = data.qualityReport;
 
-      // Swap in state
       patchCampaign({
         variants: (campaignRef.current?.variants || []).map((v) =>
           v.id === variant.id ? newVariant : v,
@@ -313,7 +380,7 @@ export function CreativeStudioView() {
         renderedImages: (() => {
           const next = { ...(campaignRef.current?.renderedImages || {}) };
           delete next[variant.id];
-          next[newVariant.id] = newImageUrl;
+          if (newImageUrl) next[newVariant.id] = newImageUrl;
           return next;
         })(),
         qualityReports: (() => {
@@ -324,70 +391,42 @@ export function CreativeStudioView() {
         })(),
       });
 
-      toast.success(es ? 'Variante regenerada' : 'Variant regenerated');
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed');
-    } finally {
-      setRegenerating((prev) => {
+      // Transfer render state to new variant id
+      setRenderStates((prev) => {
         const next = { ...prev };
         delete next[variant.id];
+        next[newVariant.id] = { status: 'done' };
         return next;
       });
+
+      toast.success(es ? 'Variante regenerada' : 'Variant regenerated');
+    } catch (err) {
+      setRenderStates((prev) => ({
+        ...prev,
+        [variant.id]: {
+          status: 'failed',
+          errorCode: 'REGEN_FAILED',
+          errorMessage: err instanceof Error ? err.message : 'Failed',
+        },
+      }));
+      toast.error(err instanceof Error ? err.message : 'Failed');
     }
   }
 
-  // ═════════════════════════════════════════════════════
-  // Canvas render -> validate
-  // ═════════════════════════════════════════════════════
-  async function handleRendered(variantId: string, dataUrl: string) {
-    if (!campaign) return;
-    // Do not re-validate if we already have a report
-    if (campaign.qualityReports[variantId]) return;
-    // Do not validate http URLs (those were evaluated server-side already)
-    if (campaign.renderedImages[variantId]?.startsWith('http')) return;
-
-    try {
-      const res = await fetch('/api/creative/validate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          campaignId: campaign.id,
-          variantId,
-          dataUrl,
-        }),
-      });
-      const data = await res.json();
-      if (res.ok && data.qualityReport) {
-        patchCampaign({
-          qualityReports: {
-            ...(campaignRef.current?.qualityReports || {}),
-            [variantId]: data.qualityReport,
-          },
-        });
-      }
-    } catch {
-      // Validation is informative, not blocking
-    }
-  }
-
-  // ═════════════════════════════════════════════════════
-  // Reset full flow
-  // ═════════════════════════════════════════════════════
   function handleReset() {
     images.forEach((i) => URL.revokeObjectURL(i.preview));
     setImages([]);
     setInstructions('');
     setAnalysisLog([]);
-    setRenderLoading({});
-    setRegenerating({});
+    setRenderStates({});
     setSelectedVariant(null);
     setStep('upload');
     reset();
   }
 
-  // ═════════════════════════════════════════════════════
-  // Loading campaign from URL
-  // ═════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════
+  // Loading from URL
+  // ═══════════════════════════════════════════════════
   if (loadingCampaign) {
     return (
       <div className="px-4 lg:px-10 py-10 max-w-[560px] mx-auto">
@@ -401,9 +440,9 @@ export function CreativeStudioView() {
     );
   }
 
-  // ═════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════
   // STEP: upload
-  // ═════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════
   if (step === 'upload') {
     return (
       <div className="px-4 lg:px-10 py-6 max-w-[760px] mx-auto space-y-5">
@@ -443,7 +482,11 @@ export function CreativeStudioView() {
                 key={i}
                 className="relative group h-[72px] w-[72px] rounded-lg overflow-hidden border border-border"
               >
-                <img src={img.preview} alt="" className="w-full h-full object-cover" />
+                <img
+                  src={img.preview}
+                  alt=""
+                  className="w-full h-full object-cover"
+                />
                 <button
                   onClick={() => rmImg(i)}
                   className="absolute top-0.5 right-0.5 h-5 w-5 rounded-full bg-black/70 flex items-center justify-center opacity-0 group-hover:opacity-100"
@@ -564,9 +607,9 @@ export function CreativeStudioView() {
     );
   }
 
-  // ═════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════
   // STEP: analyzing
-  // ═════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════
   if (step === 'analyzing') {
     return (
       <div className="px-4 lg:px-10 py-10 max-w-[560px] mx-auto">
@@ -592,9 +635,9 @@ export function CreativeStudioView() {
     );
   }
 
-  // ═════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════
   // STEP: brief
-  // ═════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════
   if (step === 'brief' && campaign?.brief) {
     const b = campaign.brief;
     return (
@@ -647,42 +690,6 @@ export function CreativeStudioView() {
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <div className="text-[9px] uppercase tracking-[0.12em] text-fg-subtle mb-1">
-                {es ? 'Tono' : 'Tone'}
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                <span className="px-2 py-0.5 rounded bg-surface-2 border border-border text-[10px] capitalize">
-                  {b.tone}
-                </span>
-                {b.voiceCues.slice(0, 2).map((c, i) => (
-                  <span
-                    key={i}
-                    className="px-2 py-0.5 rounded bg-surface-2 border border-border text-[10px] text-fg-muted"
-                  >
-                    {c}
-                  </span>
-                ))}
-              </div>
-            </div>
-            <div>
-              <div className="text-[9px] uppercase tracking-[0.12em] text-fg-subtle mb-1">
-                Target
-              </div>
-              <p className="text-[11px] text-fg-muted">{b.target}</p>
-            </div>
-          </div>
-
-          <div>
-            <div className="text-[9px] uppercase tracking-[0.12em] text-fg-subtle mb-1">
-              {es ? 'CTA sugerida' : 'Suggested CTA'}
-            </div>
-            <span className="inline-block px-4 py-1.5 rounded-full bg-gold text-black text-[12px] font-semibold">
-              {b.suggestedCTA}
-            </span>
-          </div>
-
           <div>
             <div className="text-[9px] uppercase tracking-[0.12em] text-fg-subtle mb-1">
               {es ? 'Paleta' : 'Palette'}
@@ -698,13 +705,6 @@ export function CreativeStudioView() {
               ))}
             </div>
           </div>
-
-          {campaign.direction && (
-            <DirectionPanel
-              direction={campaign.direction}
-              locale={locale}
-            />
-          )}
 
           <div className="flex gap-2 pt-2 border-t border-border">
             <button
@@ -735,9 +735,9 @@ export function CreativeStudioView() {
     );
   }
 
-  // ═════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════
   // STEP: planning
-  // ═════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════
   if (step === 'planning') {
     return (
       <div className="px-4 lg:px-10 py-16 max-w-[400px] mx-auto text-center space-y-4">
@@ -749,10 +749,14 @@ export function CreativeStudioView() {
     );
   }
 
-  // ═════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════
   // STEP: grid
-  // ═════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════
   if (step === 'grid' && campaign) {
+    const failedCount = Object.values(renderStates).filter(
+      (s) => s.status === 'failed',
+    ).length;
+
     return (
       <div className="px-4 lg:px-10 py-6 max-w-[1200px] mx-auto space-y-5">
         <div className="flex items-center justify-between">
@@ -775,31 +779,59 @@ export function CreativeStudioView() {
           </button>
         </div>
 
+        {failedCount > 0 && (
+          <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0" />
+            <span className="text-[12px] text-amber-200">
+              {es
+                ? failedCount + ' variantes fallaron. Pulsa reintentar en cada una.'
+                : failedCount + ' variants failed. Click retry on each.'}
+            </span>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {campaign.variants.map((v) => (
-            <VariantCard
-  key={v.id}
-  variant={v}
-  imageUrl={campaign.renderedImages[v.id] || null}
-  loading={renderLoading[v.id] || regenerating[v.id] || false}
-  qualityReport={campaign.qualityReports[v.id]}
-  locale={locale}
-  onSelect={() => {
-    setSelectedVariant(v);
-    setStep('editor');
-  }}
-  onRegenerate={() => handleRegenerate(v)}
-  isSelected={campaign.memory.selectedVariantId === v.id}
-/>
-          ))}
+          {campaign.variants.map((v) => {
+            const state = renderStates[v.id] || { status: 'queued' as VariantStatus };
+            const imageUrl = campaign.renderedImages[v.id] || null;
+
+            if (state.status === 'failed') {
+              return (
+                <FailedVariantCard
+                  key={v.id}
+                  variant={v}
+                  locale={locale}
+                  errorMessage={state.errorMessage}
+                  onRetry={() => retryVariant(v)}
+                />
+              );
+            }
+
+            return (
+              <VariantCard
+                key={v.id}
+                variant={v}
+                imageUrl={imageUrl}
+                loading={state.status === 'queued' || state.status === 'running'}
+                qualityReport={campaign.qualityReports[v.id]}
+                locale={locale}
+                onSelect={() => {
+                  setSelectedVariant(v);
+                  setStep('editor');
+                }}
+                onRegenerate={() => handleRegenerate(v)}
+                isSelected={campaign.memory.selectedVariantId === v.id}
+              />
+            );
+          })}
         </div>
       </div>
     );
   }
 
-  // ═════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════
   // STEP: editor
-  // ═════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════
   if (step === 'editor' && selectedVariant && campaign) {
     const imageUrl = campaign.renderedImages[selectedVariant.id];
     if (!imageUrl) {
@@ -809,21 +841,12 @@ export function CreativeStudioView() {
 
     return (
       <div className="px-4 lg:px-10 py-6 max-w-[1200px] mx-auto space-y-5">
-        <div className="flex items-center justify-between">
-          <button
-            onClick={() => setStep('grid')}
-            className="flex items-center gap-2 text-[12px] text-fg-muted hover:text-fg"
-          >
-            <ArrowLeft className="h-3.5 w-3.5" />
-            {es ? 'Volver a variantes' : 'Back to variants'}
-          </button>
-        </div>
         <AdEditor
-  imageUrl={imageUrl.startsWith('http') ? imageUrl : (campaign.renderedImages[selectedVariant.id] || '')}
-  variant={selectedVariant}
-  locale={locale}
-  onBack={() => setStep('grid')}
-/>
+          imageUrl={imageUrl}
+          variant={selectedVariant}
+          locale={locale}
+          onBack={() => setStep('grid')}
+        />
       </div>
     );
   }
@@ -831,82 +854,56 @@ export function CreativeStudioView() {
   return null;
 }
 
-function DirectionPanel({
-  direction,
+// ═══════════════════════════════════════════════════════════
+// Failed variant card — isolated UI for retryable failures
+// ═══════════════════════════════════════════════════════════
+
+function FailedVariantCard({
+  variant,
   locale,
+  errorMessage,
+  onRetry,
 }: {
-  direction: CampaignDirection;
+  variant: Variant;
   locale: 'en' | 'es';
+  errorMessage?: string;
+  onRetry: () => void;
 }) {
   const es = locale === 'es';
-  const labels = (en: string, esL: string) => (es ? esL : en);
-
-  const chips: Array<{ label: string; value: string }> = [
-    { label: labels('Archetype', 'Arquetipo'), value: direction.archetype },
-    { label: labels('Register', 'Registro'), value: direction.visualRegister },
-    { label: labels('Hero', 'Hero'), value: direction.heroStrategy.replace('_', ' ') },
-    { label: labels('Copy', 'Texto'), value: direction.copyStrategy.replace('_', ' ') },
-    { label: labels('Lighting', 'Luz'), value: direction.lightingDirection.replace('_', ' ') },
-    { label: labels('Motion', 'Energia'), value: direction.motionEnergy },
-  ];
+  const aspect =
+    variant.aspectRatio === '1:1'
+      ? '1/1'
+      : variant.aspectRatio === '4:5'
+      ? '4/5'
+      : '9/16';
 
   return (
-    <div className="rounded-xl border border-gold/20 bg-surface-2/40 p-4 space-y-3">
-      <div className="flex items-center gap-2">
-        <Compass className="h-3.5 w-3.5 text-gold" />
-        <span className="text-[10px] uppercase tracking-[0.14em] text-gold font-medium">
-          {labels('Creative direction', 'Direccion creativa')}
+    <div className="group relative rounded-xl overflow-hidden border-2 border-red-500/30 bg-surface">
+      <div className="px-3 py-2 border-b border-border flex items-center justify-between">
+        <span className="text-[10px] uppercase tracking-[0.12em] text-red-400 font-medium truncate">
+          {variant.layout.replace('_', ' ')}
+        </span>
+        <span className="text-[9px] text-fg-subtle uppercase tracking-wide">
+          {variant.angle}
         </span>
       </div>
 
-      <p className="text-[13px] text-fg font-display italic leading-snug">
-        &ldquo;{direction.directionStatement}&rdquo;
-      </p>
-
-      <div className="flex flex-wrap gap-1.5">
-        {chips.map((c) => (
-          <div
-            key={c.label}
-            className="px-2 py-0.5 rounded bg-surface border border-border text-[10px]"
-          >
-            <span className="text-fg-subtle">{c.label}:</span>{' '}
-            <span className="text-fg capitalize">{c.value}</span>
-          </div>
-        ))}
+      <div
+        className="relative bg-surface-2 flex flex-col items-center justify-center gap-3 p-6"
+        style={{ aspectRatio: aspect }}
+      >
+        <AlertTriangle className="h-6 w-6 text-red-400" />
+        <p className="text-[11px] text-fg-muted text-center max-w-[180px] line-clamp-3">
+          {errorMessage || (es ? 'Error al generar' : 'Generation failed')}
+        </p>
+        <button
+          onClick={onRetry}
+          className="h-8 px-3 rounded-lg bg-gold text-black text-[11px] font-medium flex items-center gap-1.5 hover:brightness-110"
+        >
+          <RefreshCw className="h-3 w-3" />
+          {es ? 'Reintentar' : 'Retry'}
+        </button>
       </div>
-
-      <div className="flex items-center gap-2 pt-2 border-t border-border/60">
-        <span className="text-[9px] uppercase tracking-[0.12em] text-fg-subtle">
-          {labels('Palette', 'Paleta')}
-        </span>
-        <div className="flex gap-1">
-          <div
-            className="h-4 w-4 rounded border border-border"
-            style={{ background: direction.paletteDirection.dominant }}
-            title={direction.paletteDirection.dominant}
-          />
-          <div
-            className="h-4 w-4 rounded border border-border"
-            style={{ background: direction.paletteDirection.accent }}
-            title={direction.paletteDirection.accent}
-          />
-          {direction.paletteDirection.support.slice(0, 3).map((c, i) => (
-            <div
-              key={i}
-              className="h-4 w-4 rounded border border-border"
-              style={{ background: c }}
-              title={c}
-            />
-          ))}
-        </div>
-      </div>
-
-      <details className="text-[11px] text-fg-muted">
-        <summary className="cursor-pointer text-fg-subtle hover:text-fg">
-          {labels('Why this direction', 'Por que esta direccion')}
-        </summary>
-        <p className="mt-1.5 leading-snug">{direction.rationale}</p>
-      </details>
     </div>
   );
 }
