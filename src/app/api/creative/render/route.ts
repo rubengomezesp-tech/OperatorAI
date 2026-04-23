@@ -19,13 +19,38 @@ function decodeDataUrl(dataUrl: string): { mime: string; buffer: Buffer } {
     throw new Error('Invalid data URL format');
   }
 
-  const mime = match[1];
-  const base64 = match[2];
+  return {
+    mime: match[1],
+    buffer: Buffer.from(match[2], 'base64'),
+  };
+}
+
+async function normalizeImageToBuffer(
+  imageUrl: string,
+): Promise<{ buffer: Buffer; mime: string }> {
+  if (imageUrl.startsWith('data:image/')) {
+    return decodeDataUrl(imageUrl);
+  }
+
+  const res = await fetch(imageUrl);
+  if (!res.ok) {
+    throw new Error(`Failed to fetch remote image: ${res.status}`);
+  }
+
+  const arrayBuffer = await res.arrayBuffer();
+  const contentType = res.headers.get('content-type') || 'image/webp';
 
   return {
-    mime,
-    buffer: Buffer.from(base64, 'base64'),
+    buffer: Buffer.from(arrayBuffer),
+    mime: contentType,
   };
+}
+
+function extFromMime(mime: string): string {
+  if (mime.includes('png')) return 'png';
+  if (mime.includes('jpeg') || mime.includes('jpg')) return 'jpg';
+  if (mime.includes('webp')) return 'webp';
+  return 'png';
 }
 
 export async function POST(req: NextRequest) {
@@ -77,18 +102,22 @@ export async function POST(req: NextRequest) {
     let finalImageUrl = result.imageUrl;
 
     console.log(
-      '[render-route] result.imageUrl:',
-      typeof result.imageUrl,
-      String(result.imageUrl).slice(0, 140),
+      '[render-route] raw image url:',
+      String(finalImageUrl).slice(0, 180),
     );
 
-    // Si Flux devolvió data URL, la subimos a Supabase Storage
+    // IMPORTANT:
+    // Never trust replicate.delivery or data URLs for direct frontend display.
+    // Always normalize and upload to Supabase Storage.
     if (
       typeof finalImageUrl === 'string' &&
-      finalImageUrl.startsWith('data:image/')
+      (finalImageUrl.startsWith('data:image/') ||
+        finalImageUrl.includes('replicate.delivery') ||
+        finalImageUrl.startsWith('http'))
     ) {
-      const { mime, buffer } = decodeDataUrl(finalImageUrl);
-      const ext = mime.includes('jpeg') || mime.includes('jpg') ? 'jpg' : 'png';
+      const { buffer, mime } = await normalizeImageToBuffer(finalImageUrl);
+      const ext = extFromMime(mime);
+
       const path =
         'creative-renders/' +
         user.id +
@@ -100,8 +129,6 @@ export async function POST(req: NextRequest) {
         Date.now() +
         '.' +
         ext;
-
-      console.log('[render-route] uploading data URL to storage:', path, mime, buffer.length);
 
       const upload = await svc.storage.from('images').upload(path, buffer, {
         contentType: mime,
@@ -131,21 +158,8 @@ export async function POST(req: NextRequest) {
       finalImageUrl = signed.data.signedUrl;
 
       console.log(
-        '[render-route] signed image url:',
-        typeof finalImageUrl,
+        '[render-route] final signed image url:',
         String(finalImageUrl).slice(0, 180),
-      );
-    }
-
-    if (
-      typeof finalImageUrl !== 'string' ||
-      (!finalImageUrl.startsWith('http') &&
-        !finalImageUrl.startsWith('data:image/'))
-    ) {
-      console.error('[render-route] invalid finalImageUrl:', finalImageUrl);
-      return NextResponse.json(
-        { error: 'Invalid final image URL returned by renderer' },
-        { status: 500 },
       );
     }
 
@@ -159,7 +173,7 @@ export async function POST(req: NextRequest) {
       ...(result.qualityReport ? { [variant.id]: result.qualityReport } : {}),
     };
 
-    await svc
+    const { error: updateError } = await svc
       .from('campaigns' as any)
       .update({
         rendered_images: renderedImages,
@@ -168,11 +182,13 @@ export async function POST(req: NextRequest) {
       .eq('id', body.campaignId)
       .eq('user_id', user.id);
 
-    console.log(
-      '[render-route] persisted url for variant:',
-      variant.id,
-      String(finalImageUrl).slice(0, 180),
-    );
+    if (updateError) {
+      console.error('[render-route] update failed:', updateError);
+      return NextResponse.json(
+        { error: 'Failed to persist render result' },
+        { status: 500 },
+      );
+    }
 
     return NextResponse.json({
       ok: true,
