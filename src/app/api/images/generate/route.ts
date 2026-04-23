@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
   let enhanced = body.prompt;
   if (body.enhance) {
     try {
-      enhanced = await enhancePrompt(body.prompt, preset?.hint ?? 'editorial', hasReferences);
+      enhanced = await enhancePrompt(body.prompt, (preset?.hint ?? 'editorial') as 'editorial');
     } catch {
       enhanced = body.prompt;
     }
