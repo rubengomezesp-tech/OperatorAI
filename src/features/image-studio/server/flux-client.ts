@@ -66,34 +66,48 @@ export async function generateWithFlux(
 
   try {
     const output = await client.run(model, {
-      input: payload,
-    });
+  input: payload,
+});
 
-    let urls: string[] = [];
+let urls: string[] = [];
 
-    // 🔥 PARSEO ROBUSTO (IMPORTANTE)
-    if (typeof output === 'string') {
-      urls = [output];
-    } else if (Array.isArray(output)) {
-      for (const item of output) {
-        if (typeof item === 'string') {
-          urls.push(item);
-        } else if (item && typeof item === 'object') {
-          if (typeof (item as any).url === 'string') {
-            urls.push((item as any).url);
-          } else if (typeof (item as any).url === 'function') {
-            urls.push(await (item as any).url());
-          }
+if (typeof output === 'string') {
+  urls = [output];
+} else if (Array.isArray(output)) {
+  for (const item of output) {
+    if (typeof item === 'string') {
+      urls.push(item);
+    } else if (item && typeof item === 'object') {
+      const maybeUrl = (item as any).url;
+
+      if (typeof maybeUrl === 'string') {
+        urls.push(maybeUrl);
+      } else if (typeof maybeUrl === 'function') {
+        urls.push(await maybeUrl());
+      } else if (typeof (item as any).toString === 'function') {
+        const asString = String(item);
+        if (asString.startsWith('http')) {
+          urls.push(asString);
         }
       }
-    } else if (output && typeof output === 'object') {
-      const maybeUrl = (output as any).url;
-      if (typeof maybeUrl === 'string') {
-        urls = [maybeUrl];
-      } else if (typeof maybeUrl === 'function') {
-        urls = [await maybeUrl()];
-      }
     }
+  }
+} else if (output && typeof output === 'object') {
+  const maybeUrl = (output as any).url;
+
+  if (typeof maybeUrl === 'string') {
+    urls = [maybeUrl];
+  } else if (typeof maybeUrl === 'function') {
+    urls = [await maybeUrl()];
+  }
+}
+
+urls = urls.filter((u): u is string => typeof u === 'string' && u.startsWith('http'));
+
+if (!urls.length) {
+  console.error('[flux-client] RAW OUTPUT:', output);
+  throw new Error('No image returned from Flux');
+}
 
     if (!urls.length) {
       console.error('[flux-client] RAW OUTPUT:', output);
