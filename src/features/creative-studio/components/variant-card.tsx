@@ -127,9 +127,13 @@ function VariantCardInner({
             loading="lazy"
             decoding="async"
             onError={(e) => {
-              console.error('[VariantCard] image failed to load:', imageUrl);
-              (e.currentTarget as HTMLImageElement).style.display = 'none';
-            }}
+  console.error('[VariantCard] image failed to load:', imageUrl);
+  console.error(
+    '[VariantCard] current src:',
+    (e.currentTarget as HTMLImageElement).currentSrc,
+  );
+  (e.currentTarget as HTMLImageElement).style.display = 'none';
+}}
           />
         ) : (
           <div className="absolute inset-0 flex items-center justify-center">
