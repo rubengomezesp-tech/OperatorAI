@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { createSupabaseServiceClient } from '@/lib/supabase/service';
 import { resolveOrgContext } from '@/features/chat/server/resolve-org-context';
-import { generateWithFlux } from '@/features/image-studio/server/flux-client';
+import { generateWithFlux, enhancePrompt } from '@/features/image-studio/server/flux-client';
 import { IMAGE_PRESETS } from '@/features/image-studio/data/presets';
 
 export const runtime = 'nodejs';
