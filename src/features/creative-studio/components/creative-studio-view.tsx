@@ -191,85 +191,90 @@ export function CreativeStudioView() {
   // Step 3: plan + render (parallel)
   // ═════════════════════════════════════════════════════
   async function runPlanAndRender(briefOverride?: ProductBrief) {
-    if (!campaign) return;
-    const briefToUse = briefOverride || campaign.brief;
-    if (!briefToUse) return;
+  if (!campaign) return;
+  const briefToUse = briefOverride || campaign.brief;
+  if (!briefToUse) return;
 
-    setStep('planning');
+  setStep('planning');
 
-    try {
-      const planRes = await fetch('/api/creative/plan', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ campaignId: campaign.id }),
-      });
-      const planData = await planRes.json();
-      if (!planRes.ok) throw new Error(planData.error || 'Plan failed');
+  try {
+    const planRes = await fetch('/api/creative/plan', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ campaignId: campaign.id }),
+    });
 
-      const variants: Variant[] = planData.variants;
-      patchCampaign({ variants });
-      setStep('grid');
+    const planData = await planRes.json();
+    if (!planRes.ok) throw new Error(planData.error || 'Plan failed');
 
-      // Mark all loading
-      const initial: Record<string, boolean> = {};
-      variants.forEach((v) => {
-        initial[v.id] = true;
-      });
-      setRenderLoading(initial);
+    const variants: Variant[] = planData.variants;
+    patchCampaign({ variants });
+    setStep('grid');
 
-      // Render in parallel
-      await Promise.all(
-        variants.map(async (v) => {
-          try {
-  const res = await fetch('/api/creative/render', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      campaignId: campaign.id,
-      variantId: v.id,
-    }),
-  });
+    const initial: Record<string, boolean> = {};
+    variants.forEach((v) => {
+      initial[v.id] = true;
+    });
+    setRenderLoading(initial);
 
-  const data = await res.json();
+    const concurrency = 2;
 
-  if (!res.ok) {
-    console.error('[render] failed', v.id, data);
-    throw new Error(data?.error || 'Render failed');
-  }
+    async function renderOne(v: Variant) {
+      try {
+        const res = await fetch('/api/creative/render', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            campaignId: campaign.id,
+            variantId: v.id,
+          }),
+        });
 
-  if (!data?.imageUrl) {
-    console.error('[render] missing imageUrl', v.id, data);
-    throw new Error('Render returned no imageUrl');
-  }
+        const data = await res.json();
 
-  patchCampaign({
-    renderedImages: {
-      ...(campaignRef.current?.renderedImages || {}),
-      [v.id]: data.imageUrl,
-    },
-    qualityReports: data.qualityReport
-      ? {
-          ...(campaignRef.current?.qualityReports || {}),
-          [v.id]: data.qualityReport,
+        if (!res.ok) {
+          console.error('[render] failed', v.id, data);
+          throw new Error(data?.error || 'Render failed');
         }
-      : campaignRef.current?.qualityReports || {},
-  });
-} catch (err) {
-  console.error('[render] variant', v.id, err);
-  toast.error(
-    es ? `Falló el render de la variante ${v.id}` : `Render failed for variant ${v.id}`
-  );
-} finally {
-  setRenderLoading((prev) => ({ ...prev, [v.id]: false }));
-}
 
-        }),
-      );
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed');
-      setStep('brief');
+        if (!data?.imageUrl) {
+          console.error('[render] missing imageUrl', v.id, data);
+          throw new Error('Render returned no imageUrl');
+        }
+
+        patchCampaign({
+          renderedImages: {
+            ...(campaignRef.current?.renderedImages || {}),
+            [v.id]: data.imageUrl,
+          },
+          qualityReports: data.qualityReport
+            ? {
+                ...(campaignRef.current?.qualityReports || {}),
+                [v.id]: data.qualityReport,
+              }
+            : campaignRef.current?.qualityReports || {},
+        });
+      } catch (err) {
+        console.error('[render] variant', v.id, err);
+        toast.error(
+          es
+            ? `Falló el render de la variante ${v.id}`
+            : `Render failed for variant ${v.id}`,
+        );
+      } finally {
+        setRenderLoading((prev) => ({ ...prev, [v.id]: false }));
+      }
     }
+
+    for (let i = 0; i < variants.length; i += concurrency) {
+      const batch = variants.slice(i, i + concurrency);
+      await Promise.all(batch.map(renderOne));
+    }
+  } catch (err) {
+    toast.error(err instanceof Error ? err.message : 'Failed');
+    setStep('brief');
   }
+}
 
   // We need a ref to campaign for parallel callbacks (setCampaign batching)
   const campaignRef = useRef<CampaignState | null>(null);
