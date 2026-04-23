@@ -93,3 +93,20 @@ export async function generateWithFlux(
     throw err;
   }
 }
+export function enhancePrompt(
+  prompt: string,
+  preset?: 'editorial' | 'startup' | 'luxury',
+): string {
+  if (!preset) return prompt;
+
+  const suffix = {
+    editorial:
+      ' editorial photography, cinematic lighting, magazine style',
+    startup:
+      ' modern product shot, clean lighting, startup aesthetic',
+    luxury:
+      ' luxury photography, premium lighting, high-end composition',
+  }[preset];
+
+  return prompt + suffix;
+}
