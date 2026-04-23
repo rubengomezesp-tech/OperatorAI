@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { createSupabaseServiceClient } from '@/lib/supabase/service';
 import { resolveOrgContext } from '@/features/chat/server/resolve-org-context';
-import { runVisionAnalysis } from '@/features/creative-studio/server/vision-layer';
+import { analyzeImages } from '@/features/creative-studio/server/vision-layer';
 import { buildProductBrief } from '@/features/creative-studio/server/understanding-layer';
 import { deriveCampaignDirection } from '@/features/creative-studio/server/creative-brain';
 import type { CampaignIntent, AspectRatio } from '@/features/creative-studio/types';
@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
     }
 
     // LAYER 1: Vision (parallel per image)
-    const analyses = await runVisionAnalysis(body.imageUrls, body.locale);
+    const analyses = await analyzeImages(body.imageUrls);
 
     // LAYER 2: Understanding (synthesize brief)
     const brief = await buildProductBrief(
