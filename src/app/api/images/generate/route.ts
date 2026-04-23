@@ -104,7 +104,6 @@ export async function POST(req: NextRequest) {
       aspectRatio: body.aspectRatio,
       model: selectedModel,
       seed: body.seed,
-      referenceImageUrls: body.referenceUrls,
     });
 
     const storagePaths: string[] = [];
