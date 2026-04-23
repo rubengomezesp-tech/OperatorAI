@@ -9,6 +9,7 @@ import {
   Edit3,
   RotateCcw,
   ArrowLeft,
+  Compass,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -22,6 +23,7 @@ import type {
   CampaignIntent,
   AspectRatio,
   QualityReport,
+  CampaignDirection,
 } from '../types';
 
 type Step =
@@ -164,6 +166,7 @@ export function CreativeStudioView() {
         locale,
         analyses: data.analyses,
         brief: data.brief,
+        direction: data.direction,
         variants: [],
         memory: {
           previousVariants: [],
@@ -392,13 +395,11 @@ export function CreativeStudioView() {
           <h1 className="font-display text-[26px] lg:text-[34px]">
             {es ? (
               <>
-                Sube. Analiza.{' '}
-                <span className="text-gold">Publica.</span>
+                Sube. Analiza. <span className="text-gold">Publica.</span>
               </>
             ) : (
               <>
-                Upload. Analyze.{' '}
-                <span className="text-gold">Publish.</span>
+                Upload. Analyze. <span className="text-gold">Publish.</span>
               </>
             )}
           </h1>
@@ -422,11 +423,7 @@ export function CreativeStudioView() {
                 key={i}
                 className="relative group h-[72px] w-[72px] rounded-lg overflow-hidden border border-border"
               >
-                <img
-                  src={img.preview}
-                  alt=""
-                  className="w-full h-full object-cover"
-                />
+                <img src={img.preview} alt="" className="w-full h-full object-cover" />
                 <button
                   onClick={() => rmImg(i)}
                   className="absolute top-0.5 right-0.5 h-5 w-5 rounded-full bg-black/70 flex items-center justify-center opacity-0 group-hover:opacity-100"
@@ -682,6 +679,13 @@ export function CreativeStudioView() {
             </div>
           </div>
 
+          {campaign.direction && (
+            <DirectionPanel
+              direction={campaign.direction}
+              locale={locale}
+            />
+          )}
+
           <div className="flex gap-2 pt-2 border-t border-border">
             <button
               onClick={() => setBriefEdit(!briefEdit)}
@@ -816,4 +820,84 @@ export function CreativeStudioView() {
   }
 
   return null;
+}
+
+function DirectionPanel({
+  direction,
+  locale,
+}: {
+  direction: CampaignDirection;
+  locale: 'en' | 'es';
+}) {
+  const es = locale === 'es';
+  const labels = (en: string, esL: string) => (es ? esL : en);
+
+  const chips: Array<{ label: string; value: string }> = [
+    { label: labels('Archetype', 'Arquetipo'), value: direction.archetype },
+    { label: labels('Register', 'Registro'), value: direction.visualRegister },
+    { label: labels('Hero', 'Hero'), value: direction.heroStrategy.replace('_', ' ') },
+    { label: labels('Copy', 'Texto'), value: direction.copyStrategy.replace('_', ' ') },
+    { label: labels('Lighting', 'Luz'), value: direction.lightingDirection.replace('_', ' ') },
+    { label: labels('Motion', 'Energia'), value: direction.motionEnergy },
+  ];
+
+  return (
+    <div className="rounded-xl border border-gold/20 bg-surface-2/40 p-4 space-y-3">
+      <div className="flex items-center gap-2">
+        <Compass className="h-3.5 w-3.5 text-gold" />
+        <span className="text-[10px] uppercase tracking-[0.14em] text-gold font-medium">
+          {labels('Creative direction', 'Direccion creativa')}
+        </span>
+      </div>
+
+      <p className="text-[13px] text-fg font-display italic leading-snug">
+        &ldquo;{direction.directionStatement}&rdquo;
+      </p>
+
+      <div className="flex flex-wrap gap-1.5">
+        {chips.map((c) => (
+          <div
+            key={c.label}
+            className="px-2 py-0.5 rounded bg-surface border border-border text-[10px]"
+          >
+            <span className="text-fg-subtle">{c.label}:</span>{' '}
+            <span className="text-fg capitalize">{c.value}</span>
+          </div>
+        ))}
+      </div>
+
+      <div className="flex items-center gap-2 pt-2 border-t border-border/60">
+        <span className="text-[9px] uppercase tracking-[0.12em] text-fg-subtle">
+          {labels('Palette', 'Paleta')}
+        </span>
+        <div className="flex gap-1">
+          <div
+            className="h-4 w-4 rounded border border-border"
+            style={{ background: direction.paletteDirection.dominant }}
+            title={direction.paletteDirection.dominant}
+          />
+          <div
+            className="h-4 w-4 rounded border border-border"
+            style={{ background: direction.paletteDirection.accent }}
+            title={direction.paletteDirection.accent}
+          />
+          {direction.paletteDirection.support.slice(0, 3).map((c, i) => (
+            <div
+              key={i}
+              className="h-4 w-4 rounded border border-border"
+              style={{ background: c }}
+              title={c}
+            />
+          ))}
+        </div>
+      </div>
+
+      <details className="text-[11px] text-fg-muted">
+        <summary className="cursor-pointer text-fg-subtle hover:text-fg">
+          {labels('Why this direction', 'Por que esta direccion')}
+        </summary>
+        <p className="mt-1.5 leading-snug">{direction.rationale}</p>
+      </details>
+    </div>
+  );
 }
