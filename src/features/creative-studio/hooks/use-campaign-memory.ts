@@ -13,12 +13,13 @@ import type {
 export interface CampaignState {
   id: string;
   imageUrls: string[];
-  instructions?: string;
+  instructions: string;
   aspectRatio: AspectRatio;
   campaignIntent: CampaignIntent;
   locale: 'en' | 'es';
-  analyses: ImageAnalysis[] | null;
-  brief: ProductBrief | null;
+  analyses: ImageAnalysis[];
+  brief?: ProductBrief;
+  direction?: CampaignDirection;
   variants: Variant[];
   memory: CampaignMemory;
   renderedImages: Record<string, string>;
