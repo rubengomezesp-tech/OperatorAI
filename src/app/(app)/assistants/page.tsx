@@ -5,12 +5,19 @@ import { resolveOrgContext } from '@/features/chat/server/resolve-org-context';
 import { listAssistants } from '@/features/assistants/server/queries';
 import { AssistantsContent } from './assistants-content';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export default async function AssistantsPage() {
   const ssr = await createSupabaseServerClient();
-  const { data: { user } } = await ssr.auth.getUser();
+  const {
+    data: { user },
+  } = await ssr.auth.getUser();
+
   if (!user) redirect('/login');
 
   const svc = createSupabaseServiceClient();
+
   let orgId: string;
   try {
     orgId = (await resolveOrgContext(svc, user.id)).orgId;
