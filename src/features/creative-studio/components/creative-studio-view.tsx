@@ -758,20 +758,19 @@ export function CreativeStudioView() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {campaign.variants.map((v) => (
             <VariantCard
-              key={v.id}
-              variant={v}
-              imageUrl={campaign.renderedImages[v.id] || null}
-              loading={renderLoading[v.id] || regenerating[v.id] || false}
-              qualityReport={campaign.qualityReports[v.id]}
-              locale={locale}
-              onSelect={() => {
-                setSelectedVariant(v);
-                setStep('editor');
-              }}
-              onRegenerate={() => handleRegenerate(v)}
-              onRendered={handleRendered}
-              isSelected={campaign.memory.selectedVariantId === v.id}
-            />
+  key={v.id}
+  variant={v}
+  imageUrl={campaign.renderedImages[v.id] || null}
+  loading={renderLoading[v.id] || regenerating[v.id] || false}
+  qualityReport={campaign.qualityReports[v.id]}
+  locale={locale}
+  onSelect={() => {
+    setSelectedVariant(v);
+    setStep('editor');
+  }}
+  onRegenerate={() => handleRegenerate(v)}
+  isSelected={campaign.memory.selectedVariantId === v.id}
+/>
           ))}
         </div>
       </div>
