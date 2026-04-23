@@ -6,7 +6,6 @@ import type {
   Variant,
   VariantLayout,
   VariantAngle,
-  RenderEngine,
   AspectRatio,
   CampaignMemory,
   CampaignIntent,
@@ -44,12 +43,19 @@ const LAYOUT_INTENSITY: Record<VariantLayout, Intensity> = {
 };
 
 /**
- * LAYER 3 — CREATIVE PLANNING v5
+ * CREATIVE PLANNER v6
  *
- * Now inherits decisions from Creative Brain. The planner no longer decides
- * archetype / visual register / lighting — those are fixed by the brain.
- * The planner decides PER-VARIANT angle, copy, composition within those
- * global constraints.
+ * Responsibilities (scoped):
+ *   - Pick the 5 angle+layout pairs (fixed mapping).
+ *   - Write the copy (headline, subheadline, cta, bullets).
+ *   - Write visualDirection per variant (scene, light, motion).
+ *   - Write compositionHint per variant.
+ *   - Pick styleHint + intensity per variant.
+ *
+ * NOT planner's responsibility anymore:
+ *   - Engine selection. All variants render through Flux. The `engine`
+ *     field on Variant is kept in the type for backward compatibility
+ *     and is hardcoded to 'flux' at normalization.
  */
 export async function planCampaign(
   brief: ProductBrief,
@@ -105,7 +111,7 @@ export async function planCampaign(
   }
 
   if (!validateVariants(variants)) {
-    console.warn('[creative-planner] Validation failed, using deterministic fallback');
+    console.warn('[creative-planner] validation failed, using fallback');
     variants = buildFallbackVariants(
       brief,
       heroIdx,
@@ -117,7 +123,7 @@ export async function planCampaign(
     );
   }
 
-  // Post-process: apply direction-aware overrides
+  // Post-process: angle + intensity + styleHint + CTA coherent, engine forced to flux
   variants = variants.map((v) => {
     const angle = LAYOUT_ANGLE_MAP[v.layout] || v.angle;
     const intensity = v.intensity || LAYOUT_INTENSITY[v.layout] || 'medium';
@@ -132,6 +138,7 @@ export async function planCampaign(
       angle,
       intensity,
       styleHint,
+      engine: 'flux', // HARD override — router ignores this anyway
       copy: { ...v.copy, cta: computeCTA(v, brief, angle) },
     };
   });
@@ -162,18 +169,14 @@ function buildPlannerPrompt(ctx: {
 
   const langNote =
     brief.locale === 'es'
-      ? 'ALL copy in NATURAL SPANISH. Use tuteo. Natural phrasing. Correct spelling with n-tilde (campañas, años, diseño).'
-      : 'ALL copy in ENGLISH. Write like Apple 2024 product pages, or Linear marketing. Not HubSpot.';
+      ? 'ALL copy in NATURAL SPANISH. Use tuteo. Correct n-tilde spelling (campañas, años, diseño).'
+      : 'ALL copy in ENGLISH. Apple-2024 product register. Not HubSpot.';
 
   const intentGuide: Record<CampaignIntent, string> = {
-    launch:
-      'LAUNCH campaign: announcement energy. Emphasis on novelty and capability.',
-    conversion:
-      'CONVERSION campaign: clear value + incentive. CTA aggressive with specific offer.',
-    branding:
-      'BRANDING campaign: identity and aspiration. CTA soft or omitted.',
-    retargeting:
-      'RETARGETING campaign: "you saw this" / "come back". CTA return-oriented.',
+    launch: 'LAUNCH: announcement energy. Novelty + capability.',
+    conversion: 'CONVERSION: value + incentive. Aggressive CTA.',
+    branding: 'BRANDING: identity + aspiration. CTA soft or omitted.',
+    retargeting: 'RETARGETING: recognition + friction removal.',
   };
 
   let directionBlock = '';
@@ -181,7 +184,7 @@ function buildPlannerPrompt(ctx: {
     directionBlock = [
       '',
       '═══════════════════════════════════════════',
-      'ART DIRECTION (HARD CONSTRAINTS - HONOR IN EVERY VARIANT)',
+      'ART DIRECTION (HARD CONSTRAINTS)',
       '═══════════════════════════════════════════',
       'Archetype:        ' + direction.archetype,
       'Visual register:  ' + direction.visualRegister,
@@ -193,18 +196,13 @@ function buildPlannerPrompt(ctx: {
       'Palette accent:   ' + direction.paletteDirection.accent,
       'Cultural refs:    ' + direction.culturalReferences.join(' | '),
       '',
-      'DIRECTION STATEMENT:',
-      '  ' + direction.directionStatement,
+      'DIRECTION STATEMENT: ' + direction.directionStatement,
       '',
-      'WHY (rationale to honor, not to repeat in copy):',
-      '  ' + direction.rationale,
-      '',
-      'RULES',
-      '- Every variant must read as coming from the SAME campaign.',
-      '- visualDirection you write for each variant must reference the lighting direction and motion energy above.',
-      '- copyStrategy above governs density: text_free means no headline; visual_dominant means headline <=4 words.',
-      '- Do NOT invent a different archetype per variant. Variants differ by angle, not by aesthetic family.',
-      '- Cultural references are internal discipline — never repeat them inside copy or visualDirection strings.',
+      'RULES:',
+      '- Every variant reads as the SAME campaign.',
+      '- visualDirection of each variant MUST reference the lighting + motion above.',
+      '- copyStrategy governs density (text_free = no headline; visual_dominant = <=4 word headline).',
+      '- Do NOT vary archetype across variants. Variants differ by angle, not by aesthetic family.',
       '',
     ].join('\n');
   }
@@ -217,20 +215,23 @@ function buildPlannerPrompt(ctx: {
     const selected = memory.previousVariants.find(
       (v) => v.id === memory.selectedVariantId,
     );
-
     const lines = [
       '',
-      'PREVIOUS ITERATION (count ' + (memory.regenerationCount + 1) + '):',
+      'PREVIOUS ITERATION (#' + (memory.regenerationCount + 1) + '):',
     ];
     if (rejected.length > 0) {
-      lines.push('User REJECTED (do not repeat angle nor copy):');
+      lines.push('REJECTED (do not repeat angle or copy):');
       rejected.forEach((v) =>
         lines.push('- ' + v.layout + ': "' + v.copy.headline + '" (' + v.angle + ')'),
       );
     }
     if (selected) {
       lines.push(
-        'User LIKED: "' + selected.copy.headline + '" (' + selected.layout + '). Keep similar energy, new phrasing.',
+        'LIKED: "' +
+          selected.copy.headline +
+          '" (' +
+          selected.layout +
+          '). Keep energy, new phrasing.',
       );
     }
     memoryContext = lines.join('\n');
@@ -245,7 +246,7 @@ function buildPlannerPrompt(ctx: {
     'BRIEF:',
     JSON.stringify(brief, null, 2),
     '',
-    'AVAILABLE ASSETS (1-based index):',
+    'ASSETS (1-based index):',
     '- Logo: ' + (logoIdx || 'none'),
     '- Hero: ' + (heroIdx || 'none'),
     '- Features: ' + JSON.stringify(featureIdxs),
@@ -257,38 +258,40 @@ function buildPlannerPrompt(ctx: {
     directionBlock,
     memoryContext,
     '',
-    'GENERATE EXACTLY 5 VARIANTS. Each has a FIXED angle + layout.',
+    'IMPORTANT RENDER CONTRACT:',
+    '- Every variant will be rendered as a full AI-generated photographic image (Flux).',
+    '- The image must NOT contain any text. Copy is overlaid later by the editor.',
+    '- Therefore visualDirection must describe the SCENE (light, depth, composition,',
+    '  subject placement, atmosphere). It must NOT contain phrases like "headline here"',
+    '  or "text at top". Reserve space via composition, do not describe the text itself.',
+    '',
+    'GENERATE EXACTLY 5 VARIANTS. Fixed angle + layout mapping:',
     '',
     'VARIANT 1 — story_ad (angle: pain)',
-    '  Lead with a real tension or problem the user feels.',
-    '  Headline sharp and direct. NO soft philosophy.',
-    '  Example EN: "Stop guessing content", "Your ads are invisible"',
-    '  Example ES: "Deja de improvisar", "Tus anuncios no convierten"',
+    '  Scene: moody cinematic tension. Subject off-center, negative space where the headline will land.',
+    '  Copy: sharp, direct. Example EN: "Stop guessing" / ES: "Deja de improvisar".',
     '  intensity: aggressive.',
     '',
     'VARIANT 2 — hero_app (angle: result)',
-    '  Lead with the tangible outcome. Specific, concrete.',
-    '  Show the product doing its job (iPhone mockup if heroStrategy allows).',
-    '  Example EN: "Five ads. One upload." / Example ES: "Cinco anuncios. Una subida."',
+    '  Scene: product hero on refined backdrop. Reserve lower third for copy.',
+    '  Copy: tangible outcome. Example EN: "Five ads. One upload." / ES: "Cinco anuncios. Una subida."',
     '  intensity: medium.',
     '',
     'VARIANT 3 — ui_focus (angle: authority)',
-    '  Let the product speak. Minimal copy, strong UI presence.',
-    '  Example EN: "Built for operators" / Example ES: "Hecho para operadores"',
-    '  copy density: MINIMAL. intensity: soft.',
+    '  Scene: clean backdrop highlighting product presence. Minimal copy space.',
+    '  Copy: minimal credibility statement. EN: "Built for operators" / ES: "Hecho para operadores".',
+    '  intensity: soft.',
     '',
     'VARIANT 4 — minimal_branding (angle: curiosity)',
-    '  Open a loop. Create tension without giving the full answer.',
-    '  Must feel intentional, not empty. One short sentence + small logo.',
-    '  Example EN: "Most brands get this wrong." / Example ES: "La mayoria lo hace mal."',
-    '  copy density: MINIMAL. intensity: soft. MUST feel tense, not blank.',
+    '  Scene: dark luxury backdrop with single directional light. Tension through chiaroscuro.',
+    '  Copy: one sharp line opening a loop. EN: "Most brands get this wrong." / ES: "La mayoria lo hace mal."',
+    '  intensity: soft. MUST feel tense, not empty.',
     '',
     'VARIANT 5 — feature_grid (angle: aggressive)',
-    '  Lead with breadth + punch. 3 clear features as proof.',
-    '  Grid stays clean; copy headline is punchy but not noisy.',
-    '  Example EN: "Everything a brand needs. In one place."',
-    '  Example ES: "Todo lo que necesita tu marca. En un solo sitio."',
-    '  intensity: aggressive. BULLETS: exactly 3. Parallel structure.',
+    '  Scene: clean upper area for headline, horizontal zone mid-frame for 3 feature areas, bottom for CTA.',
+    '  Copy: breadth + punch. Exactly 3 bullets, parallel structure.',
+    '  EN: "Everything a brand needs." / ES: "Todo lo que necesita tu marca."',
+    '  intensity: aggressive.',
     '',
     'FOR EACH VARIANT return:',
     '{',
@@ -296,16 +299,15 @@ function buildPlannerPrompt(ctx: {
     '  "layout": "hero_app" | "feature_grid" | "story_ad" | "minimal_branding" | "ui_focus",',
     '  "angle": "pain" | "result" | "authority" | "curiosity" | "aggressive",',
     '  "intent": "1 sentence why this variant exists",',
-    '  "engine": "canvas" | "flux" | "hybrid",',
     '  "intensity": "soft" | "medium" | "aggressive",',
     '  "styleHint": "luxury" | "minimal" | "startup" | "aggressive" | "cinematic",',
-    '  "visualDirection": "2-3 sentences. MUST echo the lighting + motion energy from the ART DIRECTION block.",',
-    '  "compositionHint": "1 sentence: where hero goes, where text goes, negative space",',
+    '  "visualDirection": "2-3 sentences describing ONLY the scene: light, depth, subject, mood. NO references to text or copy placement by name.",',
+    '  "compositionHint": "1 sentence: where subject goes, where negative space reserves for copy",',
     '  "copy": {',
     '    "headline": "max 6 words, specific, punchy",',
     '    "subheadline": "max 12 words, concrete benefit or empty",',
     '    "cta": "2-4 words or empty",',
-    '    "bullets": ["item","item","item"] (only for feature_grid)',
+    '    "bullets": ["x","y","z"] (only for feature_grid)',
     '  },',
     '  "composition": {',
     '    "heroAssetIndex": number or null,',
@@ -315,33 +317,24 @@ function buildPlannerPrompt(ctx: {
     '    "mockupType": "iphone" (hero_app only) | "none"',
     '  },',
     '  "mood": "2-3 words",',
-    '  "palette": ["#hex", ...] (3-5 from direction.palette + brief.palette),',
+    '  "palette": ["#hex", ...] (3-5 from brief + direction),',
     '  "confidence": 0-100,',
-    '  "reasoningSummary": "15 words explaining strategic choice for THIS angle + how it honors the direction"',
+    '  "reasoningSummary": "15 words: why this angle, how it honors the direction"',
     '}',
     '',
-    'ENGINE RULES:',
-    '- hero_app, feature_grid, ui_focus -> canvas (real screenshots matter)',
-    '- story_ad -> hybrid (generated background + real logo/text overlay)',
-    '- minimal_branding -> canvas if logo strong, else flux',
-    '',
     'HARD RULES:',
-    '- No two headlines can be similar',
-    '- No two logoPositions can be the same',
-    '- Only hero_app may use mockupType "iphone"',
+    '- No two headlines similar.',
+    '- No two logoPositions identical.',
+    '- Only hero_app may use mockupType "iphone".',
     '- Bullets ONLY in feature_grid. Exactly 3.',
-    '- Each headline must serve its assigned angle',
-    direction
-      ? '- If copyStrategy is text_free, ALL variants must have empty headline and empty subheadline except feature_grid (which needs 3 bullets).'
+    direction && direction.copyStrategy === 'text_free'
+      ? '- copyStrategy is text_free: all headlines, subheadlines, ctas MUST be empty except feature_grid bullets.'
       : '',
-    direction
-      ? '- If heroStrategy is brand_only, NO variant may use mockupType "iphone" and heroAssetIndex must be null.'
-      : '',
-    direction
-      ? '- If heroStrategy is product_implied, heroAssetIndex should be undefined in most variants; rely on supportAssetIndices.'
+    direction && direction.heroStrategy === 'brand_only'
+      ? '- heroStrategy is brand_only: NO variant may use mockupType "iphone", heroAssetIndex must be null.'
       : '',
     '',
-    'FORBIDDEN copy phrases (reject any that use these):',
+    'FORBIDDEN copy phrases:',
     'Revolutionize, Transform your, Unleash, Empower, Next-gen, Game-changing, Cutting-edge, Seamless, Leverage, Synergy, Paradigm, Best-in-class, Supercharge, Elevate your, Take your X to the next level, Revolucionar, Transformar tu, Potenciar, Lleva tu X al siguiente nivel, Impulsa.',
     '',
     'Respond ONLY with JSON: { "variants": [5 items] }',
@@ -354,10 +347,7 @@ function applyDirectionToStyleHint(
   intensity: Intensity,
   direction?: CampaignDirection,
 ): VisualStyle {
-  if (!direction) {
-    return current || pickDefaultStyleForLayout(layout, intensity);
-  }
-  // Map visualRegister to styleHint when current is weaker than direction
+  if (!direction) return current || pickDefaultStyleForLayout(layout, intensity);
   const registerToStyle: Record<string, VisualStyle> = {
     cinematic: 'cinematic',
     editorial: 'luxury',
@@ -366,9 +356,7 @@ function applyDirectionToStyleHint(
     minimal: 'minimal',
   };
   const suggested = registerToStyle[direction.visualRegister] || 'startup';
-  // Keep per-variant hint if explicitly set and coherent, else adopt direction
   if (!current) return suggested;
-  // Coherent pairings
   if (direction.archetype === 'luxury' && current === 'aggressive') return 'luxury';
   if (direction.archetype === 'performance' && current === 'minimal') return suggested;
   return current;
@@ -382,7 +370,7 @@ function normalizeVariant(raw: any, aspectRatio: AspectRatio): Variant {
     layout,
     angle,
     intent: raw.intent || '',
-    engine: (raw.engine || 'canvas') as RenderEngine,
+    engine: 'flux',
     copy: {
       headline: raw.copy?.headline || '',
       subheadline: raw.copy?.subheadline || '',
@@ -441,12 +429,10 @@ function computeCTA(
   angle: VariantAngle,
 ): string {
   const isEs = brief.locale === 'es';
-
   if (variant.layout === 'ui_focus') return '';
   if (variant.layout === 'minimal_branding' && brief.campaignIntent === 'branding') {
     return '';
   }
-
   if (variant.layout === 'story_ad') {
     const ctas: Record<CampaignIntent, { en: string; es: string }> = {
       launch: { en: 'Discover it', es: 'Descubrelo' },
@@ -459,7 +445,6 @@ function computeCTA(
     };
     return ctas[brief.campaignIntent][isEs ? 'es' : 'en'];
   }
-
   return variant.copy.cta || brief.suggestedCTA;
 }
 
@@ -484,11 +469,11 @@ function buildFallbackVariants(
         ...direction.paletteDirection.support,
       ]
     : brief.palette;
-
-  const lighting = direction?.lightingDirection || 'dark_premium';
-  const motion = direction?.motionEnergy || 'static';
-  const lightingPhrase = lighting.replace('_', ' ');
-  const motionPhrase = motion;
+  const lightingPhrase = (direction?.lightingDirection || 'dark_premium').replace(
+    '_',
+    ' ',
+  );
+  const motionPhrase = direction?.motionEnergy || 'static';
 
   return [
     {
@@ -496,14 +481,15 @@ function buildFallbackVariants(
       layout: 'story_ad',
       angle: 'pain',
       intent: 'Lead with the pain point',
-      engine: 'hybrid',
+      engine: 'flux',
       intensity: 'aggressive',
       styleHint: 'cinematic',
       visualDirection:
-        'Moody cinematic scene. ' + lightingPhrase + ' lighting. ' + motionPhrase +
-        ' energy. Atmospheric haze. Subject center-left, negative space right.',
+        'Moody cinematic scene. ' +
+        lightingPhrase +
+        '. Subject off-center, atmospheric haze, negative space on the right third for text overlay.',
       compositionHint:
-        'Big headline center, logo top-center, aggressive CTA bottom',
+        'Subject center-left, right third reserved clean for headline',
       copy: {
         headline: isEs ? 'Deja de improvisar' : 'Stop guessing',
         subheadline: brief.valueProposition,
@@ -518,7 +504,7 @@ function buildFallbackVariants(
       mood: 'tense urgent',
       palette,
       confidence: 70,
-      reasoningSummary: 'Pain-first angle to stop the scroll',
+      reasoningSummary: 'Pain-first angle, scene reserves copy zone',
       aspectRatio,
     },
     {
@@ -526,14 +512,16 @@ function buildFallbackVariants(
       layout: 'hero_app',
       angle: 'result',
       intent: 'Show tangible outcome',
-      engine: 'canvas',
+      engine: 'flux',
       intensity: 'medium',
       styleHint: 'startup',
       visualDirection:
-        'Product hero with ' + lightingPhrase + '. ' + motionPhrase +
-        ' staging. iPhone mockup center, glow outline.',
-      compositionHint:
-        'iPhone center, headline below, small logo top-right',
+        'Refined product backdrop. ' +
+        lightingPhrase +
+        '. ' +
+        motionPhrase +
+        ' framing. Subject upper two thirds, lower third clean for copy.',
+      compositionHint: 'Subject upper two thirds, lower third negative space',
       copy: {
         headline: isEs ? 'Cinco anuncios. Una subida.' : 'Five ads. One upload.',
         subheadline: brief.oneLiner,
@@ -548,7 +536,7 @@ function buildFallbackVariants(
       mood: 'premium confident',
       palette,
       confidence: 72,
-      reasoningSummary: 'Result-first with product hero and outcome copy',
+      reasoningSummary: 'Outcome-first, copy zone reserved lower',
       aspectRatio,
     },
     {
@@ -556,13 +544,14 @@ function buildFallbackVariants(
       layout: 'ui_focus',
       angle: 'authority',
       intent: 'Let the product prove itself',
-      engine: 'canvas',
+      engine: 'flux',
       intensity: 'soft',
       styleHint: 'minimal',
       visualDirection:
-        'UI takes 70 percent of frame. ' + lightingPhrase +
-        '. Clean backdrop in brand color. ' + motionPhrase + ' stillness.',
-      compositionHint: 'UI center, micro-headline bottom, small logo top-left',
+        'Clean flat backdrop in brand tone. ' +
+        lightingPhrase +
+        '. Single focal subject center, generous breathing room all sides.',
+      compositionHint: 'Subject center, all sides negative',
       copy: {
         headline: isEs ? 'Hecho para operadores' : 'Built for operators',
         subheadline: '',
@@ -577,7 +566,7 @@ function buildFallbackVariants(
       mood: 'quiet authority',
       palette,
       confidence: 68,
-      reasoningSummary: 'Authority angle: product visible, copy restrained',
+      reasoningSummary: 'Authority via restraint, copy minimal',
       aspectRatio,
     },
     {
@@ -585,14 +574,14 @@ function buildFallbackVariants(
       layout: 'minimal_branding',
       angle: 'curiosity',
       intent: 'Open a loop',
-      engine: 'canvas',
+      engine: 'flux',
       intensity: 'soft',
       styleHint: 'luxury',
       visualDirection:
-        lightingPhrase + ' backdrop with single light source top-left. ' +
-        'One-line headline center. Subtle vignette. ' + motionPhrase + ' register.',
+        lightingPhrase +
+        ' backdrop with single directional light source upper-left. Subtle chiaroscuro. Dark premium vignette. Composition biased to center for a one-line headline overlay.',
       compositionHint:
-        'Headline center, small logo bottom-center, visible tension in lighting',
+        'Vignette center-biased, lighting creates tension in empty frame',
       copy: {
         headline: isEs ? 'La mayoria lo hace mal.' : 'Most brands get this wrong.',
         subheadline: '',
@@ -607,7 +596,7 @@ function buildFallbackVariants(
       mood: 'curious restrained',
       palette,
       confidence: 65,
-      reasoningSummary: 'Curiosity with visual tension, never empty',
+      reasoningSummary: 'Tension via lighting, frame ready for one line',
       aspectRatio,
     },
     {
@@ -615,14 +604,15 @@ function buildFallbackVariants(
       layout: 'feature_grid',
       angle: 'aggressive',
       intent: 'Breadth with clarity',
-      engine: 'canvas',
+      engine: 'flux',
       intensity: 'aggressive',
       styleHint: 'aggressive',
       visualDirection:
-        'Clean grid. ' + lightingPhrase + ' with brand accent. ' + motionPhrase +
-        ' composition. Three features equal weight.',
+        'Clean horizontal composition, ' +
+        lightingPhrase +
+        '. Upper third clean for headline, mid band visually rhythmic for three feature zones, bottom reserved for CTA.',
       compositionHint:
-        'Headline top, 3-column grid mid, small logo top-right, CTA bottom',
+        'Three horizontal bands: headline top, features mid, CTA bottom',
       copy: {
         headline: isEs
           ? 'Todo lo que necesita tu marca.'
@@ -647,7 +637,7 @@ function buildFallbackVariants(
       mood: 'bold clear',
       palette,
       confidence: 70,
-      reasoningSummary: 'Aggressive breadth: 3 proofs without visual noise',
+      reasoningSummary: 'Three bands reserve clean zones for headline + features + CTA',
       aspectRatio,
     },
   ];
