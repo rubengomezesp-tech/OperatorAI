@@ -32,13 +32,23 @@ const MODEL_MAP = {
 
 const MAX_RETRIES = 3;
 
-export async function generateWithFlux(
-  input: GenerateInput,
-): Promise<GenerateOutput> {
-  if (!serverEnv.REPLICATE_API_TOKEN) {
-    throw new Error('REPLICATE_API_TOKEN not set');
-  }
+export async function enhancePrompt(
+  prompt: string,
+  preset?: string,
+): Promise<string> {
+  if (!preset) return prompt;
 
+  const normalized = String(preset).toLowerCase();
+
+  const suffixMap: Record<string, string> = {
+    editorial: ' editorial photography, cinematic lighting, magazine style',
+    startup: ' modern product shot, clean lighting, startup aesthetic',
+    luxury: ' luxury photography, premium lighting, high-end composition',
+  };
+
+  const suffix = suffixMap[normalized];
+  return suffix ? prompt + suffix : prompt;
+}
   const client = new Replicate({
     auth: serverEnv.REPLICATE_API_TOKEN,
     useFileOutput: false,
