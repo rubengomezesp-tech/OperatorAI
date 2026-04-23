@@ -38,21 +38,27 @@ export async function renderFlux(
 
   // Reference grounding: logo + up to 3 support assets.
   // Hero/product screenshots are never sent — Flux must not regenerate UI.
-  const refUrls: string[] = [];
-  if (variant.composition.logoIndex) {
-    const u = imageUrls[variant.composition.logoIndex - 1];
-    if (u) refUrls.push(u);
+  const rawRefUrls: unknown[] = [];
+
+if (variant.composition.logoIndex) {
+  rawRefUrls.push(imageUrls[variant.composition.logoIndex - 1]);
+}
+
+for (const idx of variant.composition.supportAssetIndices || []) {
+  if (rawRefUrls.length < 4) {
+    rawRefUrls.push(imageUrls[idx - 1]);
   }
-  for (const idx of variant.composition.supportAssetIndices || []) {
-    const u = imageUrls[idx - 1];
-    if (u && refUrls.length < 4) refUrls.push(u);
-  }
+}
+
+const refUrls = rawRefUrls.filter(
+  (u): u is string => typeof u === 'string' && u.trim().length > 0
+);
 
   const result = await generateWithFlux({
     prompt,
     aspectRatio: variant.aspectRatio,
     model: 'flux-2-pro',
-    referenceImageUrls: refUrls.length > 0 ? refUrls : undefined,
+    referenceImageUrls: undefined,
     negativePrompt,
   });
 
