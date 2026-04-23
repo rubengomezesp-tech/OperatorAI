@@ -12,13 +12,13 @@ import type {
   CampaignIntent,
   Intensity,
   VisualStyle,
+  CampaignDirection,
 } from '../types';
 import { hasQualityInputs } from './hero-scoring';
 import { pickDefaultStyleForLayout } from '../data/visual-styles';
 
 const PLANNER_MODEL = 'claude-sonnet-4-5-20250929';
 
-// Mapping: layout -> mandatory angle
 const LAYOUT_ANGLE_MAP: Record<VariantLayout, VariantAngle> = {
   story_ad: 'pain',
   hero_app: 'result',
@@ -35,7 +35,6 @@ const REQUIRED_LAYOUTS: VariantLayout[] = [
   'ui_focus',
 ];
 
-// Default intensity per layout (fallback)
 const LAYOUT_INTENSITY: Record<VariantLayout, Intensity> = {
   hero_app: 'medium',
   feature_grid: 'aggressive',
@@ -45,17 +44,19 @@ const LAYOUT_INTENSITY: Record<VariantLayout, Intensity> = {
 };
 
 /**
- * LAYER 3 — CREATIVE PLANNING v4A
- * - 5 fixed angles (pain / result / authority / curiosity / aggressive)
- * - Each variant gets visualDirection, compositionHint, intensity, styleHint
- * - Memory-aware regeneration
- * - Strict copy rules (Apple-grade, no HubSpot slop)
+ * LAYER 3 — CREATIVE PLANNING v5
+ *
+ * Now inherits decisions from Creative Brain. The planner no longer decides
+ * archetype / visual register / lighting — those are fixed by the brain.
+ * The planner decides PER-VARIANT angle, copy, composition within those
+ * global constraints.
  */
 export async function planCampaign(
   brief: ProductBrief,
   analyses: ImageAnalysis[],
   aspectRatio: AspectRatio,
   memory?: CampaignMemory,
+  direction?: CampaignDirection,
 ): Promise<Variant[]> {
   const Anthropic = (await import('@anthropic-ai/sdk')).default;
   const claude = new Anthropic({ apiKey: serverEnv.ANTHROPIC_API_KEY });
@@ -79,6 +80,7 @@ export async function planCampaign(
     supportIdxs,
     quality,
     memory,
+    direction,
   });
 
   let variants: Variant[] = [];
@@ -111,14 +113,20 @@ export async function planCampaign(
       featureIdxs,
       supportIdxs,
       aspectRatio,
+      direction,
     );
   }
 
-  // Post-process: ensure angle + intensity + styleHint + CTA are coherent
+  // Post-process: apply direction-aware overrides
   variants = variants.map((v) => {
     const angle = LAYOUT_ANGLE_MAP[v.layout] || v.angle;
     const intensity = v.intensity || LAYOUT_INTENSITY[v.layout] || 'medium';
-    const styleHint = v.styleHint || pickDefaultStyleForLayout(v.layout, intensity);
+    const styleHint = applyDirectionToStyleHint(
+      v.styleHint,
+      v.layout,
+      intensity,
+      direction,
+    );
     return {
       ...v,
       angle,
@@ -139,12 +147,22 @@ function buildPlannerPrompt(ctx: {
   supportIdxs: number[];
   quality: ReturnType<typeof hasQualityInputs>;
   memory?: CampaignMemory;
+  direction?: CampaignDirection;
 }): string {
-  const { brief, logoIdx, heroIdx, featureIdxs, supportIdxs, quality, memory } = ctx;
+  const {
+    brief,
+    logoIdx,
+    heroIdx,
+    featureIdxs,
+    supportIdxs,
+    quality,
+    memory,
+    direction,
+  } = ctx;
 
   const langNote =
     brief.locale === 'es'
-      ? 'ALL copy in NATURAL SPANISH. Use tuteo. Natural phrasing. Use correct Spanish spelling with n-tilde (campanas -> should render as campanas with proper n-tilde; e.g. write it correctly as campañas, años, diseño).'
+      ? 'ALL copy in NATURAL SPANISH. Use tuteo. Natural phrasing. Correct spelling with n-tilde (campañas, años, diseño).'
       : 'ALL copy in ENGLISH. Write like Apple 2024 product pages, or Linear marketing. Not HubSpot.';
 
   const intentGuide: Record<CampaignIntent, string> = {
@@ -157,6 +175,39 @@ function buildPlannerPrompt(ctx: {
     retargeting:
       'RETARGETING campaign: "you saw this" / "come back". CTA return-oriented.',
   };
+
+  let directionBlock = '';
+  if (direction) {
+    directionBlock = [
+      '',
+      '═══════════════════════════════════════════',
+      'ART DIRECTION (HARD CONSTRAINTS - HONOR IN EVERY VARIANT)',
+      '═══════════════════════════════════════════',
+      'Archetype:        ' + direction.archetype,
+      'Visual register:  ' + direction.visualRegister,
+      'Hero strategy:    ' + direction.heroStrategy,
+      'Copy strategy:    ' + direction.copyStrategy,
+      'Lighting:         ' + direction.lightingDirection,
+      'Motion energy:    ' + direction.motionEnergy,
+      'Palette dominant: ' + direction.paletteDirection.dominant,
+      'Palette accent:   ' + direction.paletteDirection.accent,
+      'Cultural refs:    ' + direction.culturalReferences.join(' | '),
+      '',
+      'DIRECTION STATEMENT:',
+      '  ' + direction.directionStatement,
+      '',
+      'WHY (rationale to honor, not to repeat in copy):',
+      '  ' + direction.rationale,
+      '',
+      'RULES',
+      '- Every variant must read as coming from the SAME campaign.',
+      '- visualDirection you write for each variant must reference the lighting direction and motion energy above.',
+      '- copyStrategy above governs density: text_free means no headline; visual_dominant means headline <=4 words.',
+      '- Do NOT invent a different archetype per variant. Variants differ by angle, not by aesthetic family.',
+      '- Cultural references are internal discipline — never repeat them inside copy or visualDirection strings.',
+      '',
+    ].join('\n');
+  }
 
   let memoryContext = '';
   if (memory && memory.previousVariants.length > 0) {
@@ -186,7 +237,7 @@ function buildPlannerPrompt(ctx: {
   }
 
   return [
-    'You are a creative director at a premium agency. Output must feel like real high-end ads, not AI slop.',
+    'You are a senior creative director. Output must feel like real high-end ads, not AI slop.',
     '',
     langNote,
     intentGuide[brief.campaignIntent],
@@ -203,6 +254,7 @@ function buildPlannerPrompt(ctx: {
     'Quality:',
     '- Has logo: ' + quality.hasLogo,
     '- Hero score: ' + quality.heroScore,
+    directionBlock,
     memoryContext,
     '',
     'GENERATE EXACTLY 5 VARIANTS. Each has a FIXED angle + layout.',
@@ -210,31 +262,25 @@ function buildPlannerPrompt(ctx: {
     'VARIANT 1 — story_ad (angle: pain)',
     '  Lead with a real tension or problem the user feels.',
     '  Headline sharp and direct. NO soft philosophy.',
-    '  Example headlines EN: "Stop guessing content", "Your ads are invisible", "Tired of blank pages?"',
-    '  Example headlines ES: "Deja de improvisar", "Tus anuncios no convierten", "Cansado de empezar de cero"',
-    '  copy density: LOW but LOUD. Big headline. Strong CTA.',
+    '  Example EN: "Stop guessing content", "Your ads are invisible"',
+    '  Example ES: "Deja de improvisar", "Tus anuncios no convierten"',
     '  intensity: aggressive.',
     '',
     'VARIANT 2 — hero_app (angle: result)',
     '  Lead with the tangible outcome. Specific, concrete.',
-    '  Show the product doing its job (iPhone mockup).',
-    '  Example EN: "From idea to ad in 60 seconds", "Five ads. One upload."',
-    '  Example ES: "De idea a anuncio en 60 segundos", "Cinco anuncios. Una subida."',
-    '  copy density: LOW (headline + subheadline + CTA).',
+    '  Show the product doing its job (iPhone mockup if heroStrategy allows).',
+    '  Example EN: "Five ads. One upload." / Example ES: "Cinco anuncios. Una subida."',
     '  intensity: medium.',
     '',
     'VARIANT 3 — ui_focus (angle: authority)',
     '  Let the product speak. Minimal copy, strong UI presence.',
-    '  Headline optional; if present, it positions credibility.',
-    '  Example EN: "Built for operators", "The brand system behind serious teams"',
-    '  Example ES: "Hecho para operadores", "El sistema detras de equipos serios"',
+    '  Example EN: "Built for operators" / Example ES: "Hecho para operadores"',
     '  copy density: MINIMAL. intensity: soft.',
     '',
     'VARIANT 4 — minimal_branding (angle: curiosity)',
     '  Open a loop. Create tension without giving the full answer.',
-    '  Must feel intentional, not empty. Use one short sentence + small logo.',
-    '  Example EN: "Most brands get this wrong.", "What if ads built themselves?"',
-    '  Example ES: "La mayoria lo hace mal.", "Y si los anuncios se hicieran solos?"',
+    '  Must feel intentional, not empty. One short sentence + small logo.',
+    '  Example EN: "Most brands get this wrong." / Example ES: "La mayoria lo hace mal."',
     '  copy density: MINIMAL. intensity: soft. MUST feel tense, not blank.',
     '',
     'VARIANT 5 — feature_grid (angle: aggressive)',
@@ -242,8 +288,7 @@ function buildPlannerPrompt(ctx: {
     '  Grid stays clean; copy headline is punchy but not noisy.',
     '  Example EN: "Everything a brand needs. In one place."',
     '  Example ES: "Todo lo que necesita tu marca. En un solo sitio."',
-    '  copy density: MEDIUM (headline + 3 bullets + CTA). intensity: aggressive.',
-    '  BULLETS: exactly 3. Short (2-4 words each). Parallel structure.',
+    '  intensity: aggressive. BULLETS: exactly 3. Parallel structure.',
     '',
     'FOR EACH VARIANT return:',
     '{',
@@ -254,8 +299,8 @@ function buildPlannerPrompt(ctx: {
     '  "engine": "canvas" | "flux" | "hybrid",',
     '  "intensity": "soft" | "medium" | "aggressive",',
     '  "styleHint": "luxury" | "minimal" | "startup" | "aggressive" | "cinematic",',
-    '  "visualDirection": "2-3 sentences describing scene, light, depth, mood. Specific and cinematic.",',
-    '  "compositionHint": "1 sentence describing layout: where hero goes, where text goes, negative space",',
+    '  "visualDirection": "2-3 sentences. MUST echo the lighting + motion energy from the ART DIRECTION block.",',
+    '  "compositionHint": "1 sentence: where hero goes, where text goes, negative space",',
     '  "copy": {',
     '    "headline": "max 6 words, specific, punchy",',
     '    "subheadline": "max 12 words, concrete benefit or empty",',
@@ -270,9 +315,9 @@ function buildPlannerPrompt(ctx: {
     '    "mockupType": "iphone" (hero_app only) | "none"',
     '  },',
     '  "mood": "2-3 words",',
-    '  "palette": ["#hex", ...] (3-5 from brief.palette),',
+    '  "palette": ["#hex", ...] (3-5 from direction.palette + brief.palette),',
     '  "confidence": 0-100,',
-    '  "reasoningSummary": "15 words explaining strategic choice for THIS angle and product"',
+    '  "reasoningSummary": "15 words explaining strategic choice for THIS angle + how it honors the direction"',
     '}',
     '',
     'ENGINE RULES:',
@@ -286,12 +331,47 @@ function buildPlannerPrompt(ctx: {
     '- Only hero_app may use mockupType "iphone"',
     '- Bullets ONLY in feature_grid. Exactly 3.',
     '- Each headline must serve its assigned angle',
+    direction
+      ? '- If copyStrategy is text_free, ALL variants must have empty headline and empty subheadline except feature_grid (which needs 3 bullets).'
+      : '',
+    direction
+      ? '- If heroStrategy is brand_only, NO variant may use mockupType "iphone" and heroAssetIndex must be null.'
+      : '',
+    direction
+      ? '- If heroStrategy is product_implied, heroAssetIndex should be undefined in most variants; rely on supportAssetIndices.'
+      : '',
     '',
     'FORBIDDEN copy phrases (reject any that use these):',
     'Revolutionize, Transform your, Unleash, Empower, Next-gen, Game-changing, Cutting-edge, Seamless, Leverage, Synergy, Paradigm, Best-in-class, Supercharge, Elevate your, Take your X to the next level, Revolucionar, Transformar tu, Potenciar, Lleva tu X al siguiente nivel, Impulsa.',
     '',
     'Respond ONLY with JSON: { "variants": [5 items] }',
   ].join('\n');
+}
+
+function applyDirectionToStyleHint(
+  current: VisualStyle | undefined,
+  layout: VariantLayout,
+  intensity: Intensity,
+  direction?: CampaignDirection,
+): VisualStyle {
+  if (!direction) {
+    return current || pickDefaultStyleForLayout(layout, intensity);
+  }
+  // Map visualRegister to styleHint when current is weaker than direction
+  const registerToStyle: Record<string, VisualStyle> = {
+    cinematic: 'cinematic',
+    editorial: 'luxury',
+    startup: 'startup',
+    aggressive: 'aggressive',
+    minimal: 'minimal',
+  };
+  const suggested = registerToStyle[direction.visualRegister] || 'startup';
+  // Keep per-variant hint if explicitly set and coherent, else adopt direction
+  if (!current) return suggested;
+  // Coherent pairings
+  if (direction.archetype === 'luxury' && current === 'aggressive') return 'luxury';
+  if (direction.archetype === 'performance' && current === 'minimal') return suggested;
+  return current;
 }
 
 function normalizeVariant(raw: any, aspectRatio: AspectRatio): Variant {
@@ -328,7 +408,6 @@ function normalizeVariant(raw: any, aspectRatio: AspectRatio): Variant {
     reasoningSummary: raw.reasoningSummary || '',
     aspectRatio,
     renderPrompt: raw.renderPrompt,
-    // NEW in 4A
     visualDirection: raw.visualDirection || '',
     compositionHint: raw.compositionHint || '',
     intensity: (raw.intensity || 'medium') as Intensity,
@@ -344,16 +423,15 @@ function validateVariants(variants: Variant[]): boolean {
   const headlines = variants
     .map((v) => v.copy.headline.toLowerCase().trim())
     .filter(Boolean);
-  if (new Set(headlines).size !== headlines.length) return false;
-
+  if (headlines.length > 0 && new Set(headlines).size !== headlines.length) {
+    return false;
+  }
   const iphoneCount = variants.filter(
     (v) => v.composition.mockupType === 'iphone',
   ).length;
   if (iphoneCount > 1) return false;
-
   const positions = variants.map((v) => v.composition.logoPosition);
   if (new Set(positions).size < 3) return false;
-
   return true;
 }
 
@@ -392,13 +470,25 @@ function buildFallbackVariants(
   featureIdxs: number[],
   supportIdxs: number[],
   aspectRatio: AspectRatio,
+  direction?: CampaignDirection,
 ): Variant[] {
   const isEs = brief.locale === 'es';
   const baseComp = {
     supportAssetIndices: supportIdxs.slice(0, 3),
     logoIndex: logoIdx,
   };
-  const palette = brief.palette;
+  const palette = direction
+    ? [
+        direction.paletteDirection.dominant,
+        direction.paletteDirection.accent,
+        ...direction.paletteDirection.support,
+      ]
+    : brief.palette;
+
+  const lighting = direction?.lightingDirection || 'dark_premium';
+  const motion = direction?.motionEnergy || 'static';
+  const lightingPhrase = lighting.replace('_', ' ');
+  const motionPhrase = motion;
 
   return [
     {
@@ -410,7 +500,8 @@ function buildFallbackVariants(
       intensity: 'aggressive',
       styleHint: 'cinematic',
       visualDirection:
-        'Moody cinematic scene with single rim light. Atmospheric haze. Subject center-left, negative space right.',
+        'Moody cinematic scene. ' + lightingPhrase + ' lighting. ' + motionPhrase +
+        ' energy. Atmospheric haze. Subject center-left, negative space right.',
       compositionHint:
         'Big headline center, logo top-center, aggressive CTA bottom',
       copy: {
@@ -427,7 +518,7 @@ function buildFallbackVariants(
       mood: 'tense urgent',
       palette,
       confidence: 70,
-      reasoningSummary: 'Pain-first angle to stop the scroll in feed',
+      reasoningSummary: 'Pain-first angle to stop the scroll',
       aspectRatio,
     },
     {
@@ -439,7 +530,8 @@ function buildFallbackVariants(
       intensity: 'medium',
       styleHint: 'startup',
       visualDirection:
-        'Product hero with soft rim light. Dark premium backdrop. iPhone mockup center, glow outline.',
+        'Product hero with ' + lightingPhrase + '. ' + motionPhrase +
+        ' staging. iPhone mockup center, glow outline.',
       compositionHint:
         'iPhone center, headline below, small logo top-right',
       copy: {
@@ -456,7 +548,7 @@ function buildFallbackVariants(
       mood: 'premium confident',
       palette,
       confidence: 72,
-      reasoningSummary: 'Result-first with product hero and clear outcome copy',
+      reasoningSummary: 'Result-first with product hero and outcome copy',
       aspectRatio,
     },
     {
@@ -468,7 +560,8 @@ function buildFallbackVariants(
       intensity: 'soft',
       styleHint: 'minimal',
       visualDirection:
-        'UI takes 70 percent of frame. Minimal decoration. Clean flat background in brand color.',
+        'UI takes 70 percent of frame. ' + lightingPhrase +
+        '. Clean backdrop in brand color. ' + motionPhrase + ' stillness.',
       compositionHint: 'UI center, micro-headline bottom, small logo top-left',
       copy: {
         headline: isEs ? 'Hecho para operadores' : 'Built for operators',
@@ -496,7 +589,8 @@ function buildFallbackVariants(
       intensity: 'soft',
       styleHint: 'luxury',
       visualDirection:
-        'Dark luxury backdrop with single soft light source top-left. One-line headline center. Subtle vignette.',
+        lightingPhrase + ' backdrop with single light source top-left. ' +
+        'One-line headline center. Subtle vignette. ' + motionPhrase + ' register.',
       compositionHint:
         'Headline center, small logo bottom-center, visible tension in lighting',
       copy: {
@@ -513,7 +607,7 @@ function buildFallbackVariants(
       mood: 'curious restrained',
       palette,
       confidence: 65,
-      reasoningSummary: 'Curiosity angle with visual tension, never empty',
+      reasoningSummary: 'Curiosity with visual tension, never empty',
       aspectRatio,
     },
     {
@@ -525,7 +619,8 @@ function buildFallbackVariants(
       intensity: 'aggressive',
       styleHint: 'aggressive',
       visualDirection:
-        'Clean grid. Dark premium background with strong brand accent. Three features equal weight.',
+        'Clean grid. ' + lightingPhrase + ' with brand accent. ' + motionPhrase +
+        ' composition. Three features equal weight.',
       compositionHint:
         'Headline top, 3-column grid mid, small logo top-right, CTA bottom',
       copy: {
