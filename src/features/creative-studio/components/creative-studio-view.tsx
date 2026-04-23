@@ -799,21 +799,11 @@ export function CreativeStudioView() {
           </button>
         </div>
         <AdEditor
-          imageUrl={imageUrl.startsWith('http') ? imageUrl : (campaign.renderedImages[selectedVariant.id] || '')}
-          copy={{
-            hook: selectedVariant.copy.headline,
-            message: selectedVariant.copy.subheadline,
-            cta: selectedVariant.copy.cta,
-            headline: selectedVariant.copy.headline,
-          }}
-          aspectRatio={selectedVariant.aspectRatio}
-          onExport={(dataUrl) => {
-            const a = document.createElement('a');
-            a.href = dataUrl;
-            a.download = selectedVariant.layout + '-final.png';
-            a.click();
-          }}
-        />
+  imageUrl={imageUrl.startsWith('http') ? imageUrl : (campaign.renderedImages[selectedVariant.id] || '')}
+  variant={selectedVariant}
+  locale={locale}
+  onBack={() => setStep('grid')}
+/>
       </div>
     );
   }
