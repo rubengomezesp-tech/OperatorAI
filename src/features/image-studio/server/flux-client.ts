@@ -12,7 +12,6 @@ export interface GenerateInput {
 
 export interface GenerateOutput {
   urls: string[];
-  buffers?: Buffer[];
   seed: number;
   latencyMs: number;
 }
@@ -25,36 +24,6 @@ const ASPECT_TO_SIZE: Record<string, { w: number; h: number }> = {
   '3:2': { w: 1216, h: 832 },
 };
 
-async function toBufferFromUnknownBinary(value: unknown): Promise<Buffer | null> {
-  if (!value) return null;
-
-  try {
-    // Web ReadableStream / stream-like objects
-    const res = new Response(value as BodyInit);
-    const ab = await res.arrayBuffer();
-    if (ab.byteLength > 0) return Buffer.from(ab);
-  } catch {
-    // continue
-  }
-
-  try {
-    // Blob-like
-    if (
-      typeof value === 'object' &&
-      value !== null &&
-      'arrayBuffer' in (value as any) &&
-      typeof (value as any).arrayBuffer === 'function'
-    ) {
-      const ab = await (value as any).arrayBuffer();
-      if (ab?.byteLength > 0) return Buffer.from(ab);
-    }
-  } catch {
-    // continue
-  }
-
-  return null;
-}
-
 export async function generateWithFlux(
   input: GenerateInput,
 ): Promise<GenerateOutput> {
@@ -64,6 +33,7 @@ export async function generateWithFlux(
 
   const client = new Replicate({
     auth: serverEnv.REPLICATE_API_TOKEN,
+    useFileOutput: false,
   });
 
   const seed = input.seed ?? Math.floor(Math.random() * 999999999);
@@ -78,7 +48,7 @@ export async function generateWithFlux(
     seed,
   };
 
-  if (typeof payload.prompt !== 'string' || payload.prompt.length < 10) {
+  if (typeof payload.prompt !== 'string' || payload.prompt.trim().length < 10) {
     throw new Error('Invalid prompt sent to Flux');
   }
 
@@ -92,52 +62,24 @@ export async function generateWithFlux(
 
   console.log('[flux-client] payload:', payload);
 
-  const model = 'black-forest-labs/flux-1.1-pro';
+  const model =
+    input.model === 'flux-1.1-pro' || input.model === 'flux-2-pro'
+      ? 'black-forest-labs/flux-1.1-pro'
+      : 'black-forest-labs/flux-1.1-pro';
 
   try {
     const output = await client.run(model, { input: payload });
 
-    const urls: string[] = [];
-    const buffers: Buffer[] = [];
+    let urls: string[] = [];
 
     if (typeof output === 'string') {
-      urls.push(output);
+      urls = [output];
     } else if (Array.isArray(output)) {
-      for (const item of output) {
-        if (typeof item === 'string') {
-          urls.push(item);
-          continue;
-        }
-
-        if (item && typeof item === 'object') {
-          const maybeUrl = (item as any).url;
-
-          if (typeof maybeUrl === 'string') {
-            urls.push(maybeUrl);
-            continue;
-          }
-
-          if (typeof maybeUrl === 'function') {
-            const resolved = await maybeUrl();
-            if (typeof resolved === 'string') urls.push(resolved);
-            continue;
-          }
-        }
-
-        const buf = await toBufferFromUnknownBinary(item);
-        if (buf) buffers.push(buf);
-      }
+      urls = output.filter((u): u is string => typeof u === 'string');
     } else if (output && typeof output === 'object') {
       const maybeUrl = (output as any).url;
-
       if (typeof maybeUrl === 'string') {
-        urls.push(maybeUrl);
-      } else if (typeof maybeUrl === 'function') {
-        const resolved = await maybeUrl();
-        if (typeof resolved === 'string') urls.push(resolved);
-      } else {
-        const buf = await toBufferFromUnknownBinary(output);
-        if (buf) buffers.push(buf);
+        urls = [maybeUrl];
       }
     }
 
@@ -145,27 +87,16 @@ export async function generateWithFlux(
       (u): u is string => typeof u === 'string' && u.startsWith('http'),
     );
 
-    if (cleanUrls.length > 0) {
-      return {
-        urls: cleanUrls,
-        buffers,
-        seed,
-        latencyMs: Date.now() - started,
-      };
+    if (!cleanUrls.length) {
+      console.error('[flux-client] RAW OUTPUT:', output);
+      throw new Error('No image returned from Flux');
     }
 
-    if (buffers.length > 0) {
-      const dataUrl = `data:image/png;base64,${buffers[0].toString('base64')}`;
-      return {
-        urls: [dataUrl],
-        buffers,
-        seed,
-        latencyMs: Date.now() - started,
-      };
-    }
-
-    console.error('[flux-client] RAW OUTPUT:', output);
-    throw new Error('No image returned from Flux');
+    return {
+      urls: cleanUrls,
+      seed,
+      latencyMs: Date.now() - started,
+    };
   } catch (err) {
     console.error('[flux-client] ERROR:', err);
     throw err;
@@ -179,9 +110,12 @@ export function enhancePrompt(
   if (!preset) return prompt;
 
   const suffix = {
-    editorial: ' editorial photography, cinematic lighting, magazine style',
-    startup: ' modern product shot, clean lighting, startup aesthetic',
-    luxury: ' luxury photography, premium lighting, high-end composition',
+    editorial:
+      ' editorial photography, cinematic lighting, magazine style',
+    startup:
+      ' modern product shot, clean lighting, startup aesthetic',
+    luxury:
+      ' luxury photography, premium lighting, high-end composition',
   }[preset];
 
   return prompt + suffix;
