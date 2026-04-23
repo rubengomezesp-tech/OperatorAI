@@ -24,6 +24,82 @@ const ASPECT_TO_SIZE: Record<string, { w: number; h: number }> = {
   '3:2': { w: 1216, h: 832 },
 };
 
+const MODEL_MAP: Record<'flux-2-pro' | 'flux-1.1-pro', string> = {
+  'flux-2-pro': 'black-forest-labs/flux-1.1-pro',
+  'flux-1.1-pro': 'black-forest-labs/flux-1.1-pro',
+};
+
+const MAX_RETRIES = 3;
+const DEFAULT_RETRY_AFTER_SECONDS = 10;
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function extractRetryAfterSeconds(err: unknown): number {
+  const retryAfter =
+    (err as any)?.response?.headers?.get?.('retry-after') ??
+    (err as any)?.response?.headers?.['retry-after'];
+
+  const parsed = Number(retryAfter);
+  if (Number.isFinite(parsed) && parsed > 0) return parsed;
+
+  return DEFAULT_RETRY_AFTER_SECONDS;
+}
+
+async function runWithRetry(
+  client: Replicate,
+  model: string,
+  payload: Record<string, unknown>,
+) {
+  let attempt = 0;
+
+  while (attempt < MAX_RETRIES) {
+    try {
+      return await client.run(model, { input: payload });
+    } catch (err: any) {
+      const status = err?.response?.status;
+
+      if (status === 429 && attempt < MAX_RETRIES - 1) {
+        const retryAfterSeconds = extractRetryAfterSeconds(err);
+        console.warn(
+          `[flux-client] rate limited (429). retrying in ${retryAfterSeconds}s. attempt ${attempt + 1}/${MAX_RETRIES}`,
+        );
+        await sleep(retryAfterSeconds * 1000);
+        attempt++;
+        continue;
+      }
+
+      throw err;
+    }
+  }
+
+  throw new Error('Flux failed after retries');
+}
+
+function normalizeOutputToUrls(output: unknown): string[] {
+  if (typeof output === 'string') {
+    return [output];
+  }
+
+  if (Array.isArray(output)) {
+    return output.filter((u): u is string => typeof u === 'string');
+  }
+
+  if (output && typeof output === 'object') {
+    const maybeUrl = (output as any).url;
+    if (typeof maybeUrl === 'string') {
+      return [maybeUrl];
+    }
+
+    if (typeof maybeUrl === 'function') {
+      return [];
+    }
+  }
+
+  return [];
+}
+
 export async function generateWithFlux(
   input: GenerateInput,
 ): Promise<GenerateOutput> {
@@ -36,7 +112,7 @@ export async function generateWithFlux(
     useFileOutput: false,
   });
 
-  const seed = input.seed ?? Math.floor(Math.random() * 999999999);
+  const seed = input.seed ?? Math.floor(Math.random() * 999_999_999);
   const started = Date.now();
   const size = ASPECT_TO_SIZE[input.aspectRatio] ?? ASPECT_TO_SIZE['1:1'];
 
@@ -48,7 +124,10 @@ export async function generateWithFlux(
     seed,
   };
 
-  if (typeof payload.prompt !== 'string' || payload.prompt.trim().length < 10) {
+  if (
+    typeof payload.prompt !== 'string' ||
+    payload.prompt.trim().length < 10
+  ) {
     throw new Error('Invalid prompt sent to Flux');
   }
 
@@ -62,38 +141,27 @@ export async function generateWithFlux(
 
   console.log('[flux-client] payload:', payload);
 
-  const model =
+  const modelKey =
     input.model === 'flux-1.1-pro' || input.model === 'flux-2-pro'
-      ? 'black-forest-labs/flux-1.1-pro'
-      : 'black-forest-labs/flux-1.1-pro';
+      ? input.model
+      : 'flux-2-pro';
+
+  const model = MODEL_MAP[modelKey];
 
   try {
-    const output = await client.run(model, { input: payload });
+    const output = await runWithRetry(client, model, payload);
 
-    let urls: string[] = [];
-
-    if (typeof output === 'string') {
-      urls = [output];
-    } else if (Array.isArray(output)) {
-      urls = output.filter((u): u is string => typeof u === 'string');
-    } else if (output && typeof output === 'object') {
-      const maybeUrl = (output as any).url;
-      if (typeof maybeUrl === 'string') {
-        urls = [maybeUrl];
-      }
-    }
-
-    const cleanUrls = urls.filter(
+    const urls = normalizeOutputToUrls(output).filter(
       (u): u is string => typeof u === 'string' && u.startsWith('http'),
     );
 
-    if (!cleanUrls.length) {
+    if (!urls.length) {
       console.error('[flux-client] RAW OUTPUT:', output);
       throw new Error('No image returned from Flux');
     }
 
     return {
-      urls: cleanUrls,
+      urls,
       seed,
       latencyMs: Date.now() - started,
     };
