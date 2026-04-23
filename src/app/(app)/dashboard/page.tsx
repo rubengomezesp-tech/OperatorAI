@@ -17,31 +17,15 @@ export const dynamic = 'force-dynamic';
 
 /**
  * Dashboard — product entry point.
- *
- * Design:
- * - 3 primary CTAs above the fold
- * - Recent images (via /api/images/list) — client component
- * - Quick links for organization routes
- * - No empty state without a CTA
- *
- * Data sources verified:
- * - User profile: public.users (full_name, email) joined to auth.users.id
- * - Locale: users.locale
- * - Images: /api/images/list (handles signed URLs for private bucket)
- *
- * NOT included:
- * - Recent campaigns section: the `campaigns` table is not yet present
- *   in migrations. When migration 0016 lands, add a campaigns section
- *   above the images row. See ROUTES_AUDIT.md section 9.
  */
 export default async function DashboardPage() {
   const ssr = await createSupabaseServerClient();
   const {
     data: { user },
   } = await ssr.auth.getUser();
+
   if (!user) redirect('/login');
 
-  // Read profile from public.users (verified schema in 0002_auth_orgs.sql)
   const { data: meRaw } = await ssr
     .from('users')
     .select('full_name, email, locale')
@@ -61,6 +45,7 @@ export default async function DashboardPage() {
     me?.full_name?.split(' ')[0] ||
     me?.email?.split('@')[0]?.split('.')[0] ||
     '';
+
   const greetingName = firstName
     ? firstName.charAt(0).toUpperCase() + firstName.slice(1)
     : '';
@@ -68,14 +53,13 @@ export default async function DashboardPage() {
   const greeting = greetingName
     ? (es ? 'Hola, ' : 'Hello, ') + greetingName + '.'
     : es
-    ? 'Hola.'
-    : 'Hello.';
+      ? 'Hola.'
+      : 'Hello.';
 
   return (
-    <div className="px-4 lg:px-10 py-8 max-w-[1240px] mx-auto space-y-10">
-      {/* Header */}
-      <header>
-        <h1 className="font-display text-[28px] lg:text-[34px] leading-[1.1]">
+    <div className="w-full max-w-full min-w-0 overflow-x-hidden px-4 lg:px-10 py-8 mx-auto space-y-10">
+      <header className="min-w-0">
+        <h1 className="font-display text-[28px] lg:text-[34px] leading-[1.1] break-words">
           {greeting}
         </h1>
         <p className="text-[14px] text-fg-muted mt-1.5">
@@ -83,9 +67,8 @@ export default async function DashboardPage() {
         </p>
       </header>
 
-      {/* Primary actions */}
-      <section>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+      <section className="min-w-0">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 min-w-0">
           <PrimaryAction
             href="/creative-studio"
             eyebrow={es ? 'Campanas' : 'Campaigns'}
@@ -123,9 +106,8 @@ export default async function DashboardPage() {
         </div>
       </section>
 
-      {/* Recent images + organization row */}
-      <section className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <div>
+      <section className="grid grid-cols-1 lg:grid-cols-2 gap-8 min-w-0">
+        <div className="min-w-0">
           <SectionHeader
             title={es ? 'Imagenes recientes' : 'Recent images'}
             href="/studio/image"
@@ -134,13 +116,13 @@ export default async function DashboardPage() {
           <DashboardRecentImages locale={locale} />
         </div>
 
-        <div>
+        <div className="min-w-0">
           <SectionHeader
             title={es ? 'Organizacion' : 'Organization'}
             href="/projects"
             linkLabel={es ? 'Ver proyectos' : 'View projects'}
           />
-          <div className="grid grid-cols-1 gap-2">
+          <div className="grid grid-cols-1 gap-2 min-w-0">
             <QuickLink
               href="/projects"
               icon={FolderOpen}
@@ -207,16 +189,16 @@ function PrimaryAction({
     <Link
       href={href}
       className={
-        'group relative rounded-2xl border p-5 transition-all overflow-hidden ' +
+        'group relative min-w-0 rounded-2xl border p-5 transition-all overflow-hidden ' +
         (accent
           ? 'border-gold/30 bg-gradient-to-br from-gold/[0.08] via-surface to-surface hover:border-gold/50'
           : 'border-border bg-surface hover:border-gold/30')
       }
     >
-      <div className="flex items-start justify-between mb-6">
+      <div className="flex items-start justify-between mb-6 gap-3 min-w-0">
         <div
           className={
-            'h-9 w-9 rounded-lg flex items-center justify-center ' +
+            'h-9 w-9 rounded-lg flex items-center justify-center shrink-0 ' +
             (accent
               ? 'bg-gold text-bg'
               : 'bg-surface-2 text-fg-muted border border-border')
@@ -224,15 +206,18 @@ function PrimaryAction({
         >
           <Icon className="h-[18px] w-[18px]" />
         </div>
-        <ArrowRight className="h-4 w-4 text-fg-subtle group-hover:text-gold group-hover:translate-x-0.5 transition-all" />
+        <ArrowRight className="h-4 w-4 shrink-0 text-fg-subtle group-hover:text-gold group-hover:translate-x-0.5 transition-all" />
       </div>
-      <div className="text-[10px] uppercase tracking-[0.16em] text-fg-subtle mb-1">
+
+      <div className="text-[10px] uppercase tracking-[0.16em] text-fg-subtle mb-1 break-words">
         {eyebrow}
       </div>
-      <div className="font-display text-[18px] mb-1 group-hover:text-gold transition-colors">
+      <div className="font-display text-[18px] mb-1 group-hover:text-gold transition-colors break-words">
         {title}
       </div>
-      <p className="text-[12.5px] text-fg-muted leading-snug">{description}</p>
+      <p className="text-[12.5px] text-fg-muted leading-snug break-words">
+        {description}
+      </p>
     </Link>
   );
 }
@@ -247,11 +232,11 @@ function SectionHeader({
   linkLabel: string;
 }) {
   return (
-    <div className="flex items-end justify-between mb-3">
-      <h2 className="font-display text-[18px]">{title}</h2>
+    <div className="flex items-end justify-between gap-3 mb-3 min-w-0">
+      <h2 className="font-display text-[18px] break-words">{title}</h2>
       <Link
         href={href}
-        className="text-[11px] text-fg-muted hover:text-gold flex items-center gap-1 transition-colors"
+        className="shrink-0 text-[11px] text-fg-muted hover:text-gold flex items-center gap-1 transition-colors"
       >
         {linkLabel}
         <ArrowRight className="h-3 w-3" />
@@ -274,18 +259,18 @@ function QuickLink({
   return (
     <Link
       href={href}
-      className="group flex items-center gap-3 p-3 rounded-lg border border-border bg-surface hover:border-gold/30 transition-colors"
+      className="group flex items-center gap-3 min-w-0 p-3 rounded-lg border border-border bg-surface hover:border-gold/30 transition-colors"
     >
       <div className="h-8 w-8 rounded-md bg-surface-2 border border-border flex items-center justify-center text-fg-muted group-hover:text-gold transition-colors shrink-0">
         <Icon className="h-4 w-4" />
       </div>
       <div className="flex-1 min-w-0">
-        <div className="text-[13px] font-medium group-hover:text-gold transition-colors">
+        <div className="text-[13px] font-medium group-hover:text-gold transition-colors break-words">
           {title}
         </div>
         <div className="text-[11px] text-fg-subtle truncate">{description}</div>
       </div>
-      <ArrowRight className="h-3.5 w-3.5 text-fg-subtle group-hover:text-gold group-hover:translate-x-0.5 transition-all" />
+      <ArrowRight className="h-3.5 w-3.5 shrink-0 text-fg-subtle group-hover:text-gold group-hover:translate-x-0.5 transition-all" />
     </Link>
   );
 }
