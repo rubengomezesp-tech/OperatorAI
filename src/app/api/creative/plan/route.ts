@@ -39,16 +39,20 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (error || !data) {
-      return NextResponse.json({ error: 'Campaign not found' }, { status: 404 });
-    }
+  return NextResponse.json(
+    { error: error?.message || 'Campaign not found' },
+    { status: 404 },
+  );
+}
 
-    const row = data as {
-      brief: ProductBrief;
-      analyses: ImageAnalysis[];
-      memory: CampaignMemory;
-      aspect_ratio: AspectRatio;
-      direction: CampaignDirection | null;
-    };
+const row = data as unknown as {
+  brief: ProductBrief;
+  analyses: ImageAnalysis[];
+  memory: CampaignMemory;
+  aspect_ratio: AspectRatio;
+  direction: CampaignDirection | null;
+};
+
 
     if (!row.brief || !row.analyses) {
       return NextResponse.json(
