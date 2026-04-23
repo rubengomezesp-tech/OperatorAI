@@ -1,5 +1,5 @@
 import { I18nProvider } from '@/lib/i18n';
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Inter, Instrument_Serif, JetBrains_Mono } from 'next/font/google';
 import { SplashScreen } from '@/components/splash-screen';
 import { RootProviders } from '@/components/providers/root-providers';
@@ -9,7 +9,12 @@ const inter = Inter({ subsets: ['latin'], variable: '--font-inter', display: 'sw
 const serif = Instrument_Serif({ weight: '400', subsets: ['latin'], variable: '--font-serif', display: 'swap' });
 const mono = JetBrains_Mono({ subsets: ['latin'], variable: '--font-mono', display: 'swap' });
 
-export const viewport = { width: "device-width", initialScale: 1, maximumScale: 1, userScalable: false };
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+};
 
 export const metadata: Metadata = {
   title: { default: 'Operator AI', template: '%s - Operator AI' },
@@ -20,7 +25,11 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={inter.variable + ' ' + serif.variable + ' ' + mono.variable} suppressHydrationWarning>
+    <html
+      lang="en"
+      className={inter.variable + ' ' + serif.variable + ' ' + mono.variable}
+      suppressHydrationWarning
+    >
       <head>
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -33,15 +42,23 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="theme-color" content="#C9A863" />
       </head>
       <body className="min-h-screen w-full overflow-x-hidden bg-bg text-fg antialiased">
-        <RootProviders><I18nProvider>{<SplashScreen>{children}</SplashScreen>}</I18nProvider></RootProviders>
-      
-        <script dangerouslySetInnerHTML={{__html: `
-          if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-              navigator.serviceWorker.register('/sw.js').catch(() => {});
-            });
-          }
-        `}} />
+        <RootProviders>
+          <I18nProvider>
+            <SplashScreen>{children}</SplashScreen>
+          </I18nProvider>
+        </RootProviders>
+
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              if ('serviceWorker' in navigator) {
+                window.addEventListener('load', () => {
+                  navigator.serviceWorker.register('/sw.js').catch(() => {});
+                });
+              }
+            `,
+          }}
+        />
       </body>
     </html>
   );
