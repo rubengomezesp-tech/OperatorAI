@@ -3,6 +3,13 @@ import { z } from 'zod';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { createSupabaseServiceClient } from '@/lib/supabase/service';
 import { planCampaign } from '@/features/creative-studio/server/creative-planner';
+import type {
+  ProductBrief,
+  ImageAnalysis,
+  CampaignMemory,
+  AspectRatio,
+  CampaignDirection,
+} from '@/features/creative-studio/types';
 
 export const runtime = 'nodejs';
 export const maxDuration = 120;
@@ -24,40 +31,56 @@ export async function POST(req: NextRequest) {
     }
 
     const svc = createSupabaseServiceClient();
-
-    const { data: row, error: fetchErr } = await svc
+    const { data, error } = await svc
       .from('campaigns' as any)
-      .select('*')
+      .select('brief, analyses, memory, aspect_ratio, direction')
       .eq('id', body.campaignId)
       .eq('user_id', user.id)
       .single();
 
-    if (fetchErr || !row) {
+    if (error || !data) {
       return NextResponse.json({ error: 'Campaign not found' }, { status: 404 });
     }
 
-    const campaign = row as any;
-    if (!campaign.brief || !campaign.analyses) {
+    const row = data as {
+      brief: ProductBrief;
+      analyses: ImageAnalysis[];
+      memory: CampaignMemory;
+      aspect_ratio: AspectRatio;
+      direction: CampaignDirection | null;
+    };
+
+    if (!row.brief || !row.analyses) {
       return NextResponse.json(
-        { error: 'Campaign missing brief/analyses. Run analyze first.' },
+        { error: 'Campaign not analyzed yet' },
         { status: 400 },
       );
     }
 
     const variants = await planCampaign(
-      campaign.brief,
-      campaign.analyses,
-      campaign.aspect_ratio,
-      campaign.memory, // memory-aware when regenerationCount > 0
+      row.brief,
+      row.analyses,
+      row.aspect_ratio,
+      row.memory,
+      row.direction || undefined,
     );
 
-    await svc
+    const { error: updErr } = await svc
       .from('campaigns' as any)
       .update({
         variants,
+        updated_at: new Date().toISOString(),
       })
       .eq('id', body.campaignId)
       .eq('user_id', user.id);
+
+    if (updErr) {
+      console.error('[plan] update error:', updErr);
+      return NextResponse.json(
+        { error: 'Failed to save variants' },
+        { status: 500 },
+      );
+    }
 
     return NextResponse.json({ ok: true, variants });
   } catch (err) {
