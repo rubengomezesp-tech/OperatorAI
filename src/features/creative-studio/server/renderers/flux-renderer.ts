@@ -8,15 +8,14 @@ import {
 } from '../../data/visual-styles';
 
 /**
- * FLUX RENDERER v7
+ * FLUX RENDERER v8
  *
  * Objetivo:
- * - dejar de generar frames negros/vacíos
- * - mantener estética premium
- * - forzar sujeto/escena/materiales visibles
- * - seguir siendo text-free para que el editor añada copy después
+ * - dejar de sacar frames negros/vacíos
+ * - forzar composición usable para anuncios
+ * - mantener estética premium real
+ * - reservar espacio para copy sin pedir un frame muerto
  */
-
 export async function renderFlux(
   input: RenderInput & { direction?: CampaignDirection },
 ): Promise<RenderOutput> {
@@ -53,6 +52,8 @@ export async function renderFlux(
     );
   }
 
+  console.log('[renderFlux] imageUrl:', imageUrl.slice(0, 120));
+
   return { imageUrl, engine: 'flux' };
 }
 
@@ -63,16 +64,17 @@ function buildFluxPrompt(
 ): string {
   const parts: string[] = [];
 
-  // 1. Base visual anchor — fuerza escena visible
+  const safeCompositionHint =
+    variant.compositionHint ||
+    'Subject placed off-center, strong negative space on one side for headline overlay';
+
   parts.push(
-    'premium commercial scene with clearly visible subject matter, visible materials, visible surfaces, visible lighting detail, layered environment, cinematic but readable composition',
+    'premium commercial advertising scene with clearly visible subject matter, visible materials, visible surfaces, visible light detail, layered environment, realistic depth, readable scene structure',
   );
 
-  // 2. Variant-level direction
   if (variant.visualDirection) parts.push(variant.visualDirection);
   if (variant.intent) parts.push(variant.intent);
 
-  // 3. Campaign-level direction
   if (direction) {
     const lighting = direction.lightingDirection.replace('_', ' ');
     const motion = direction.motionEnergy;
@@ -93,17 +95,14 @@ function buildFluxPrompt(
     }
   }
 
-  // 4. Style hints
   parts.push(...styleSpec.promptHints);
 
-  // 5. Composition
-  if (variant.compositionHint) {
-    parts.push('composition: ' + variant.compositionHint);
-  } else {
-    parts.push('composition: ' + styleSpec.composition);
-  }
+  parts.push('composition: ' + safeCompositionHint);
 
-  // 6. Intensity rebalance
+  parts.push(
+    'clear negative space for text overlay, top or side reserved, subject NOT centered, asymmetric composition, advertising layout ready',
+  );
+
   if (variant.intensity === 'aggressive') {
     parts.push(
       'high visual tension, strong contrast, bold framing, but subject and environment must remain clearly visible',
@@ -118,7 +117,6 @@ function buildFluxPrompt(
     );
   }
 
-  // 7. Palette
   if (direction) {
     parts.push(
       'brand palette led by dominant ' +
@@ -130,24 +128,20 @@ function buildFluxPrompt(
     parts.push('palette: ' + variant.palette.join(', '));
   }
 
-  // 8. Fuerza visual para evitar vacío
   parts.push(
     'the frame must not be empty, must not be a plain black background, must contain visible premium scene elements, realistic light falloff, material detail, and clear foreground-midground-background separation',
   );
 
-  // 9. Overlay-safe, pero no muerto
   parts.push(
-    'leave controlled negative space for later text overlay, but preserve a rich scene with visible subject and environment',
+    'leave controlled space for later text overlay while preserving a rich visible scene with subject and environment',
   );
 
-  // 10. No text
   parts.push(
     'no text, no letters, no words, no typography, no UI, no screenshots, text-free composition',
   );
 
-  // 11. Quality floor
   parts.push(
-    'premium commercial photography, editorial polish, visually readable, high-end brand campaign image',
+    'premium commercial photography, editorial polish, high-end brand campaign image, visually readable',
   );
 
   return parts.filter(Boolean).join('. ');
@@ -178,6 +172,9 @@ function buildNegativePrompt(
     'illegible scene',
     'broken perspective',
     'visual noise overload',
+    'plain black background',
+    'empty frame',
+    'dead center subject with no negative space',
   ];
 
   return [...base, ...styleSpec.negativeHints].join(', ');
