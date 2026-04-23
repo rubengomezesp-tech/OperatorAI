@@ -58,7 +58,6 @@ const refUrls = rawRefUrls.filter(
     prompt,
     aspectRatio: variant.aspectRatio,
     model: 'flux-2-pro',
-    referenceImageUrls: undefined,
     negativePrompt,
   });
 
