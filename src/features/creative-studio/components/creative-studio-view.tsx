@@ -230,19 +230,29 @@ export function CreativeStudioView() {
               }),
             });
             const data = await res.json();
-            if (res.ok && data.imageUrl) {
-              patchCampaign({
-                renderedImages: {
-                  ...(campaignRef.current?.renderedImages || {}),
-                  [v.id]: data.imageUrl,
-                },
-                qualityReports: data.qualityReport
-                  ? {
-                      ...(campaignRef.current?.qualityReports || {}),
-                      [v.id]: data.qualityReport,
-                    }
-                  : campaignRef.current?.qualityReports || {},
-              });
+
+if (!res.ok) {
+  console.error('[render] failed', v.id, data);
+  throw new Error(data?.error || 'Render failed');
+}
+
+if (!data?.imageUrl) {
+  console.error('[render] missing imageUrl', v.id, data);
+  throw new Error('Render returned no imageUrl');
+}
+
+patchCampaign({
+  renderedImages: {
+    ...(campaignRef.current?.renderedImages || {}),
+    [v.id]: data.imageUrl,
+  },
+  qualityReports: data.qualityReport
+    ? {
+        ...(campaignRef.current?.qualityReports || {}),
+        [v.id]: data.qualityReport,
+      }
+    : campaignRef.current?.qualityReports || {},
+});
             }
           } catch (err) {
             console.error('[render] variant', v.id, err);
