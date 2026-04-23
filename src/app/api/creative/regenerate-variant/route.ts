@@ -75,14 +75,14 @@ export async function POST(req: NextRequest) {
   }
 
   const campaign = row as unknown as {
-    analyses: ImageAnalysis[];
-    brief: ProductBrief;
-    variants: Variant[];
-    memory: CampaignMemory;
-    aspect_ratio: AspectRatio;
-    rendered_images: Record<string, string> | null;
-    quality_reports: Record<string, QualityReport> | null;
-  };
+  analyses: ImageAnalysis[];
+  brief: ProductBrief;
+  variants: Variant[];
+  memory: CampaignMemory;
+  aspect_ratio: AspectRatio;
+  rendered_images: Record<string, string> | null;
+  quality_reports: Record<string, QualityReport> | null;
+};
 
   const oldVariant = campaign.variants.find((v) => v.id === body.variantId);
   if (!oldVariant) {
