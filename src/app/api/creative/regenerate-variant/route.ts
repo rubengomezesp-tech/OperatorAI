@@ -74,7 +74,7 @@ export async function POST(req: NextRequest) {
     return json({ ok: false, error: 'Campaign not found', code: 'CAMPAIGN_NOT_FOUND' });
   }
 
-  const campaign = row as {
+  const campaign = row as unknown as {
     analyses: ImageAnalysis[];
     brief: ProductBrief;
     variants: Variant[];
