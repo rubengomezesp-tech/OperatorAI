@@ -1,6 +1,10 @@
 import 'server-only';
 import type { Variant, ImageAnalysis, QualityReport } from '../types';
-import { renderCanvas, type RenderInput, type RenderOutput } from './renderers/canvas-renderer';
+import {
+  renderCanvas,
+  type RenderInput,
+  type RenderOutput,
+} from './renderers/canvas-renderer';
 import { renderFlux } from './renderers/flux-renderer';
 import { renderHybrid } from './renderers/hybrid-renderer';
 import { evaluateVariant } from './quality-gate';
@@ -10,16 +14,19 @@ export interface FullRenderResult extends RenderOutput {
   retried: boolean;
 }
 
+const PASS_THRESHOLD = 75;
+
 /**
  * Orchestrates the render pipeline:
  * 1. Pick engine (with heroScore override)
  * 2. Render
- * 3. Quality gate (only for flux/hybrid output that is a real URL)
- * 4. If score < 70 and engine ∈ {flux, hybrid}: ONE auto-retry with adjusted prompt
+ * 3. Quality gate (flux/hybrid get a real score; canvas gets fail-open until browser evaluates)
+ * 4. If score < 75 and engine ∈ {flux, hybrid}: ONE aggressive retry
  * 5. Return result + report
  *
- * Canvas variants skip the gate here (frontend PNG not available yet).
- * No hidden loops. No uncontrolled spend. Max 1 retry per variant.
+ * Canvas variants: if quality gate later flags them via /api/creative/validate,
+ * the frontend triggers /api/creative/regenerate-variant (Tanda 4B wiring).
+ * No hidden loops. No uncontrolled spend. Max 1 retry.
  */
 export async function renderWithQuality(
   input: RenderInput,
@@ -27,7 +34,6 @@ export async function renderWithQuality(
   const variant = selectEngineForVariant(input.variant, input.analyses);
   const inputWithEngine: RenderInput = { ...input, variant };
 
-  // First render
   let result: RenderOutput;
   try {
     result = await runEngine(inputWithEngine);
@@ -36,7 +42,7 @@ export async function renderWithQuality(
     result = await renderCanvas(inputWithEngine);
   }
 
-  // Quality gate only applies to real PNGs (http URLs)
+  // Canvas variants: evaluation happens client-side
   if (!result.imageUrl.startsWith('http')) {
     return { ...result, retried: false };
   }
@@ -46,19 +52,21 @@ export async function renderWithQuality(
     return { ...result, qualityReport: report, retried: false };
   }
 
-  // One retry, only for flux/hybrid
   if (result.engine === 'canvas') {
+    // Shouldn't happen (canvas does not produce http), but safeguard
     return { ...result, qualityReport: report, retried: false };
   }
 
   console.warn(
-    '[render-router] quality gate failed (score ' +
+    '[render-router] quality gate score ' +
       report.score +
-      '), retrying once for variant ' +
+      ' below ' +
+      PASS_THRESHOLD +
+      ', retrying once for variant ' +
       variant.id,
   );
 
-  const retryVariant = applyRetryAdjustments(variant, report);
+  const retryVariant = applyAggressiveRetry(variant, report);
   const retryInput: RenderInput = { ...input, variant: retryVariant };
 
   let retried: RenderOutput;
@@ -74,11 +82,12 @@ export async function renderWithQuality(
   }
 
   const retryReport = await evaluateVariant(retryVariant, retried.imageUrl);
-  return {
-    ...retried,
-    qualityReport: retryReport.passed ? retryReport : report,
-    retried: true,
-  };
+
+  // Pick whichever is better
+  if (retryReport.score >= report.score) {
+    return { ...retried, qualityReport: retryReport, retried: true };
+  }
+  return { ...result, qualityReport: report, retried: true };
 }
 
 function runEngine(input: RenderInput): Promise<RenderOutput> {
@@ -94,10 +103,9 @@ function runEngine(input: RenderInput): Promise<RenderOutput> {
 }
 
 /**
- * Engine override:
- * - If hero score < 40 and engine is canvas, promote to hybrid
- *   (Flux fills the weak background, real UI still overlays on top).
- * - feature_grid and ui_focus stay canvas regardless (need real screenshots).
+ * Engine override based on hero quality:
+ * - hero score < 40 and engine is canvas and layout is not feature_grid/ui_focus
+ *   -> promote to hybrid (Flux fills weak background, canvas overlays real UI)
  */
 function selectEngineForVariant(
   variant: Variant,
@@ -107,51 +115,56 @@ function selectEngineForVariant(
   if (variant.layout === 'feature_grid' || variant.layout === 'ui_focus') {
     return variant;
   }
-
   const heroAnalysis = analyses.find(
     (a) => a.index === variant.composition.heroAssetIndex,
   );
   const heroScore = heroAnalysis?.importanceScore ?? 60;
-
-  if (heroScore < 40) {
-    return { ...variant, engine: 'hybrid' };
-  }
+  if (heroScore < 40) return { ...variant, engine: 'hybrid' };
   return variant;
 }
 
 /**
- * Build a retry variant with targeted fixes based on the quality report.
- * Only adjusts things the renderer actually respects.
+ * Aggressive retry: raise intensity, switch styleHint, tighten visual direction,
+ * and address the specific issues from the report.
  */
-function applyRetryAdjustments(
-  variant: Variant,
-  report: QualityReport,
-): Variant {
+function applyAggressiveRetry(variant: Variant, report: QualityReport): Variant {
   const issues = report.issues.join(' ').toLowerCase();
+  const sub = report.subscores;
 
-  let extraNegative = '';
-  let promptAddition = '';
+  const additions: string[] = [];
 
-  if (issues.includes('legibility') || issues.includes('contrast')) {
-    promptAddition += ' strong contrast, dark vignette behind text area, clear negative space for copy.';
-  }
-  if (issues.includes('hierarchy')) {
-    promptAddition += ' clear focal point, single hero subject, minimal competing elements.';
-  }
-  if (issues.includes('slop') || issues.includes('stock') || issues.includes('ai')) {
-    extraNegative += ' generic composition, symmetric cliche, center framing, AI aesthetic';
-  }
-  if (issues.includes('brand')) {
-    promptAddition += ' strictly honor the declared color palette, no off-palette hues.';
+  if (sub) {
+    if (sub.legibility < 65 || issues.includes('legibility') || issues.includes('contrast')) {
+      additions.push(
+        'strong directional light creating clear negative space for copy, deep vignette around text zone, pronounced contrast between text area and surroundings',
+      );
+    }
+    if (sub.depth < 65 || issues.includes('flat') || issues.includes('background')) {
+      additions.push(
+        'three distinct depth layers: clear foreground element, defined midground subject, receding atmospheric background with haze',
+      );
+    }
+    if (sub.hierarchy < 65 || issues.includes('hierarchy') || issues.includes('focal')) {
+      additions.push(
+        'single dominant focal point occupying one third of the frame, minimal competing elements',
+      );
+    }
+    if (sub.slopFree < 65 || issues.includes('slop') || issues.includes('stock') || issues.includes('ai')) {
+      additions.push(
+        'editorial photography feel, specific cultural reference, avoid symmetric center framing',
+      );
+    }
+    if (sub.brandCoherence < 65 || issues.includes('brand') || issues.includes('palette')) {
+      additions.push(
+        'strictly honor the declared color palette, drop any off-palette hues, saturation anchored to brand primary',
+      );
+    }
   }
 
   return {
     ...variant,
-    renderPrompt: (variant.renderPrompt || '') + promptAddition,
-    // We stash the extraNegative via a custom field the flux-renderer does NOT read directly;
-    // instead we build a new render prompt suffix below. Since flux-renderer accepts options
-    // only when called directly (not from runEngine), we bake extraNegative into renderPrompt
-    // as a natural-language hint the model respects.
-    // (If we ever want true retry-level extraNegative plumbing, it must be added to runEngine.)
+    intensity: 'aggressive',
+    styleHint: variant.styleHint === 'aggressive' ? 'cinematic' : 'aggressive',
+    visualDirection: [variant.visualDirection, ...additions].filter(Boolean).join('. '),
   };
 }
