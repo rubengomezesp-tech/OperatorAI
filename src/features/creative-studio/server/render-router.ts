@@ -1,5 +1,10 @@
 import 'server-only';
-import type { Variant, ImageAnalysis, QualityReport, CampaignDirection } from '../types';
+import type {
+  Variant,
+  ImageAnalysis,
+  QualityReport,
+  CampaignDirection,
+} from '../types';
 import { renderFlux } from './renderers/flux-renderer';
 import { evaluateVariant } from './quality-gate';
 
@@ -23,28 +28,19 @@ export interface FullRenderResult extends RenderOutput {
 const PASS_THRESHOLD = 75;
 
 /**
- * RENDER ROUTER v6 — Flux only.
+ * RENDER ROUTER v6 — Flux only, quality-gate fail-open.
  *
- * Architecture change:
- * - No engine selection.
- * - No canvas-renderer fallback.
- * - No hybrid-renderer compositing.
- * - Canvas is frontend-only, used exclusively as a text-overlay editor
- *   (see ad-editor.tsx). The renderer never emits canvas-spec:// URLs.
- *
- * All variants go through Flux. The image returned is the final visual
- * background. Text (headline, subheadline, CTA) is layered on top in
- * the browser by the editor, never baked into the generated image.
- *
- * Retry policy (unchanged from Tanda 4A):
- * - One retry max if quality score < 75.
- * - Retry reinforces visualDirection based on issue categories.
- * - No hidden loops. Cost-bounded.
+ * Important behavior:
+ * - Flux render is the source of truth.
+ * - Quality gate must NEVER block image delivery if Anthropic is down
+ *   or out of credit.
+ * - Retry only happens if a valid quality report exists and it fails.
  */
 export async function renderWithQuality(
   input: RenderInput,
 ): Promise<FullRenderResult> {
   let result: RenderOutput;
+
   try {
     result = await renderFlux(input);
   } catch (err) {
@@ -52,14 +48,30 @@ export async function renderWithQuality(
     throw err;
   }
 
-  if (!result.imageUrl.startsWith('http')) {
-    // Flux must return a public URL. If it didn't, fail loud.
+  if (
+    typeof result.imageUrl !== 'string' ||
+    (!result.imageUrl.startsWith('http') &&
+      !result.imageUrl.startsWith('data:image/'))
+  ) {
     throw new Error(
-      'Flux renderer returned a non-http URL: ' + result.imageUrl,
+      'Flux renderer returned an invalid image URL: ' + String(result.imageUrl),
     );
   }
 
-  const report = await evaluateVariant(input.variant, result.imageUrl);
+  let report: QualityReport | undefined;
+
+  try {
+    report = await evaluateVariant(input.variant, result.imageUrl);
+  } catch (err) {
+    console.error('[quality-gate] non-blocking error:', err);
+    report = undefined;
+  }
+
+  // If quality gate failed or is unavailable, do NOT block the image.
+  if (!report) {
+    return { ...result, qualityReport: undefined, retried: false };
+  }
+
   if (report.passed) {
     return { ...result, qualityReport: report, retried: false };
   }
@@ -84,11 +96,36 @@ export async function renderWithQuality(
     return { ...result, qualityReport: report, retried: true };
   }
 
-  const retryReport = await evaluateVariant(retryVariant, retried.imageUrl);
+  if (
+    typeof retried.imageUrl !== 'string' ||
+    (!retried.imageUrl.startsWith('http') &&
+      !retried.imageUrl.startsWith('data:image/'))
+  ) {
+    console.error(
+      '[render-router] retry returned invalid image URL, keeping original',
+      retried.imageUrl,
+    );
+    return { ...result, qualityReport: report, retried: true };
+  }
+
+  let retryReport: QualityReport | undefined;
+
+  try {
+    retryReport = await evaluateVariant(retryVariant, retried.imageUrl);
+  } catch (err) {
+    console.error('[quality-gate retry] non-blocking error:', err);
+    retryReport = undefined;
+  }
+
+  // If retry quality gate fails, still keep the retried image
+  if (!retryReport) {
+    return { ...retried, qualityReport: undefined, retried: true };
+  }
 
   if (retryReport.score >= report.score) {
     return { ...retried, qualityReport: retryReport, retried: true };
   }
+
   return { ...result, qualityReport: report, retried: true };
 }
 
@@ -110,6 +147,7 @@ function applyAggressiveRetry(
         'strong directional light carving clear negative space, deep vignette around text zone, pronounced contrast between subject and surroundings',
       );
     }
+
     if (
       sub.depth < 65 ||
       issues.includes('flat') ||
@@ -119,6 +157,7 @@ function applyAggressiveRetry(
         'three distinct depth layers: clear foreground element, defined midground subject, receding atmospheric background with volumetric haze',
       );
     }
+
     if (
       sub.hierarchy < 65 ||
       issues.includes('hierarchy') ||
@@ -128,6 +167,7 @@ function applyAggressiveRetry(
         'single dominant focal subject occupying one third of the frame, minimal competing elements',
       );
     }
+
     if (
       sub.slopFree < 65 ||
       issues.includes('slop') ||
@@ -138,6 +178,7 @@ function applyAggressiveRetry(
         'editorial photography feel, specific cultural reference, break symmetric center framing, off-center composition',
       );
     }
+
     if (
       sub.brandCoherence < 65 ||
       issues.includes('brand') ||
