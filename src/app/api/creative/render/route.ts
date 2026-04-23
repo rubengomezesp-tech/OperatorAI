@@ -21,6 +21,7 @@ function decodeDataUrl(dataUrl: string): { mime: string; buffer: Buffer } {
 
   const mime = match[1];
   const base64 = match[2];
+
   return {
     mime,
     buffer: Buffer.from(base64, 'base64'),
@@ -75,8 +76,17 @@ export async function POST(req: NextRequest) {
 
     let finalImageUrl = result.imageUrl;
 
+    console.log(
+      '[render-route] result.imageUrl:',
+      typeof result.imageUrl,
+      String(result.imageUrl).slice(0, 140),
+    );
+
     // Si Flux devolvió data URL, la subimos a Supabase Storage
-    if (typeof finalImageUrl === 'string' && finalImageUrl.startsWith('data:image/')) {
+    if (
+      typeof finalImageUrl === 'string' &&
+      finalImageUrl.startsWith('data:image/')
+    ) {
       const { mime, buffer } = decodeDataUrl(finalImageUrl);
       const ext = mime.includes('jpeg') || mime.includes('jpg') ? 'jpg' : 'png';
       const path =
@@ -91,15 +101,15 @@ export async function POST(req: NextRequest) {
         '.' +
         ext;
 
-      const upload = await svc.storage
-        .from('images')
-        .upload(path, buffer, {
-          contentType: mime,
-          upsert: true,
-        });
+      console.log('[render-route] uploading data URL to storage:', path, mime, buffer.length);
+
+      const upload = await svc.storage.from('images').upload(path, buffer, {
+        contentType: mime,
+        upsert: true,
+      });
 
       if (upload.error) {
-        console.error('[render] storage upload failed:', upload.error);
+        console.error('[render-route] storage upload failed:', upload.error);
         return NextResponse.json(
           { error: 'Failed to upload rendered image' },
           { status: 500 },
@@ -111,7 +121,7 @@ export async function POST(req: NextRequest) {
         .createSignedUrl(path, 60 * 60 * 24 * 7);
 
       if (signed.error || !signed.data?.signedUrl) {
-        console.error('[render] signed url failed:', signed.error);
+        console.error('[render-route] signed url failed:', signed.error);
         return NextResponse.json(
           { error: 'Failed to create signed URL for rendered image' },
           { status: 500 },
@@ -119,6 +129,24 @@ export async function POST(req: NextRequest) {
       }
 
       finalImageUrl = signed.data.signedUrl;
+
+      console.log(
+        '[render-route] signed image url:',
+        typeof finalImageUrl,
+        String(finalImageUrl).slice(0, 180),
+      );
+    }
+
+    if (
+      typeof finalImageUrl !== 'string' ||
+      (!finalImageUrl.startsWith('http') &&
+        !finalImageUrl.startsWith('data:image/'))
+    ) {
+      console.error('[render-route] invalid finalImageUrl:', finalImageUrl);
+      return NextResponse.json(
+        { error: 'Invalid final image URL returned by renderer' },
+        { status: 500 },
+      );
     }
 
     const renderedImages = {
@@ -139,6 +167,12 @@ export async function POST(req: NextRequest) {
       })
       .eq('id', body.campaignId)
       .eq('user_id', user.id);
+
+    console.log(
+      '[render-route] persisted url for variant:',
+      variant.id,
+      String(finalImageUrl).slice(0, 180),
+    );
 
     return NextResponse.json({
       ok: true,
