@@ -12,12 +12,24 @@ export type VariantLayout =
 export type RenderEngine = 'canvas' | 'flux' | 'hybrid';
 export type AspectRatio = '9:16' | '1:1' | '4:5';
 export type ImageRole = 'logo' | 'hero' | 'feature' | 'support' | 'lifestyle';
+
+// NEW in Tanda 4A — marketing angles (more specific than before)
 export type VariantAngle =
-  | 'capability'
-  | 'breadth'
-  | 'offer'
-  | 'identity'
-  | 'proof';
+  | 'pain'
+  | 'result'
+  | 'authority'
+  | 'curiosity'
+  | 'aggressive';
+
+export type Intensity = 'soft' | 'medium' | 'aggressive';
+
+export type VisualStyle =
+  | 'luxury'
+  | 'minimal'
+  | 'startup'
+  | 'aggressive'
+  | 'cinematic';
+
 export type LogoPosition =
   | 'top-left'
   | 'top-right'
@@ -82,6 +94,12 @@ export interface Variant {
   reasoningSummary: string;
   aspectRatio: AspectRatio;
   renderPrompt?: string;
+
+  // NEW in Tanda 4A
+  visualDirection: string; // sentence describing scene, light, depth
+  compositionHint: string; // layout hint for canvas/hybrid
+  intensity: Intensity;
+  styleHint: VisualStyle;
 }
 
 export interface CampaignMemory {
@@ -98,12 +116,22 @@ export interface HeroScore {
   reasons: string[];
 }
 
+// EXTENDED in Tanda 4A — 6 tests, threshold 75, retry recommendation
 export interface QualityReport {
   variantId: string;
   score: number;
   passed: boolean;
   issues: string[];
   suggestions: string[];
+  autoRetryRecommended?: boolean; // frontend reads this to trigger regenerate
+  subscores?: {
+    legibility: number; // 0-100
+    hierarchy: number;
+    contrast: number;
+    depth: number;
+    slopFree: number;
+    brandCoherence: number;
+  };
 }
 
 export interface PersistedCampaign {
