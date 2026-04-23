@@ -27,15 +27,6 @@ export interface FullRenderResult extends RenderOutput {
 
 const PASS_THRESHOLD = 75;
 
-/**
- * RENDER ROUTER v6 — Flux only, quality-gate fail-open.
- *
- * Important behavior:
- * - Flux render is the source of truth.
- * - Quality gate must NEVER block image delivery if Anthropic is down
- *   or out of credit.
- * - Retry only happens if a valid quality report exists and it fails.
- */
 export async function renderWithQuality(
   input: RenderInput,
 ): Promise<FullRenderResult> {
@@ -49,31 +40,41 @@ export async function renderWithQuality(
   }
 
   if (
-    typeof result.imageUrl !== 'string' ||
-    (!result.imageUrl.startsWith('http') &&
+    !result.imageUrl ||
+    (typeof result.imageUrl === 'string' &&
+      !result.imageUrl.startsWith('http') &&
       !result.imageUrl.startsWith('data:image/'))
   ) {
-    throw new Error(
-      'Flux renderer returned an invalid image URL: ' + String(result.imageUrl),
-    );
+    throw new Error('Flux renderer returned invalid image URL');
   }
 
+  // Quality gate must NEVER break render delivery
   let report: QualityReport | undefined;
-
   try {
     report = await evaluateVariant(input.variant, result.imageUrl);
   } catch (err) {
-    console.error('[quality-gate] non-blocking error:', err);
-    report = undefined;
+    console.warn('[render-router] quality-gate failed, continuing without report:', err);
+    return {
+      ...result,
+      qualityReport: undefined,
+      retried: false,
+    };
   }
 
-  // If quality gate failed or is unavailable, do NOT block the image.
   if (!report) {
-    return { ...result, qualityReport: undefined, retried: false };
+    return {
+      ...result,
+      qualityReport: undefined,
+      retried: false,
+    };
   }
 
   if (report.passed) {
-    return { ...result, qualityReport: report, retried: false };
+    return {
+      ...result,
+      qualityReport: report,
+      retried: false,
+    };
   }
 
   console.warn(
@@ -86,47 +87,56 @@ export async function renderWithQuality(
   );
 
   const retryVariant = applyAggressiveRetry(input.variant, report);
-  const retryInput: RenderInput = { ...input, variant: retryVariant };
+  const retryInput: RenderInput = {
+    ...input,
+    variant: retryVariant,
+  };
 
   let retried: RenderOutput;
   try {
     retried = await renderFlux(retryInput);
   } catch (err) {
     console.error('[render-router] retry failed, returning original:', err);
-    return { ...result, qualityReport: report, retried: true };
-  }
-
-  if (
-    typeof retried.imageUrl !== 'string' ||
-    (!retried.imageUrl.startsWith('http') &&
-      !retried.imageUrl.startsWith('data:image/'))
-  ) {
-    console.error(
-      '[render-router] retry returned invalid image URL, keeping original',
-      retried.imageUrl,
-    );
-    return { ...result, qualityReport: report, retried: true };
+    return {
+      ...result,
+      qualityReport: report,
+      retried: true,
+    };
   }
 
   let retryReport: QualityReport | undefined;
-
   try {
     retryReport = await evaluateVariant(retryVariant, retried.imageUrl);
   } catch (err) {
-    console.error('[quality-gate retry] non-blocking error:', err);
-    retryReport = undefined;
+    console.warn('[render-router] retry quality-gate failed, returning retried image:', err);
+    return {
+      ...retried,
+      qualityReport: report,
+      retried: true,
+    };
   }
 
-  // If retry quality gate fails, still keep the retried image
   if (!retryReport) {
-    return { ...retried, qualityReport: undefined, retried: true };
+    return {
+      ...retried,
+      qualityReport: report,
+      retried: true,
+    };
   }
 
   if (retryReport.score >= report.score) {
-    return { ...retried, qualityReport: retryReport, retried: true };
+    return {
+      ...retried,
+      qualityReport: retryReport,
+      retried: true,
+    };
   }
 
-  return { ...result, qualityReport: report, retried: true };
+  return {
+    ...result,
+    qualityReport: report,
+    retried: true,
+  };
 }
 
 function applyAggressiveRetry(
