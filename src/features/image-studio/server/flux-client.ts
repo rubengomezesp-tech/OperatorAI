@@ -24,7 +24,10 @@ const ASPECT_TO_SIZE: Record<string, { w: number; h: number }> = {
   '3:2': { w: 1216, h: 832 },
 };
 
-const MODEL_MAP: Record<'flux-2-pro' | 'flux-1.1-pro', string> = {
+const MODEL_MAP: Record<
+  'flux-2-pro' | 'flux-1.1-pro',
+  `${string}/${string}`
+> = {
   'flux-2-pro': 'black-forest-labs/flux-1.1-pro',
   'flux-1.1-pro': 'black-forest-labs/flux-1.1-pro',
 };
