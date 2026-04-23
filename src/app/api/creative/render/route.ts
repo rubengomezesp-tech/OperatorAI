@@ -50,10 +50,11 @@ export async function POST(req: NextRequest) {
     }
 
     const result = await renderWithQuality({
-      variant,
-      imageUrls: campaign.image_urls,
-      analyses: campaign.analyses,
-    });
+  variant,
+  imageUrls: campaign.image_urls,
+  analyses: campaign.analyses,
+  direction: campaign.direction ?? undefined,
+});
 
     // Persist rendered image + quality report
     const renderedImages = {
