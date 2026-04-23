@@ -1,5 +1,5 @@
 import 'server-only';
-import type { Variant, ImageAnalysis, QualityReport } from '../types';
+import type { Variant, ImageAnalysis, QualityReport, CampaignDirection } from '../types';
 import { renderFlux } from './renderers/flux-renderer';
 import { evaluateVariant } from './quality-gate';
 
@@ -7,6 +7,7 @@ export interface RenderInput {
   variant: Variant;
   imageUrls: string[];
   analyses: ImageAnalysis[];
+  direction?: CampaignDirection;
 }
 
 export interface RenderOutput {
