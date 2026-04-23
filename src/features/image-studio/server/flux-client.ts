@@ -52,7 +52,7 @@ function extractRetryAfterSeconds(err: unknown): number {
 
 async function runWithRetry(
   client: Replicate,
-  model: string,
+  model: `${string}/${string}` | `${string}/${string}:${string}`,
   payload: Record<string, unknown>,
 ) {
   let attempt = 0;
@@ -93,10 +93,6 @@ function normalizeOutputToUrls(output: unknown): string[] {
     const maybeUrl = (output as any).url;
     if (typeof maybeUrl === 'string') {
       return [maybeUrl];
-    }
-
-    if (typeof maybeUrl === 'function') {
-      return [];
     }
   }
 
@@ -149,7 +145,7 @@ export async function generateWithFlux(
       ? input.model
       : 'flux-2-pro';
 
-  const model = MODEL_MAP[modelKey];
+  const model = MODEL_MAP[modelKey] as `${string}/${string}`;
 
   try {
     const output = await runWithRetry(client, model, payload);
