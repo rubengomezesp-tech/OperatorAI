@@ -1,6 +1,6 @@
-"use client";
+'use client';
 import Link from 'next/link';
-import { ArrowRight, Rocket, Target, Zap } from 'lucide-react';
+import { ArrowRight, Rocket, Target, Zap, Check, Sparkles } from 'lucide-react';
 import { useI18n, LanguageToggle } from '@/lib/i18n';
 
 const t_landing: Record<string, Record<string, string>> = {
@@ -16,6 +16,27 @@ const t_landing: Record<string, Record<string, string>> = {
   cta_login: { en: 'Log in', es: 'Iniciar sesion' },
   no_card: { en: 'No card required', es: 'Sin tarjeta' },
   from: { en: 'Starter from $29/mo', es: 'Starter desde 29 $/mes' },
+
+  // === NEW HERO KEYS (mockup + efectos) ===
+  hero_announcement: { en: 'Now with Brand OS v2', es: 'Ahora con Brand OS v2' },
+  hero_check_1: { en: 'Free 7-day trial', es: 'Prueba 7 días gratis' },
+  hero_check_2: { en: 'No card required', es: 'Sin tarjeta' },
+  hero_check_3: { en: 'Cancel anytime', es: 'Cancela cuando quieras' },
+  mockup_mission_label: { en: 'Mission', es: 'Misión' },
+  mockup_mission_name: { en: 'Launch Summer Collection', es: 'Lanzar Colección Verano' },
+  mockup_generating: { en: 'Generating', es: 'Generando' },
+  mockup_nav_home: { en: 'Home', es: 'Inicio' },
+  mockup_nav_missions: { en: 'Missions', es: 'Misiones' },
+  mockup_nav_campaigns: { en: 'Campaigns', es: 'Campañas' },
+  mockup_nav_library: { en: 'Library', es: 'Librería' },
+  mockup_nav_brand: { en: 'Brand OS', es: 'Brand OS' },
+  mockup_asset_1: { en: 'Instagram Ad', es: 'Anuncio Instagram' },
+  mockup_asset_2: { en: 'Email Campaign', es: 'Campaña Email' },
+  mockup_asset_3: { en: 'TikTok Video', es: 'Video TikTok' },
+  mockup_check_1: { en: 'Brand colors applied', es: 'Colores aplicados' },
+  mockup_check_2: { en: 'Tone of voice matched', es: 'Tono ajustado' },
+  mockup_check_3: { en: 'Publish-ready', es: 'Listo para publicar' },
+
   shift: { en: 'The shift', es: 'El cambio' },
   shift_h2_1: { en: 'From prompts to ', es: 'De prompts a ' },
   shift_h2_2: { en: 'operations', es: 'operaciones' },
@@ -89,25 +110,47 @@ export default function LandingPage() {
         </div>
       </header>
 
-      {/* Hero */}
-      <section className="relative px-5 lg:px-8 pt-20 lg:pt-28 pb-20 overflow-hidden">
-        <div className="absolute -top-32 left-1/2 -translate-x-1/2 h-96 w-[700px] rounded-full gold-grad opacity-[0.06] blur-3xl pointer-events-none" />
+      {/* Hero (MEJORADO) */}
+      <section className="relative px-5 lg:px-8 pt-20 lg:pt-28 pb-12 overflow-hidden">
+        {/* Background: Grid pattern */}
+        <div
+          className="absolute inset-0 opacity-[0.04] pointer-events-none"
+          style={{
+            backgroundImage: `linear-gradient(rgba(255,255,255,1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,1) 1px, transparent 1px)`,
+            backgroundSize: '60px 60px',
+            maskImage: 'radial-gradient(ellipse at center top, black 20%, transparent 70%)',
+            WebkitMaskImage: 'radial-gradient(ellipse at center top, black 20%, transparent 70%)',
+          }}
+        />
+
+        {/* Background: Glow dorado grande */}
+        <div className="absolute -top-32 left-1/2 -translate-x-1/2 h-96 w-[900px] rounded-full gold-grad opacity-[0.08] blur-3xl pointer-events-none" />
+
         <div className="relative max-w-[920px] mx-auto text-center">
-          <div className="inline-flex items-center gap-2 rounded-full border border-gold/20 bg-gold/5 px-3.5 py-1 text-[11px] uppercase tracking-[0.14em] text-gold mb-6">
-            <span className="h-1.5 w-1.5 rounded-full bg-gold animate-pulse" />
-            <span>{l('badge')}</span>
+          {/* Announcement pill */}
+          <div className="inline-flex items-center gap-2 rounded-full border border-gold/20 bg-gold/5 px-3.5 py-1.5 text-[11px] uppercase tracking-[0.14em] text-gold mb-6 hover:border-gold/40 transition-colors">
+            <Sparkles className="h-3 w-3" />
+            <span>{l('hero_announcement')}</span>
+            <span className="text-gold/50">·</span>
+            <span className="text-gold/70 normal-case tracking-normal text-[11px]">{l('badge')}</span>
           </div>
+
+          {/* Título */}
           <h1 className="font-display text-[52px] lg:text-[80px] leading-[0.98] mb-6">
             {l('h1_1')}<br />
             <span className="text-gold-grad">{l('h1_2')}</span>
           </h1>
+
+          {/* Subtítulo */}
           <p className="text-[16px] lg:text-[18px] text-fg-muted max-w-[620px] mx-auto leading-relaxed mb-10">
             {l('hero_p')}
           </p>
-          <div className="flex items-center justify-center gap-3 mb-4">
+
+          {/* CTA buttons */}
+          <div className="flex items-center justify-center gap-3 mb-6">
             <Link
               href="/signup"
-              className="inline-flex items-center gap-2 h-12 px-6 rounded-md gold-grad text-bg text-[14px] font-medium hover:brightness-110 transition"
+              className="inline-flex items-center gap-2 h-12 px-6 rounded-md gold-grad text-bg text-[14px] font-medium hover:brightness-110 transition shadow-[0_0_40px_rgba(201,168,99,0.2)]"
             >
               <span>{l('cta_trial')}</span>
               <ArrowRight className="h-4 w-4" />
@@ -119,17 +162,134 @@ export default function LandingPage() {
               {l('cta_pricing')}
             </Link>
           </div>
-          <p className="text-[11.5px] text-fg-subtle uppercase tracking-[0.14em]">
-            {l('no_card')} &middot; {l('from')}
-          </p>
+
+          {/* Checks con iconos (reemplaza al no_card · from) */}
+          <div className="flex items-center justify-center gap-5 flex-wrap text-[11.5px] text-fg-subtle">
+            <span className="inline-flex items-center gap-1.5">
+              <Check className="h-3 w-3 text-gold" />
+              {l('hero_check_1')}
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <Check className="h-3 w-3 text-gold" />
+              {l('hero_check_2')}
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <Check className="h-3 w-3 text-gold" />
+              {l('hero_check_3')}
+            </span>
+          </div>
+
+          {/* Log in link */}
           <div className="mt-4">
             <Link href="/login" className="text-[13px] text-gold hover:text-gold/80 underline underline-offset-4 transition-colors">{l('cta_login')}</Link>
+          </div>
+        </div>
+
+        {/* === MOCKUP DEL PRODUCTO === */}
+        <div className="relative max-w-[980px] mx-auto mt-16 lg:mt-20">
+          {/* Glow detrás del mockup */}
+          <div className="absolute inset-0 -top-10 -bottom-10 blur-3xl opacity-30 pointer-events-none">
+            <div className="absolute inset-0 gold-grad rounded-[40px]" />
+          </div>
+
+          {/* Container del mockup */}
+          <div className="relative rounded-2xl border border-border bg-surface overflow-hidden shadow-[0_20px_80px_rgba(0,0,0,0.5)]">
+            {/* Browser chrome */}
+            <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-surface-2">
+              <div className="flex gap-1.5">
+                <div className="h-2.5 w-2.5 rounded-full bg-red-500/40" />
+                <div className="h-2.5 w-2.5 rounded-full bg-yellow-500/40" />
+                <div className="h-2.5 w-2.5 rounded-full bg-green-500/40" />
+              </div>
+              <div className="flex-1 text-center text-[11px] text-fg-subtle font-mono">
+                app.operatoraiapp.com
+              </div>
+            </div>
+
+            {/* App layout: sidebar + main */}
+            <div className="grid grid-cols-[200px_1fr] min-h-[360px]">
+              {/* Sidebar */}
+              <div className="border-r border-border bg-bg p-3 flex flex-col gap-1">
+                {[
+                  { label: l('mockup_nav_home'), active: false },
+                  { label: l('mockup_nav_missions'), active: true },
+                  { label: l('mockup_nav_campaigns'), active: false },
+                  { label: l('mockup_nav_library'), active: false },
+                  { label: l('mockup_nav_brand'), active: false },
+                ].map((item, i) => (
+                  <div
+                    key={i}
+                    className={`px-3 py-2 rounded-md text-[12px] font-medium ${
+                      item.active
+                        ? 'bg-gold/10 text-gold border border-gold/20'
+                        : 'text-fg-muted'
+                    }`}
+                  >
+                    {item.label}
+                  </div>
+                ))}
+              </div>
+
+              {/* Main content */}
+              <div className="p-6">
+                {/* Mission header */}
+                <div className="flex items-center justify-between mb-5">
+                  <div>
+                    <div className="text-[10px] uppercase tracking-[0.14em] text-fg-subtle mb-1">
+                      {l('mockup_mission_label')}
+                    </div>
+                    <div className="font-display text-[18px] text-fg">
+                      {l('mockup_mission_name')}
+                    </div>
+                  </div>
+                  <div className="inline-flex items-center gap-1.5 text-[11px] text-gold">
+                    <span className="h-1.5 w-1.5 rounded-full bg-gold animate-pulse" />
+                    {l('mockup_generating')}
+                  </div>
+                </div>
+
+                {/* Asset grid */}
+                <div className="grid grid-cols-3 gap-3 mb-5">
+                  {[
+                    { label: l('mockup_asset_1'), color: 'from-pink-500/20 to-purple-500/10' },
+                    { label: l('mockup_asset_2'), color: 'from-blue-500/20 to-cyan-500/10' },
+                    { label: l('mockup_asset_3'), color: 'from-orange-500/20 to-red-500/10' },
+                  ].map((asset, i) => (
+                    <div
+                      key={i}
+                      className={`aspect-[4/5] rounded-lg border border-border bg-gradient-to-br ${asset.color} p-3 flex flex-col justify-end relative overflow-hidden`}
+                    >
+                      <div className="absolute top-2 right-2">
+                        <Check className="h-3 w-3 text-gold" />
+                      </div>
+                      <div className="text-[11px] text-fg font-medium">{asset.label}</div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Checks */}
+                <div className="flex items-center gap-4 flex-wrap text-[11px] text-fg-muted">
+                  <span className="inline-flex items-center gap-1.5">
+                    <Check className="h-3 w-3 text-gold" />
+                    {l('mockup_check_1')}
+                  </span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <Check className="h-3 w-3 text-gold" />
+                    {l('mockup_check_2')}
+                  </span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <Check className="h-3 w-3 text-gold" />
+                    {l('mockup_check_3')}
+                  </span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
       {/* Compare */}
-      <section className="px-5 lg:px-8 pb-20">
+      <section className="px-5 lg:px-8 pb-20 pt-12">
         <div className="max-w-[920px] mx-auto">
           <div className="text-center mb-12">
             <div className="text-[11px] uppercase tracking-[0.18em] text-gold mb-2">{l('shift')}</div>
