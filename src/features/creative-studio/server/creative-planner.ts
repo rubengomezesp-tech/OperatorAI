@@ -157,8 +157,8 @@ ${memoryBlock}
     // ── DIVERSITY PASS ───────────────────────────────────────
     // Assign a DIFFERENT visual style to each variant.
     // Overrides whatever styleHint came from Claude (if any) to guarantee diversity.
-    const layouts = normalized.map((v) => v.layout);
-    const intensities = normalized.map((v) => v.intensity);
+    const layouts = normalized.map((v: Variant) => v.layout);
+    const intensities = normalized.map((v: Variant) => v.intensity);
     const assignedStyles = assignDiverseStyles(layouts, intensities);
 
     for (let i = 0; i < normalized.length; i++) {
