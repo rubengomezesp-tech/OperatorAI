@@ -2,11 +2,12 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { createSupabaseServiceClient } from '@/lib/supabase/service';
-import { renderWithQuality } from '@/features/creative-studio/server/render-router';
+import { renderFlux } from '@/features/creative-studio/server/renderers/flux-renderer';
 import type {
   Variant,
   ImageAnalysis,
   QualityReport,
+  CampaignDirection,
 } from '@/features/creative-studio/types';
 
 export const runtime = 'nodejs';
@@ -59,6 +60,7 @@ export async function POST(req: NextRequest) {
   const {
     data: { user },
   } = await ssr.auth.getUser();
+
   if (!user) {
     return json({
       ok: false,
@@ -72,7 +74,7 @@ export async function POST(req: NextRequest) {
   const { data: row, error: loadErr } = await svc
     .from('campaigns' as any)
     .select(
-      'image_urls, analyses, variants, rendered_images, quality_reports',
+      'image_urls, analyses, variants, rendered_images, quality_reports, direction',
     )
     .eq('id', campaignId)
     .eq('user_id', user.id)
@@ -87,15 +89,15 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  const campaign = row as {
+  const campaign = row as unknown as {
     image_urls: string[];
     analyses: ImageAnalysis[];
     variants: Variant[];
     rendered_images: Record<string, string> | null;
     quality_reports: Record<string, QualityReport> | null;
+    direction?: CampaignDirection | null;
   };
 
-  // Idempotency
   const existingUrl = campaign.rendered_images?.[variantId];
   if (!force && existingUrl && existingUrl.startsWith('http')) {
     return json({
@@ -117,12 +119,13 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  let result: Awaited<ReturnType<typeof renderWithQuality>>;
+  let result: { imageUrl: string; engine: 'flux' };
   try {
-    result = await renderWithQuality({
+    result = await renderFlux({
       variant,
       imageUrls: campaign.image_urls,
       analyses: campaign.analyses,
+      direction: campaign.direction ?? undefined,
     });
   } catch (err) {
     const mapped = mapRenderError(err);
@@ -146,7 +149,6 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  // Persist (non-fatal on failure)
   try {
     await persistRender(
       svc,
@@ -154,7 +156,7 @@ export async function POST(req: NextRequest) {
       user.id,
       variantId,
       result.imageUrl,
-      result.qualityReport ?? null,
+      null,
     );
   } catch (err) {
     console.error(
@@ -167,9 +169,9 @@ export async function POST(req: NextRequest) {
     ok: true,
     imageUrl: result.imageUrl,
     cached: false,
-    retried: result.retried,
+    retried: false,
     engine: result.engine,
-    qualityReport: result.qualityReport ?? null,
+    qualityReport: null,
   });
 }
 
@@ -233,7 +235,11 @@ function mapRenderError(err: unknown): RenderFail {
     };
   }
 
-  return { ok: false, error: message, code: 'INTERNAL' };
+  return {
+    ok: false,
+    error: message,
+    code: 'INTERNAL',
+  };
 }
 
 async function persistRender(
@@ -256,6 +262,7 @@ async function persistRender(
     ...(currentRow.rendered_images || {}),
     [variantId]: imageUrl,
   };
+
   const nextReports = qualityReport
     ? {
         ...(currentRow.quality_reports || {}),

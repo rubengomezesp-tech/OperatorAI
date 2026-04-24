@@ -71,18 +71,18 @@ export async function POST(req: NextRequest) {
     .single();
 
   if (loadErr || !row) {
-    return json({ ok: false, error: 'Campaign not found', code: 'CAMPAIGN_NOT_FOUND' });
-  }
+  return NextResponse.json({ error: 'Campaign not found' }, { status: 404 });
+}
 
-  const campaign = row as unknown as {
-    analyses: ImageAnalysis[];
-    brief: ProductBrief;
-    variants: Variant[];
-    memory: CampaignMemory;
-    aspect_ratio: AspectRatio;
-    rendered_images: Record<string, string> | null;
-    quality_reports: Record<string, QualityReport> | null;
-  };
+const campaign = row as unknown as {
+  analyses: ImageAnalysis[];
+  brief: ProductBrief;
+  variants: Variant[];
+  memory: CampaignMemory;
+  aspect_ratio: AspectRatio;
+  rendered_images: Record<string, string> | null;
+  quality_reports: Record<string, QualityReport> | null;
+};
 
   const oldVariant = campaign.variants.find((v) => v.id === body.variantId);
   if (!oldVariant) {
