@@ -11,6 +11,9 @@ import {
   ArrowLeft,
   AlertTriangle,
   RefreshCw,
+  Shield,
+  ImageIcon,
+  Plus,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -27,6 +30,7 @@ import type {
   CampaignIntent,
   AspectRatio,
   QualityReport,
+  BrandAssets,
 } from '../types';
 
 type Step =
@@ -50,8 +54,13 @@ interface UploadedImage {
   preview: string;
 }
 
-// Concurrency: Replicate Pro tier is 6 RPM; 2 parallel with polling every 3s
-// stays well inside the budget.
+interface UploadedLogo {
+  url: string;
+  preview: string;
+  width: number;
+  height: number;
+}
+
 const RENDER_CONCURRENCY = 2;
 
 // ═══════════════════════════════════════════════════════════
@@ -60,11 +69,23 @@ export function CreativeStudioView() {
   const { locale } = useI18n();
   const es = locale === 'es';
 
-  const { campaign, loading: loadingCampaign, load, setCampaign, patchCampaign, reset } =
-    useCampaignMemory();
+  const {
+    campaign,
+    loading: loadingCampaign,
+    load,
+    setCampaign,
+    patchCampaign,
+    reset,
+  } = useCampaignMemory();
 
   const [step, setStep] = useState<Step>('upload');
-  const [images, setImages] = useState<UploadedImage[]>([]);
+
+  // SEPARATED UPLOAD STATE
+  const [logo, setLogo] = useState<UploadedLogo | null>(null);
+  const [brandName, setBrandName] = useState('');
+  const [slogan, setSlogan] = useState('');
+  const [productImages, setProductImages] = useState<UploadedImage[]>([]);
+
   const [instructions, setInstructions] = useState('');
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>('9:16');
   const [campaignIntent, setCampaignIntent] = useState<CampaignIntent>('launch');
@@ -76,13 +97,13 @@ export function CreativeStudioView() {
   const [selectedVariant, setSelectedVariant] = useState<Variant | null>(null);
   const [briefEdit, setBriefEdit] = useState(false);
 
-  const fileRef = useRef<HTMLInputElement>(null);
+  const logoFileRef = useRef<HTMLInputElement>(null);
+  const productFileRef = useRef<HTMLInputElement>(null);
 
-  // campaign ref for callbacks that close over stale state
   const campaignRef = useRef<CampaignState | null>(null);
   campaignRef.current = campaign;
 
-  // If a campaign loaded from URL, hydrate step
+  // Hydrate step from loaded campaign
   if (campaign && step === 'upload' && !loadingCampaign) {
     if (campaign.variants?.length > 0) {
       setStep('grid');
@@ -95,11 +116,58 @@ export function CreativeStudioView() {
   }
 
   // ═══════════════════════════════════════════════════
-  // Upload handlers
+  // Logo upload — single file, preserved exactly
   // ═══════════════════════════════════════════════════
-  async function handleFiles(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error(es ? 'Logo demasiado grande (max 5MB)' : 'Logo too large (max 5MB)');
+      return;
+    }
+
+    const fd = new FormData();
+    fd.append('file', file);
+
+    try {
+      const res = await fetch('/api/images/upload-reference', {
+        method: 'POST',
+        body: fd,
+      });
+      const data = await res.json();
+      if (!res.ok || !data.url) throw new Error(data.error || 'Upload failed');
+
+      // Get dimensions
+      const preview = URL.createObjectURL(file);
+      const img = new window.Image();
+      img.onload = () => {
+        setLogo({
+          url: data.url,
+          preview,
+          width: img.naturalWidth,
+          height: img.naturalHeight,
+        });
+      };
+      img.src = preview;
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Upload failed');
+    }
+
+    if (logoFileRef.current) logoFileRef.current.value = '';
+  }
+
+  function removeLogo() {
+    if (logo) URL.revokeObjectURL(logo.preview);
+    setLogo(null);
+  }
+
+  // ═══════════════════════════════════════════════════
+  // Product images upload
+  // ═══════════════════════════════════════════════════
+  async function handleProductUpload(e: React.ChangeEvent<HTMLInputElement>) {
     if (!e.target.files) return;
-    for (const file of Array.from(e.target.files).slice(0, 10 - images.length)) {
+    const remaining = 8 - productImages.length;
+    for (const file of Array.from(e.target.files).slice(0, remaining)) {
       if (file.size > 10 * 1024 * 1024) continue;
       const fd = new FormData();
       fd.append('file', file);
@@ -110,18 +178,20 @@ export function CreativeStudioView() {
         });
         const data = await res.json();
         if (res.ok && data.url) {
-          setImages((prev) => [
+          setProductImages((prev) => [
             ...prev,
             { url: data.url, preview: URL.createObjectURL(file) },
           ]);
         }
-      } catch {}
+      } catch {
+        // silent
+      }
     }
-    if (fileRef.current) fileRef.current.value = '';
+    if (productFileRef.current) productFileRef.current.value = '';
   }
 
-  function rmImg(i: number) {
-    setImages((prev) => {
+  function removeProductImage(i: number) {
+    setProductImages((prev) => {
       const n = [...prev];
       URL.revokeObjectURL(n[i].preview);
       n.splice(i, 1);
@@ -130,28 +200,38 @@ export function CreativeStudioView() {
   }
 
   // ═══════════════════════════════════════════════════
-  // Step: analyze
+  // Analyze
   // ═══════════════════════════════════════════════════
   async function runAnalyze() {
-    if (!images.length) return;
+    if (!productImages.length) {
+      toast.error(
+        es
+          ? 'Sube al menos una imagen de producto'
+          : 'Upload at least one product image',
+      );
+      return;
+    }
+
     setStep('analyzing');
     setAnalysisLog([]);
 
     const liveLogs = es
       ? [
-          'Analizando imagenes...',
-          'Detectando logo...',
-          'Identificando pantallas...',
+          ...(logo ? ['Guardando logo y paleta de marca...'] : []),
+          'Analizando imagenes del producto...',
+          'Detectando categoria...',
+          'Identificando escenarios publicitarios...',
           'Extrayendo texto (OCR)...',
-          'Sintetizando producto...',
+          'Sintetizando brief...',
           'Derivando direccion creativa...',
         ]
       : [
-          'Analyzing images...',
-          'Detecting logo...',
-          'Identifying screens...',
+          ...(logo ? ['Saving logo and brand palette...'] : []),
+          'Analyzing product images...',
+          'Detecting category...',
+          'Identifying ad scenarios...',
           'Extracting text (OCR)...',
-          'Synthesizing product...',
+          'Synthesizing brief...',
           'Deriving creative direction...',
         ];
 
@@ -163,12 +243,23 @@ export function CreativeStudioView() {
       }
     }, 1400);
 
+    // Build BrandAssets payload if logo was uploaded
+    const brandAssets: BrandAssets | undefined = logo
+      ? {
+          logoUrl: logo.url,
+          brandName: brandName.trim() || undefined,
+          slogan: slogan.trim() || undefined,
+          defaultLogoPosition: 'top-right',
+        }
+      : undefined;
+
     try {
       const res = await fetch('/api/creative/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          imageUrls: images.map((i) => i.url),
+          imageUrls: productImages.map((i) => i.url),
+          brandAssets,
           instructions,
           locale,
           campaignIntent,
@@ -182,7 +273,8 @@ export function CreativeStudioView() {
 
       const state: CampaignState = {
         id: data.campaignId,
-        imageUrls: images.map((i) => i.url),
+        imageUrls: productImages.map((i) => i.url),
+        brandAssets: data.brandAssets ?? brandAssets,
         instructions,
         aspectRatio,
         campaignIntent,
@@ -210,7 +302,7 @@ export function CreativeStudioView() {
   }
 
   // ═══════════════════════════════════════════════════
-  // Step: plan + render (queue with concurrency)
+  // Plan + render
   // ═══════════════════════════════════════════════════
   async function runPlanAndRender() {
     if (!campaign) return;
@@ -235,24 +327,18 @@ export function CreativeStudioView() {
     patchCampaign({ variants });
     setStep('grid');
 
-    // Initialize all variants to 'queued'
     const initial: Record<string, VariantRenderState> = {};
     variants.forEach((v) => {
       initial[v.id] = { status: 'queued' };
     });
     setRenderStates(initial);
 
-    // Launch queue with concurrency limit
     await renderQueue(variants, RENDER_CONCURRENCY);
   }
 
-  // ═══════════════════════════════════════════════════
-  // Render queue — concurrency-limited, per-variant states
-  // ═══════════════════════════════════════════════════
   const renderQueue = useCallback(
     async (variants: Variant[], concurrency: number) => {
       const queue = [...variants];
-
       const worker = async () => {
         while (queue.length > 0) {
           const v = queue.shift();
@@ -260,7 +346,6 @@ export function CreativeStudioView() {
           await renderOneVariant(v);
         }
       };
-
       await Promise.all(
         Array.from({ length: Math.min(concurrency, variants.length) }, worker),
       );
@@ -281,14 +366,9 @@ export function CreativeStudioView() {
       const res = await fetch('/api/creative/render', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          campaignId,
-          variantId: variant.id,
-        }),
+        body: JSON.stringify({ campaignId, variantId: variant.id }),
       });
 
-      // Backend always returns 200 with {ok: true|false}. Any non-JSON or
-      // non-200 is a real infrastructure failure.
       let data: any = null;
       try {
         data = await res.json();
@@ -335,9 +415,6 @@ export function CreativeStudioView() {
     }
   }, [patchCampaign]);
 
-  // ═══════════════════════════════════════════════════
-  // Manual retry for a single failed variant
-  // ═══════════════════════════════════════════════════
   const retryVariant = useCallback(
     async (variant: Variant) => {
       await renderOneVariant(variant);
@@ -345,12 +422,8 @@ export function CreativeStudioView() {
     [renderOneVariant],
   );
 
-  // ═══════════════════════════════════════════════════
-  // Regenerate (different variant, uses memory)
-  // ═══════════════════════════════════════════════════
   async function handleRegenerate(variant: Variant) {
     if (!campaign) return;
-
     setRenderStates((prev) => ({
       ...prev,
       [variant.id]: { status: 'running' },
@@ -391,7 +464,6 @@ export function CreativeStudioView() {
         })(),
       });
 
-      // Transfer render state to new variant id
       setRenderStates((prev) => {
         const next = { ...prev };
         delete next[variant.id];
@@ -414,8 +486,12 @@ export function CreativeStudioView() {
   }
 
   function handleReset() {
-    images.forEach((i) => URL.revokeObjectURL(i.preview));
-    setImages([]);
+    productImages.forEach((i) => URL.revokeObjectURL(i.preview));
+    if (logo) URL.revokeObjectURL(logo.preview);
+    setLogo(null);
+    setBrandName('');
+    setSlogan('');
+    setProductImages([]);
     setInstructions('');
     setAnalysisLog([]);
     setRenderStates({});
@@ -424,32 +500,31 @@ export function CreativeStudioView() {
     reset();
   }
 
-  // ═══════════════════════════════════════════════════
-  // Loading from URL
-  // ═══════════════════════════════════════════════════
   if (loadingCampaign) {
     return (
       <div className="px-4 lg:px-10 py-10 max-w-[560px] mx-auto">
         <div className="flex items-center gap-3">
           <Loader2 className="h-5 w-5 text-gold animate-spin" />
           <span className="text-[13px] text-fg-muted">
-            {es ? 'Cargando campana...' : 'Loading campaign...'}
+            {es ? 'Cargando campaña...' : 'Loading campaign...'}
           </span>
         </div>
       </div>
     );
   }
 
-  // ═══════════════════════════════════════════════════
+  // ═════════════════════════════════════════════════════════════
   // STEP: upload
-  // ═══════════════════════════════════════════════════
+  // ═════════════════════════════════════════════════════════════
   if (step === 'upload') {
+    const canAnalyze = productImages.length > 0;
+
     return (
       <div className="px-4 lg:px-10 py-6 max-w-[760px] mx-auto space-y-5">
         <div className="text-center py-3">
           <div className="inline-flex items-center gap-2 text-[10px] uppercase tracking-[0.2em] text-gold px-3 py-1 rounded-full bg-gold/10 border border-gold/20 mb-3">
             <Sparkles className="h-3 w-3" />
-            {es ? 'Crea campanas' : 'Create Campaigns'}
+            {es ? 'Crea campañas' : 'Create Campaigns'}
           </div>
           <h1 className="font-display text-[26px] lg:text-[34px]">
             {es ? (
@@ -464,43 +539,132 @@ export function CreativeStudioView() {
           </h1>
           <p className="text-[13px] text-fg-muted mt-1.5 max-w-[420px] mx-auto">
             {es
-              ? 'El sistema entiende tu producto y genera 5 anuncios distintos.'
-              : 'The system understands your product and generates 5 different ads.'}
+              ? 'Separa tu marca del producto. Preservamos tu logo exacto.'
+              : 'Separate your brand from your product. We preserve your logo exactly.'}
           </p>
         </div>
 
+        {/* ═══ BRAND ASSETS (optional) ═══ */}
         <div className="rounded-xl border border-border bg-surface p-4 space-y-3">
-          <div className="text-[11px] uppercase tracking-[0.14em] text-fg-subtle">
-            {es ? 'Imagenes' : 'Images'}{' '}
-            {images.length > 0 && (
-              <span className="text-gold">({images.length}/10)</span>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Shield className="h-3.5 w-3.5 text-gold" />
+              <span className="text-[11px] uppercase tracking-[0.14em] text-fg-subtle font-medium">
+                {es ? 'Marca' : 'Brand'}
+              </span>
+              <span className="text-[10px] text-fg-subtle">
+                {es ? '(opcional)' : '(optional)'}
+              </span>
+            </div>
+            {logo && (
+              <span className="text-[9px] text-gold/80">
+                {es
+                  ? 'Tu logo se preservará exacto'
+                  : 'Your logo will be preserved exactly'}
+              </span>
             )}
           </div>
+
+          <div className="flex gap-3">
+            {/* Logo dropzone */}
+            {logo ? (
+              <div className="relative h-[88px] w-[88px] rounded-lg overflow-hidden border border-gold/30 bg-surface-2 shrink-0 group">
+                <img
+                  src={logo.preview}
+                  alt="logo"
+                  className="w-full h-full object-contain p-1.5"
+                />
+                <button
+                  onClick={removeLogo}
+                  className="absolute top-1 right-1 h-5 w-5 rounded-full bg-black/70 flex items-center justify-center opacity-0 group-hover:opacity-100"
+                >
+                  <X className="h-2.5 w-2.5 text-white" />
+                </button>
+                <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-[8px] text-white text-center py-0.5">
+                  {logo.width}×{logo.height}
+                </div>
+              </div>
+            ) : (
+              <button
+                onClick={() => logoFileRef.current?.click()}
+                className="h-[88px] w-[88px] shrink-0 rounded-lg border-2 border-dashed border-border hover:border-gold/40 bg-surface-2 flex flex-col items-center justify-center gap-1 transition-colors"
+              >
+                <Plus className="h-4 w-4 text-fg-subtle" />
+                <span className="text-[9px] text-fg-subtle">Logo</span>
+                <span className="text-[8px] text-fg-subtle opacity-60">PNG/SVG</span>
+              </button>
+            )}
+
+            {/* Brand fields */}
+            <div className="flex-1 space-y-2 min-w-0">
+              <input
+                type="text"
+                value={brandName}
+                onChange={(e) => setBrandName(e.target.value)}
+                placeholder={es ? 'Nombre de marca (opcional)' : 'Brand name (optional)'}
+                className="w-full px-3 py-2 rounded-lg border border-border bg-surface-2 text-[12px] placeholder:text-fg-subtle focus:outline-none focus:border-gold/40"
+              />
+              <input
+                type="text"
+                value={slogan}
+                onChange={(e) => setSlogan(e.target.value)}
+                placeholder={es ? 'Slogan / tagline (opcional)' : 'Slogan / tagline (optional)'}
+                className="w-full px-3 py-2 rounded-lg border border-border bg-surface-2 text-[12px] placeholder:text-fg-subtle focus:outline-none focus:border-gold/40"
+              />
+            </div>
+          </div>
+
+          <input
+            ref={logoFileRef}
+            type="file"
+            accept="image/png,image/svg+xml,image/webp,image/jpeg"
+            onChange={handleLogoUpload}
+            className="hidden"
+          />
+        </div>
+
+        {/* ═══ PRODUCT / CAMPAIGN ASSETS (required) ═══ */}
+        <div className="rounded-xl border border-border bg-surface p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <ImageIcon className="h-3.5 w-3.5 text-gold" />
+              <span className="text-[11px] uppercase tracking-[0.14em] text-fg-subtle font-medium">
+                {es ? 'Producto / Campaña' : 'Product / Campaign'}
+              </span>
+              {productImages.length > 0 && (
+                <span className="text-[10px] text-gold">
+                  ({productImages.length}/8)
+                </span>
+              )}
+            </div>
+          </div>
+          <p className="text-[10px] text-fg-subtle -mt-1">
+            {es
+              ? 'Fotos de producto, screenshots, packaging, referencias de escena'
+              : 'Product photos, screenshots, packaging, scene references'}
+          </p>
+
           <div className="flex flex-wrap gap-2">
-            {images.map((img, i) => (
+            {productImages.map((img, i) => (
               <div
                 key={i}
                 className="relative group h-[72px] w-[72px] rounded-lg overflow-hidden border border-border"
               >
-                <img
-                  src={img.preview}
-                  alt=""
-                  className="w-full h-full object-cover"
-                />
+                <img src={img.preview} alt="" className="w-full h-full object-cover" />
                 <button
-                  onClick={() => rmImg(i)}
+                  onClick={() => removeProductImage(i)}
                   className="absolute top-0.5 right-0.5 h-5 w-5 rounded-full bg-black/70 flex items-center justify-center opacity-0 group-hover:opacity-100"
                 >
                   <X className="h-2.5 w-2.5 text-white" />
                 </button>
               </div>
             ))}
-            {images.length < 10 && (
+            {productImages.length < 8 && (
               <button
-                onClick={() => fileRef.current?.click()}
+                onClick={() => productFileRef.current?.click()}
                 className={cn(
                   'rounded-lg border-2 border-dashed flex flex-col items-center justify-center gap-1',
-                  images.length === 0
+                  productImages.length === 0
                     ? 'w-full h-24 border-gold/30 bg-gold/5 hover:bg-gold/10'
                     : 'h-[72px] w-[72px] border-border hover:border-gold/40 bg-surface-2',
                 )}
@@ -508,35 +672,35 @@ export function CreativeStudioView() {
                 <Upload
                   className={cn(
                     'text-gold',
-                    images.length === 0 ? 'h-5 w-5' : 'h-3.5 w-3.5',
+                    productImages.length === 0 ? 'h-5 w-5' : 'h-3.5 w-3.5',
                   )}
                 />
-                {images.length === 0 && (
+                {productImages.length === 0 && (
                   <span className="text-[11px] text-gold">
-                    {es
-                      ? 'Logo, producto, screenshots...'
-                      : 'Logo, product, screenshots...'}
+                    {es ? 'Sube tus imágenes de producto' : 'Upload product images'}
                   </span>
                 )}
               </button>
             )}
           </div>
+
           <input
-            ref={fileRef}
+            ref={productFileRef}
             type="file"
             accept="image/*"
             multiple
-            onChange={handleFiles}
+            onChange={handleProductUpload}
             className="hidden"
           />
         </div>
 
+        {/* Instructions */}
         <textarea
           value={instructions}
           onChange={(e) => setInstructions(e.target.value)}
           placeholder={
             es
-              ? 'Algo especifico que contar... (opcional)'
+              ? 'Algo específico que contar... (opcional)'
               : 'Anything specific to tell... (optional)'
           }
           rows={2}
@@ -546,13 +710,13 @@ export function CreativeStudioView() {
         <div className="grid grid-cols-2 gap-3">
           <div className="rounded-xl border border-border bg-surface p-3 space-y-1.5">
             <div className="text-[9px] uppercase tracking-[0.12em] text-fg-subtle">
-              {es ? 'Intencion' : 'Intent'}
+              {es ? 'Intención' : 'Intent'}
             </div>
             <div className="grid grid-cols-2 gap-1">
               {(
                 [
                   ['launch', es ? 'Lanzar' : 'Launch'],
-                  ['conversion', es ? 'Conversion' : 'Convert'],
+                  ['conversion', es ? 'Conversión' : 'Convert'],
                   ['branding', 'Branding'],
                   ['retargeting', es ? 'Retargeting' : 'Retarget'],
                 ] as const
@@ -597,19 +761,19 @@ export function CreativeStudioView() {
 
         <button
           onClick={runAnalyze}
-          disabled={!images.length}
+          disabled={!canAnalyze}
           className="w-full h-12 rounded-xl gold-grad text-bg text-[14px] font-semibold hover:brightness-110 transition disabled:opacity-40 flex items-center justify-center gap-2"
         >
           <Zap className="h-4 w-4" />
-          {es ? 'Analizar mi producto' : 'Analyze my product'}
+          {es ? 'Analizar producto' : 'Analyze product'}
         </button>
       </div>
     );
   }
 
-  // ═══════════════════════════════════════════════════
+  // ═════════════════════════════════════════════════════════════
   // STEP: analyzing
-  // ═══════════════════════════════════════════════════
+  // ═════════════════════════════════════════════════════════════
   if (step === 'analyzing') {
     return (
       <div className="px-4 lg:px-10 py-10 max-w-[560px] mx-auto">
@@ -635,9 +799,9 @@ export function CreativeStudioView() {
     );
   }
 
-  // ═══════════════════════════════════════════════════
+  // ═════════════════════════════════════════════════════════════
   // STEP: brief
-  // ═══════════════════════════════════════════════════
+  // ═════════════════════════════════════════════════════════════
   if (step === 'brief' && campaign?.brief) {
     const b = campaign.brief;
     return (
@@ -654,7 +818,7 @@ export function CreativeStudioView() {
         <div className="rounded-xl border border-gold/20 bg-surface p-5 space-y-4">
           <div>
             <div className="text-[9px] uppercase tracking-[0.12em] text-fg-subtle mb-1">
-              {es ? 'Descripcion' : 'Description'}
+              {es ? 'Descripción' : 'Description'}
             </div>
             {briefEdit ? (
               <textarea
@@ -706,6 +870,28 @@ export function CreativeStudioView() {
             </div>
           </div>
 
+          {campaign.brandAssets?.logoUrl && (
+            <div>
+              <div className="text-[9px] uppercase tracking-[0.12em] text-fg-subtle mb-1.5">
+                {es ? 'Logo (preservado)' : 'Logo (preserved)'}
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="h-10 w-10 rounded border border-gold/30 bg-surface-2 p-1">
+                  <img
+                    src={campaign.brandAssets.logoUrl}
+                    alt=""
+                    className="w-full h-full object-contain"
+                  />
+                </div>
+                <span className="text-[10px] text-gold/80">
+                  {es
+                    ? 'Se insertará exacto en el editor'
+                    : 'Will be inserted exactly in editor'}
+                </span>
+              </div>
+            </div>
+          )}
+
           <div className="flex gap-2 pt-2 border-t border-border">
             <button
               onClick={() => setBriefEdit(!briefEdit)}
@@ -735,23 +921,20 @@ export function CreativeStudioView() {
     );
   }
 
-  // ═══════════════════════════════════════════════════
-  // STEP: planning
-  // ═══════════════════════════════════════════════════
   if (step === 'planning') {
     return (
       <div className="px-4 lg:px-10 py-16 max-w-[400px] mx-auto text-center space-y-4">
         <Loader2 className="h-8 w-8 text-gold animate-spin mx-auto" />
         <p className="text-[14px] text-fg-muted">
-          {es ? 'Planificando campana...' : 'Planning campaign...'}
+          {es ? 'Planificando campaña...' : 'Planning campaign...'}
         </p>
       </div>
     );
   }
 
-  // ═══════════════════════════════════════════════════
+  // ═════════════════════════════════════════════════════════════
   // STEP: grid
-  // ═══════════════════════════════════════════════════
+  // ═════════════════════════════════════════════════════════════
   if (step === 'grid' && campaign) {
     const failedCount = Object.values(renderStates).filter(
       (s) => s.status === 'failed',
@@ -766,7 +949,7 @@ export function CreativeStudioView() {
             </h2>
             <p className="text-[11px] text-fg-subtle">
               {es
-                ? 'Cada variante tiene un angulo distinto'
+                ? 'Cada variante tiene un ángulo distinto'
                 : 'Each variant has a different angle'}
             </p>
           </div>
@@ -784,8 +967,8 @@ export function CreativeStudioView() {
             <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0" />
             <span className="text-[12px] text-amber-200">
               {es
-                ? failedCount + ' variantes fallaron. Pulsa reintentar en cada una.'
-                : failedCount + ' variants failed. Click retry on each.'}
+                ? failedCount + ' variantes fallaron. Pulsa reintentar.'
+                : failedCount + ' variants failed. Click retry.'}
             </span>
           </div>
         )}
@@ -829,9 +1012,9 @@ export function CreativeStudioView() {
     );
   }
 
-  // ═══════════════════════════════════════════════════
+  // ═════════════════════════════════════════════════════════════
   // STEP: editor
-  // ═══════════════════════════════════════════════════
+  // ═════════════════════════════════════════════════════════════
   if (step === 'editor' && selectedVariant && campaign) {
     const imageUrl = campaign.renderedImages[selectedVariant.id];
     if (!imageUrl) {
@@ -846,6 +1029,7 @@ export function CreativeStudioView() {
           variant={selectedVariant}
           locale={locale}
           onBack={() => setStep('grid')}
+          brandAssets={campaign.brandAssets}
         />
       </div>
     );
@@ -853,10 +1037,6 @@ export function CreativeStudioView() {
 
   return null;
 }
-
-// ═══════════════════════════════════════════════════════════
-// Failed variant card — isolated UI for retryable failures
-// ═══════════════════════════════════════════════════════════
 
 function FailedVariantCard({
   variant,
