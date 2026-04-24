@@ -1,4 +1,4 @@
-// Creative Studio v2 — shared types
+// Creative Studio v2 — shared types (v3 — Product Intelligence + Editor Layers)
 
 export type CampaignIntent = 'launch' | 'conversion' | 'branding' | 'retargeting';
 export type Vertical = 'saas_app' | 'apparel' | 'ecommerce' | 'physical';
@@ -22,10 +22,6 @@ export type VariantAngle =
 
 export type Intensity = 'soft' | 'medium' | 'aggressive';
 
-// ─── Visual style system v2 ─────────────────────────────────
-// Expanded from 5 to 9 styles for real visual diversity.
-// Legacy values ('luxury', 'minimal', 'startup', 'aggressive', 'cinematic')
-// are supported via normalizeVisualStyle() in /data/visual-styles.ts
 export type VisualStyle =
   | 'dark_cinematic'
   | 'clean_bright'
@@ -42,6 +38,45 @@ export type LogoPosition =
   | 'top-right'
   | 'top-center'
   | 'bottom-center';
+
+// ═══════════════════════════════════════════════════════════
+// Product Intelligence (NEW)
+// ═══════════════════════════════════════════════════════════
+
+export type ProductCategory =
+  | 'fashion_apparel'
+  | 'streetwear'
+  | 'saas_productivity'
+  | 'saas_developer'
+  | 'health_supplements'
+  | 'food_beverage'
+  | 'consumer_tech'
+  | 'beauty_cosmetics'
+  | 'home_goods'
+  | 'fitness_equipment'
+  | 'fitness_service'
+  | 'local_service'
+  | 'ecommerce_general'
+  | 'digital_product'
+  | 'luxury_goods'
+  | 'automotive'
+  | 'entertainment_media'
+  | 'unknown';
+
+export interface AdScenario {
+  id: string;
+  name: string;
+  /** Core scene description injected into Flux prompt */
+  sceneDescription: string;
+  /** How subject is framed and placed */
+  subjectFraming: string;
+  /** Where negative space sits for overlay */
+  overlaySpace: 'top' | 'bottom' | 'left' | 'right' | 'centered_safe';
+  /** Which visual styles fit this scenario (for style assignment pass) */
+  preferredStyles: VisualStyle[];
+  /** Short human-readable summary shown in UI */
+  summary: string;
+}
 
 // ═══════════════════════════════════════════════════════════
 // Creative Brain types (from Tanda 5)
@@ -166,6 +201,10 @@ export interface Variant {
   compositionHint: string;
   intensity: Intensity;
   styleHint: VisualStyle;
+  /** NEW: scenario picked by product intelligence */
+  scenario?: AdScenario;
+  /** NEW: detected product category (stored on variant for resilience) */
+  productCategory?: ProductCategory;
 }
 
 export interface CampaignMemory {
@@ -208,9 +247,81 @@ export interface PersistedCampaign {
   brief: ProductBrief;
   analyses: ImageAnalysis[];
   direction?: CampaignDirection;
+  productCategory?: ProductCategory;
   variants: Variant[];
   memory: CampaignMemory;
   aspectRatio: AspectRatio;
   createdAt: string;
   updatedAt: string;
 }
+
+// ═══════════════════════════════════════════════════════════
+// Ad Editor Layer System (NEW)
+// ═══════════════════════════════════════════════════════════
+
+export type LayerType = 'text' | 'image' | 'shape' | 'logo';
+
+export interface BaseLayer {
+  id: string;
+  type: LayerType;
+  /** 0-1 relative to canvas width */
+  x: number;
+  /** 0-1 relative to canvas height */
+  y: number;
+  /** 0-1 relative to canvas width */
+  width: number;
+  /** 0-1 relative to canvas height */
+  height: number;
+  rotation: number;
+  opacity: number;
+  zIndex: number;
+  locked?: boolean;
+  visible: boolean;
+  name?: string;
+}
+
+export interface TextLayerData extends BaseLayer {
+  type: 'text';
+  text: string;
+  color: string;
+  fontSizePercent: number;
+  fontFamily: 'inter' | 'system' | 'serif' | 'mono' | 'display';
+  fontWeight: number;
+  align: 'left' | 'center' | 'right';
+  letterSpacing: number;
+  lineHeight: number;
+  shadowEnabled: boolean;
+  shadowBlur: number;
+  shadowColor: string;
+  isButton?: boolean;
+  buttonBg?: string;
+  buttonTextColor?: string;
+  buttonRadius?: number;
+  buttonPadding?: number;
+}
+
+export interface ImageLayerData extends BaseLayer {
+  type: 'image';
+  src: string;
+  fit: 'contain' | 'cover';
+}
+
+export interface ShapeLayerData extends BaseLayer {
+  type: 'shape';
+  shape: 'rect' | 'circle';
+  fill: string;
+  strokeWidth: number;
+  strokeColor: string;
+  borderRadius: number;
+}
+
+export interface LogoLayerData extends BaseLayer {
+  type: 'logo';
+  src: string;
+}
+
+export type EditorLayer =
+  | TextLayerData
+  | ImageLayerData
+  | ShapeLayerData
+  | LogoLayerData;
