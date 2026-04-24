@@ -2,6 +2,7 @@ import 'server-only';
 import type {
   Variant,
   ProductBrief,
+  ImageAnalysis,
   CampaignDirection,
   RenderEngine,
 } from '../types';
@@ -20,7 +21,10 @@ import { selectEngine, explainEngineChoice } from './engine-selector';
 
 export interface RenderInput {
   variant: Variant;
+  imageUrls?: string[];
+  analyses?: ImageAnalysis[];
   brief?: ProductBrief;
+  direction?: CampaignDirection;
 }
 
 export interface RenderOutput {
@@ -33,11 +37,10 @@ export interface RenderOutput {
 }
 
 export async function renderVariant(
-  input: RenderInput & { direction?: CampaignDirection },
+  input: RenderInput,
 ): Promise<RenderOutput> {
   const primary = selectEngine(input.variant, input.variant.productCategory);
 
-  // Debug logging in non-prod
   if (process.env.NODE_ENV !== 'production') {
     const explanation = explainEngineChoice(
       input.variant,
@@ -51,11 +54,9 @@ export async function renderVariant(
     });
   }
 
-  // Path 1: GPT-Image with Flux fallback
   if (primary === 'gpt-image') {
     try {
-      const result = await renderGptImage(input);
-      return result;
+      return await renderGptImage(input);
     } catch (err) {
       console.warn('[render-router] gpt-image failed, falling back to flux', {
         variantId: input.variant.id,
@@ -76,12 +77,10 @@ export async function renderVariant(
           fallbackError:
             fluxErr instanceof Error ? fluxErr.message : String(fluxErr),
         });
-        // Last attempt was Flux, preserve that error
         throw fluxErr;
       }
     }
   }
 
-  // Path 2: Flux (baseline, no fallback)
   return renderFlux(input);
 }
