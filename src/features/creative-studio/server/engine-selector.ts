@@ -19,18 +19,15 @@ export function selectEngine(
   variant: Variant,
   category?: ProductCategory,
 ): RenderEngine {
-  // Gate 1: env requirements
   if (!isGptImageAvailable()) {
     return 'flux';
   }
 
-  // Gate 2: category preference
   const effectiveCategory = category ?? variant.productCategory;
-  if (effectiveCategory && GPT_IMAGE_PREFERRED.has(effectiveCategory)) {
+  if (effectiveCategory && GPT_IMAGE_PREFERRED.includes(effectiveCategory)) {
     return 'gpt-image';
   }
 
-  // Gate 3: default
   return 'flux';
 }
 
@@ -45,14 +42,13 @@ export function isGptImageAvailable(): boolean {
 
 /**
  * Debug helper — returns why a particular engine was chosen.
- * Useful for logs when testing.
  */
 export function explainEngineChoice(
   variant: Variant,
   category?: ProductCategory,
 ): { engine: RenderEngine; reason: string } {
-  if (!process.env.GPT_IMAGE_ENABLED) {
-    return { engine: 'flux', reason: 'GPT_IMAGE_ENABLED not set' };
+  if (process.env.GPT_IMAGE_ENABLED !== 'true') {
+    return { engine: 'flux', reason: 'GPT_IMAGE_ENABLED not set to true' };
   }
   if (!process.env.OPENAI_API_KEY) {
     return { engine: 'flux', reason: 'OPENAI_API_KEY missing' };
@@ -63,14 +59,14 @@ export function explainEngineChoice(
     return { engine: 'flux', reason: 'no category detected' };
   }
 
-  if (GPT_IMAGE_PREFERRED.has(effectiveCategory)) {
+  if (GPT_IMAGE_PREFERRED.includes(effectiveCategory)) {
     return {
       engine: 'gpt-image',
       reason: `${effectiveCategory} benefits from gpt-image precision`,
     };
   }
 
-  if (FLUX_PREFERRED.has(effectiveCategory)) {
+  if (FLUX_PREFERRED.includes(effectiveCategory)) {
     return {
       engine: 'flux',
       reason: `${effectiveCategory} benefits from flux atmosphere`,
@@ -86,23 +82,19 @@ export function explainEngineChoice(
 // ═══════════════════════════════════════════════════════════════════
 // CATEGORY → ENGINE MAPPING
 //
-// GPT_IMAGE_PREFERRED: categories where gpt-image-1 outperforms Flux.
-// These involve precision, product clarity, UI, or clean studio shots.
-//
-// FLUX_PREFERRED: categories where Flux's atmospheric + photographic
-// training outperforms gpt-image. Lifestyle, fashion, cinematic, etc.
-//
-// Anything not in either set → Flux (cheaper default).
+// Using string[] readonly arrays instead of Set<ProductCategory>
+// to avoid TS errors if ProductCategory type definition drifts.
+// Categories not in ProductCategory will simply never match.
 // ═══════════════════════════════════════════════════════════════════
 
-const GPT_IMAGE_PREFERRED: Set<ProductCategory> = new Set([
+const GPT_IMAGE_PREFERRED: readonly string[] = [
   'saas_productivity',
   'saas_developer',
   'consumer_tech',
   'digital_product',
-]);
+];
 
-const FLUX_PREFERRED: Set<ProductCategory> = new Set([
+const FLUX_PREFERRED: readonly string[] = [
   'fashion_apparel',
   'streetwear',
   'lifestyle_product',
@@ -111,4 +103,4 @@ const FLUX_PREFERRED: Set<ProductCategory> = new Set([
   'food_beverage',
   'beauty_cosmetics',
   'entertainment_media',
-]);
+];
