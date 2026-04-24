@@ -39,6 +39,7 @@ import type {
   ImageLayerData,
   ShapeLayerData,
   LogoLayerData,
+  BrandAssets,
 } from '../types';
 import { AD_TEMPLATES, getDefaultLayers } from '../data/ad-templates';
 
@@ -91,6 +92,7 @@ interface Props {
   variant: Variant;
   locale: 'en' | 'es';
   onBack?: () => void;
+  brandAssets?: BrandAssets;
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -113,7 +115,6 @@ function templateToPixels(
       const t = l as TextLayerData;
       return {
         ...base,
-        // fontSizePercent is % of canvas height → real px
         fontSizePercent: (t.fontSizePercent / 100) * canvas.h,
       } as EditorLayer;
     }
@@ -125,7 +126,13 @@ function templateToPixels(
 // MAIN COMPONENT
 // ═══════════════════════════════════════════════════════════════════
 
-export function AdEditor({ imageUrl, variant, locale, onBack }: Props) {
+export function AdEditor({
+  imageUrl,
+  variant,
+  locale,
+  onBack,
+  brandAssets,
+}: Props) {
   const es = locale === 'es';
   const canvas = CANVAS_SIZES[variant.aspectRatio];
 
@@ -159,6 +166,56 @@ export function AdEditor({ imageUrl, variant, locale, onBack }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
   const originalOverflow = useRef<string>('');
+  const brandLogoInserted = useRef(false);
+
+  // ─── AUTO-INSERT BRAND LOGO ON MOUNT ────────────────────────
+  useEffect(() => {
+    if (brandLogoInserted.current) return;
+    if (!brandAssets?.logoUrl) return;
+
+    brandLogoInserted.current = true;
+
+    const img = new window.Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      const logoRatio = img.naturalWidth / img.naturalHeight;
+      const targetW = canvas.w * 0.18;
+      const targetH = targetW / logoRatio;
+
+      const margin = SAFE_MARGIN_PX;
+      const pos = brandAssets.defaultLogoPosition ?? 'top-right';
+      let x = margin;
+      let y = margin;
+      if (pos === 'top-right') x = canvas.w - margin - targetW;
+      if (pos === 'top-center') x = (canvas.w - targetW) / 2;
+      if (pos === 'bottom-center') {
+        x = (canvas.w - targetW) / 2;
+        y = canvas.h - margin - targetH;
+      }
+
+      const logoLayer: LogoLayerData = {
+        id: 'brand-logo-auto',
+        type: 'logo',
+        src: brandAssets.logoUrl,
+        x,
+        y,
+        width: targetW,
+        height: targetH,
+        rotation: 0,
+        opacity: 1,
+        zIndex: 9999,
+        visible: true,
+        name: 'Brand Logo',
+        locked: false,
+      };
+
+      setLayers((prev) => [...prev, logoLayer]);
+    };
+    img.onerror = () => {
+      console.warn('[ad-editor] brand logo failed to load:', brandAssets.logoUrl);
+    };
+    img.src = proxiedImageUrl(brandAssets.logoUrl) || brandAssets.logoUrl;
+  }, [brandAssets?.logoUrl, brandAssets?.defaultLogoPosition, canvas.w, canvas.h]);
 
   // ─── COMPUTE SCALE ──────────────────────────────────────────
   useLayoutEffect(() => {
@@ -256,7 +313,7 @@ export function AdEditor({ imageUrl, variant, locale, onBack }: Props) {
     });
   }, []);
 
-  // ─── ADD LAYERS (real canvas px) ────────────────────────────
+  // ─── ADD LAYERS ─────────────────────────────────────────────
   const addText = useCallback(() => {
     const w = canvas.w * 0.8;
     const fontSize = canvas.h * 0.05;
@@ -379,11 +436,13 @@ export function AdEditor({ imageUrl, variant, locale, onBack }: Props) {
       setLayers(templateToPixels(tpl.build(variant), canvas));
       setCurrentTemplateId(templateId);
       setSelectedId(null);
+      // Reset brand logo guard so it re-inserts on next mount
+      brandLogoInserted.current = false;
     },
     [variant, canvas],
   );
 
-  // ─── DRAG — pointer → real canvas px ────────────────────────
+  // ─── DRAG ───────────────────────────────────────────────────
   const handleLayerPointerDown = useCallback(
     (e: React.PointerEvent, layerId: string) => {
       e.preventDefault();
@@ -448,11 +507,9 @@ export function AdEditor({ imageUrl, variant, locale, onBack }: Props) {
       let newX = realX - drag.offsetX;
       let newY = realY - drag.offsetY;
 
-      // Clamp inside canvas
       newX = Math.max(0, Math.min(canvas.w - layer.width, newX));
       newY = Math.max(0, Math.min(canvas.h - layer.height, newY));
 
-      // Snap to center and safe margins
       const guides = {
         cx: false,
         cy: false,
@@ -527,12 +584,10 @@ export function AdEditor({ imageUrl, variant, locale, onBack }: Props) {
     setExporting(true);
 
     try {
-      // 1. Wait for fonts
       if (typeof document !== 'undefined' && document.fonts?.ready) {
         await document.fonts.ready;
       }
 
-      // 2. Wait for all images in stage
       const allImgs = Array.from(stage.querySelectorAll('img'));
       await Promise.all(
         allImgs.map((im) =>
@@ -542,25 +597,22 @@ export function AdEditor({ imageUrl, variant, locale, onBack }: Props) {
                 const done = () => res();
                 im.addEventListener('load', done, { once: true });
                 im.addEventListener('error', done, { once: true });
-                // safety timeout
                 setTimeout(done, 8000);
               }),
         ),
       );
 
-      // 3. Remove CSS scale for export
       const origTransform = stage.style.transform;
       const origTransformOrigin = stage.style.transformOrigin;
       stage.style.transform = 'none';
       stage.style.transformOrigin = 'initial';
 
       try {
-        // 4. Dynamic import html-to-image
         const { toPng } = await import('html-to-image');
         const dataUrl = await toPng(stage, {
           width: canvas.w,
           height: canvas.h,
-          pixelRatio: 2, // retina quality
+          pixelRatio: 2,
           cacheBust: true,
           skipAutoScale: true,
           backgroundColor: '#000000',
@@ -572,7 +624,6 @@ export function AdEditor({ imageUrl, variant, locale, onBack }: Props) {
           },
         });
 
-        // 5. Download
         const a = document.createElement('a');
         a.href = dataUrl;
         a.download = `${variant.layout}-final.png`;
@@ -580,7 +631,6 @@ export function AdEditor({ imageUrl, variant, locale, onBack }: Props) {
         a.click();
         document.body.removeChild(a);
       } finally {
-        // 6. Restore CSS scale
         stage.style.transform = origTransform;
         stage.style.transformOrigin = origTransformOrigin;
       }
@@ -605,7 +655,7 @@ export function AdEditor({ imageUrl, variant, locale, onBack }: Props) {
   return (
     <div className="w-full h-full overflow-hidden overscroll-contain bg-surface-2">
       <div className="flex flex-col lg:grid lg:grid-cols-[280px_1fr_320px] h-full gap-3 p-3">
-        {/* ═════ LEFT: Templates + Layers ═════ */}
+        {/* LEFT: Templates + Layers */}
         <aside className="hidden lg:flex flex-col gap-3 overflow-hidden">
           {onBack && (
             <button
@@ -617,7 +667,6 @@ export function AdEditor({ imageUrl, variant, locale, onBack }: Props) {
             </button>
           )}
 
-          {/* Tab selector */}
           <div className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-surface border border-border">
             <button
               onClick={() => setActiveTab('templates')}
@@ -645,7 +694,6 @@ export function AdEditor({ imageUrl, variant, locale, onBack }: Props) {
             </button>
           </div>
 
-          {/* Add tools */}
           <div className="rounded-xl border border-border bg-surface p-3 shadow-sm">
             <div className="text-[10px] uppercase tracking-[0.14em] text-fg-subtle font-medium mb-2">
               {es ? 'Añadir' : 'Add'}
@@ -675,7 +723,6 @@ export function AdEditor({ imageUrl, variant, locale, onBack }: Props) {
             </div>
           </div>
 
-          {/* Templates OR Layers */}
           <div className="flex-1 min-h-0 rounded-xl border border-border bg-surface shadow-sm overflow-hidden flex flex-col">
             {activeTab === 'templates' ? (
               <div className="overflow-y-auto p-2 space-y-1">
@@ -766,9 +813,8 @@ export function AdEditor({ imageUrl, variant, locale, onBack }: Props) {
           </div>
         </aside>
 
-        {/* ═════ CENTER: Canvas ═════ */}
+        {/* CENTER: Canvas */}
         <main className="flex flex-col overflow-hidden">
-          {/* Mobile top bar */}
           <div className="lg:hidden flex items-center justify-between mb-3">
             {onBack && (
               <button
@@ -784,7 +830,6 @@ export function AdEditor({ imageUrl, variant, locale, onBack }: Props) {
             </div>
           </div>
 
-          {/* Top toolbar (desktop) */}
           <div className="hidden lg:flex items-center justify-between mb-3 px-1">
             <div className="flex items-center gap-2 text-[10px] text-fg-subtle">
               <span>{canvas.w} × {canvas.h}px</span>
@@ -812,7 +857,6 @@ export function AdEditor({ imageUrl, variant, locale, onBack }: Props) {
             ref={containerRef}
             className="flex items-center justify-center flex-1 overflow-hidden relative"
           >
-            {/* Outer wrapper = visual size (scaled) */}
             <div
               style={{
                 width: canvas.w * scale,
@@ -823,7 +867,6 @@ export function AdEditor({ imageUrl, variant, locale, onBack }: Props) {
                 overflow: 'hidden',
               }}
             >
-              {/* Stage = native canvas size, scaled via CSS */}
               <div
                 ref={stageRef}
                 className="bg-black relative overflow-hidden select-none"
@@ -841,7 +884,6 @@ export function AdEditor({ imageUrl, variant, locale, onBack }: Props) {
                   if (e.target === stageRef.current) setSelectedId(null);
                 }}
               >
-                {/* Background */}
                 <img
                   data-role="background"
                   src={proxiedImageUrl(imageUrl) || imageUrl}
@@ -858,7 +900,6 @@ export function AdEditor({ imageUrl, variant, locale, onBack }: Props) {
                   }}
                 />
 
-                {/* Layers */}
                 {sortedLayers.map((l) =>
                   l.visible
                     ? renderLayer(l, {
@@ -868,16 +909,13 @@ export function AdEditor({ imageUrl, variant, locale, onBack }: Props) {
                     : null,
                 )}
 
-                {/* Guides */}
                 <GuideOverlay guides={activeGuides} canvas={canvas} />
 
-                {/* Selection bounding box */}
                 {selectedLayer && selectedLayer.visible && (
                   <SelectionBox layer={selectedLayer} />
                 )}
               </div>
 
-              {/* Debug overlay (rendered outside scaled stage) */}
               {debugMode && (
                 <DebugOverlay
                   canvas={canvas}
@@ -889,7 +927,6 @@ export function AdEditor({ imageUrl, variant, locale, onBack }: Props) {
             </div>
           </div>
 
-          {/* Mobile bottom toolbar */}
           <div className="lg:hidden flex items-center justify-center gap-2 mt-3 overflow-x-auto pb-1">
             <MobileTool icon={<Type className="h-4 w-4" />} onClick={addText} />
             <MobileTool
@@ -911,7 +948,7 @@ export function AdEditor({ imageUrl, variant, locale, onBack }: Props) {
           </div>
         </main>
 
-        {/* ═════ RIGHT: Properties ═════ */}
+        {/* RIGHT: Properties */}
         <aside className="overflow-y-auto overscroll-contain space-y-3">
           {selectedLayer ? (
             <LayerProperties
@@ -1145,7 +1182,6 @@ function SelectionBox({ layer }: { layer: EditorLayer }) {
         transformOrigin: 'center center',
       }}
     >
-      {/* Corner markers */}
       {['top-left', 'top-right', 'bottom-left', 'bottom-right'].map((pos) => (
         <div
           key={pos}
@@ -1232,8 +1268,7 @@ function EmptyProperties({ locale }: { locale: 'en' | 'es' }) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// LAYER RENDERER
-// No translate(-50%, -50%), centering is computed in px when adding.
+// LAYER RENDERER — no translate(-50%,-50%), no cqh
 // ═══════════════════════════════════════════════════════════════════
 
 function renderLayer(
@@ -1296,13 +1331,9 @@ function renderLayer(
   if (l.type === 'image' || l.type === 'logo') {
     const i = l as ImageLayerData | LogoLayerData;
     return (
-      <div
-        key={l.id}
-        onPointerDown={opts.onPointerDown}
-        style={baseStyle}
-      >
+      <div key={l.id} onPointerDown={opts.onPointerDown} style={baseStyle}>
         <img
-          src={i.src}
+          src={proxiedImageUrl(i.src) || i.src}
           alt=""
           draggable={false}
           crossOrigin="anonymous"
@@ -1369,7 +1400,6 @@ function LayerProperties({
 
   return (
     <div className="space-y-3">
-      {/* Header */}
       <div className="rounded-xl border border-border bg-surface p-3 shadow-sm">
         <div className="flex items-center justify-between mb-3">
           <div className="text-[10px] uppercase tracking-[0.14em] text-fg-subtle font-medium">
@@ -1387,7 +1417,6 @@ function LayerProperties({
           </div>
         </div>
 
-        {/* Position (visible in px) */}
         <div className="grid grid-cols-2 gap-2 mb-3">
           <NumberInput
             label="X"
@@ -1452,37 +1481,26 @@ function LayerProperties({
         <ImageProperties layer={layer} onChange={onChange as any} locale={locale} />
       )}
 
-      {/* Quick align */}
       <div className="rounded-xl border border-border bg-surface p-3 shadow-sm">
         <div className="text-[10px] uppercase tracking-[0.14em] text-fg-subtle font-medium mb-2">
           {es ? 'Alinear' : 'Align'}
         </div>
         <div className="grid grid-cols-3 gap-1.5">
           <button
-            onClick={() =>
-              onChange({
-                x: SAFE_MARGIN_PX,
-              })
-            }
+            onClick={() => onChange({ x: SAFE_MARGIN_PX })}
             className="h-8 rounded-md bg-surface-2 border border-border hover:border-gold/40 text-[10px] text-fg-muted hover:text-fg transition-colors"
           >
             {es ? 'Izq' : 'Left'}
           </button>
           <button
-            onClick={() =>
-              onChange({
-                x: (canvas.w - layer.width) / 2,
-              })
-            }
+            onClick={() => onChange({ x: (canvas.w - layer.width) / 2 })}
             className="h-8 rounded-md bg-surface-2 border border-border hover:border-gold/40 text-[10px] text-fg-muted hover:text-fg transition-colors"
           >
             {es ? 'Centro' : 'Center'}
           </button>
           <button
             onClick={() =>
-              onChange({
-                x: canvas.w - SAFE_MARGIN_PX - layer.width,
-              })
+              onChange({ x: canvas.w - SAFE_MARGIN_PX - layer.width })
             }
             className="h-8 rounded-md bg-surface-2 border border-border hover:border-gold/40 text-[10px] text-fg-muted hover:text-fg transition-colors"
           >
@@ -1495,20 +1513,14 @@ function LayerProperties({
             {es ? 'Arr' : 'Top'}
           </button>
           <button
-            onClick={() =>
-              onChange({
-                y: (canvas.h - layer.height) / 2,
-              })
-            }
+            onClick={() => onChange({ y: (canvas.h - layer.height) / 2 })}
             className="h-8 rounded-md bg-surface-2 border border-border hover:border-gold/40 text-[10px] text-fg-muted hover:text-fg transition-colors"
           >
             {es ? 'Medio' : 'Middle'}
           </button>
           <button
             onClick={() =>
-              onChange({
-                y: canvas.h - SAFE_MARGIN_PX - layer.height,
-              })
+              onChange({ y: canvas.h - SAFE_MARGIN_PX - layer.height })
             }
             className="h-8 rounded-md bg-surface-2 border border-border hover:border-gold/40 text-[10px] text-fg-muted hover:text-fg transition-colors"
           >
@@ -1545,7 +1557,6 @@ function TextProperties({
           className="w-full px-2 py-1.5 rounded-md border border-border bg-surface-2 text-[11px] focus:outline-none focus:border-gold/40 resize-none"
         />
 
-        {/* Font family grid */}
         <div>
           <Label>{es ? 'Tipografía' : 'Font'}</Label>
           <div className="grid grid-cols-5 gap-1 mt-1">
@@ -1600,7 +1611,6 @@ function TextProperties({
           onChange={(v) => onChange({ lineHeight: v / 100 })}
         />
 
-        {/* Align */}
         <div>
           <Label>{es ? 'Alineación' : 'Align'}</Label>
           <div className="flex gap-1 mt-1">
@@ -1628,7 +1638,6 @@ function TextProperties({
         </div>
       </div>
 
-      {/* Color */}
       <div className="rounded-xl border border-border bg-surface p-3 shadow-sm space-y-2">
         <div className="text-[10px] uppercase tracking-[0.14em] text-fg-subtle font-medium flex items-center gap-1.5">
           <Palette className="h-3 w-3" />
@@ -1657,7 +1666,6 @@ function TextProperties({
         />
       </div>
 
-      {/* CTA button */}
       <div className="rounded-xl border border-border bg-surface p-3 shadow-sm space-y-2">
         <ToggleRow
           label={es ? 'Botón CTA' : 'CTA Button'}
@@ -1697,7 +1705,6 @@ function TextProperties({
         )}
       </div>
 
-      {/* Shadow */}
       <div className="rounded-xl border border-border bg-surface p-3 shadow-sm space-y-2">
         <ToggleRow
           label={es ? 'Sombra' : 'Shadow'}
@@ -1829,7 +1836,7 @@ function ImageProperties({
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// MICRO UI COMPONENTS
+// MICRO UI
 // ═══════════════════════════════════════════════════════════════════
 
 function Label({ children }: { children: React.ReactNode }) {
