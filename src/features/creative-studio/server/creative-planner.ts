@@ -8,12 +8,19 @@ import type {
   CampaignMemory,
   CampaignDirection,
   VisualStyle,
+  ProductCategory,
+  AdScenario,
 } from '../types';
 import {
   assignDiverseStyles,
   pickDefaultStyleForLayout,
-  VISUAL_STYLES,
+  normalizeVisualStyle,
 } from '../data/visual-styles';
+import {
+  detectProductCategory,
+  getScenariosForCategory,
+  assignScenarios,
+} from './product-intelligence';
 
 const MODEL = 'claude-sonnet-4-5-20250929';
 
@@ -30,6 +37,16 @@ export async function planCampaign(
     apiKey: serverEnv.ANTHROPIC_API_KEY,
   });
 
+  // ── PRODUCT INTELLIGENCE ─────────────────────────────────
+  const productCategory = detectProductCategory(brief, analyses);
+  const categoryScenarios = getScenariosForCategory(productCategory);
+
+  console.log('[planner] category detected:', productCategory);
+  console.log(
+    '[planner] scenarios available:',
+    categoryScenarios.map((s) => s.id),
+  );
+
   const memoryBlock =
     memory && memory.previousVariants?.length
       ? `
@@ -37,11 +54,11 @@ PREVIOUS ITERATION CONTEXT:
 Rejected IDs: ${JSON.stringify(memory.rejectedVariantIds || [])}
 Selected ID: ${JSON.stringify(memory.selectedVariantId || null)}
 Regeneration count: ${memory.regenerationCount || 0}
-Previous variants (avoid repeating their visual direction):
+Previous variants (avoid repeating):
 ${JSON.stringify(memory.previousVariants.map((v) => ({
   layout: v.layout,
   angle: v.angle,
-  styleHint: v.styleHint,
+  scenarioId: v.scenario?.id,
   visualDirection: v.visualDirection?.slice(0, 120),
 })), null, 2)}
 `
@@ -54,23 +71,34 @@ ${JSON.stringify(direction, null, 2)}
 `
     : '';
 
+  const scenariosBlock = `
+PRODUCT CATEGORY DETECTED: ${productCategory}
+
+AVAILABLE AD SCENARIOS FOR THIS CATEGORY:
+${categoryScenarios
+  .map(
+    (s, i) =>
+      `${i + 1}. ${s.name} [id: ${s.id}]
+   Scene: ${s.sceneDescription}
+   Framing: ${s.subjectFraming}
+   Overlay space: ${s.overlaySpace}`,
+  )
+  .join('\n\n')}
+
+You MUST use these scenarios to build relevant ads for this product category.
+Each variant should select ONE scenario that fits its layout and angle.
+The scenarioId field in your output must match one of the above ids.
+`;
+
   const prompt = `
 You are a senior creative director at a top advertising agency.
 
-Your job: generate 5 ad variants that feel like ads from 5 DIFFERENT brands.
+Product category: ${productCategory}
 
-Each variant must have its own visual world. Not 5 variations of the same idea.
+Your job: generate 5 ad variants using the provided scenarios for this category.
+Each variant must feel like a different ad direction — different framing, different mood — while staying relevant to the product category.
 
-═══════════════════════════════
-VISUAL DIVERSITY RULES
-═══════════════════════════════
-
-- Avoid defaulting to "dark premium" or "black and gold" aesthetic
-- Do NOT over-use luxury tropes
-- Each variant must feel visually distinct
-- Use realistic photography/advertising language, not generic marketing phrases
-- Include concrete scene elements: materials, surfaces, lighting, subject placement
-- Reserve space for overlay text through composition, NEVER through empty/blank frames
+${scenariosBlock}
 
 ═══════════════════════════════
 COPY RULES
@@ -80,26 +108,15 @@ COPY RULES
 - No "revolutionary", "next-gen", "game-changing"
 - Sharp, specific, real
 - Copy tone matches the visual direction
+- Copy for product category: reference real benefits, not abstract claims
 
 ═══════════════════════════════
 VISUAL DIRECTION FIELD (visualDirection)
 ═══════════════════════════════
 
-Must describe a concrete visible scene including:
-- Subject and its physical context
-- Lighting character (natural/studio/directional/soft)
-- Key materials or surfaces
-- Mood through sensory detail
-
-Examples of GOOD visualDirection:
-- "iPhone floating above a brushed aluminum surface in soft daylight, shallow depth of field, minimal shadow, bright clean atmosphere"
-- "Young woman holding coffee in a sunlit window kitchen, golden hour warmth on her face, warm beige tones, editorial framing"
-- "Product centered on pure white cyclorama with overhead soft light, no shadows, precision studio shot"
-
-Examples of BAD visualDirection (too generic):
-- "Premium scene with controlled lighting"
-- "Dark cinematic mood"
-- "Luxury atmosphere with gold accents"
+Build on the chosen scenario's sceneDescription.
+Add specific, concrete details the scenario suggests.
+Include: subject placement, lighting character, materials, mood through sensory detail.
 
 ═══════════════════════════════
 OUTPUT (JSON ONLY)
@@ -111,14 +128,15 @@ OUTPUT (JSON ONLY)
     "layout": "hero_app" | "feature_grid" | "story_ad" | "minimal_branding" | "ui_focus",
     "angle": "pain" | "result" | "authority" | "curiosity" | "aggressive",
     "intent": "...",
-    "visualDirection": "...concrete scene description...",
+    "scenarioId": "<ONE of the scenario ids from the list above>",
+    "visualDirection": "...concrete scene description building on the scenario...",
     "compositionHint": "...where subject sits, where text goes...",
     "intensity": "soft" | "medium" | "aggressive",
     "mood": "...one word mood...",
     "palette": ["#hex", "#hex"],
     "copy": { "headline": "...", "subheadline": "...", "cta": "..." }
   }
-  // x 5 total
+  // x 5 total — USE DIFFERENT scenarios where possible
 ] }
 
 ═══════════════════════════════
@@ -139,7 +157,7 @@ ${memoryBlock}
   try {
     const res = await claude.messages.create({
       model: MODEL,
-      max_tokens: 3500,
+      max_tokens: 4000,
       messages: [{ role: 'user', content: prompt }],
     });
 
@@ -152,14 +170,32 @@ ${memoryBlock}
       throw new Error('No variants array from Claude');
     }
 
-    const normalized = parsed.variants.map((v: any) => normalize(v, aspectRatio));
+    // Normalize and enrich with scenario data
+    const normalized: Variant[] = parsed.variants.map((v: any) =>
+      normalize(v, aspectRatio, productCategory, categoryScenarios),
+    );
 
-    // ── DIVERSITY PASS ───────────────────────────────────────
-    // Assign a DIFFERENT visual style to each variant.
-    // Overrides whatever styleHint came from Claude (if any) to guarantee diversity.
+    // Fill any missing scenarios by assigning pool scenarios round-robin
+    const backupScenarios = assignScenarios(productCategory, normalized.length);
+    for (let i = 0; i < normalized.length; i++) {
+      if (!normalized[i].scenario) {
+        normalized[i].scenario = backupScenarios[i];
+      }
+    }
+
+    // DIVERSITY PASS — assign one different style per variant.
+    // Uses scenario's preferredStyles to bias selection toward category-appropriate styles.
     const layouts = normalized.map((v: Variant) => v.layout);
     const intensities = normalized.map((v: Variant) => v.intensity);
-    const assignedStyles = assignDiverseStyles(layouts, intensities);
+    const preferredPools = normalized.map(
+      (v: Variant) => v.scenario?.preferredStyles,
+    );
+
+    const assignedStyles = assignDiverseStyles(
+      layouts,
+      intensities,
+      preferredPools,
+    );
 
     for (let i = 0; i < normalized.length; i++) {
       normalized[i].styleHint = assignedStyles[i];
@@ -168,13 +204,24 @@ ${memoryBlock}
     return normalized;
   } catch (err) {
     console.error('[planner] error:', err);
-    return fallback(brief, aspectRatio);
+    return fallback(brief, aspectRatio, productCategory);
   }
 }
 
-function normalize(v: any, aspectRatio: AspectRatio): Variant {
+function normalize(
+  v: any,
+  aspectRatio: AspectRatio,
+  productCategory: ProductCategory,
+  categoryScenarios: AdScenario[],
+): Variant {
   const layout = v.layout || 'hero_app';
   const intensity = v.intensity || 'medium';
+
+  // Resolve scenario by id from Claude response
+  let scenario: AdScenario | undefined;
+  if (v.scenarioId && typeof v.scenarioId === 'string') {
+    scenario = categoryScenarios.find((s) => s.id === v.scenarioId);
+  }
 
   return {
     id: v.id || Math.random().toString(36).slice(2),
@@ -203,167 +250,90 @@ function normalize(v: any, aspectRatio: AspectRatio): Variant {
     },
 
     mood: v.mood || 'confident',
-    palette: Array.isArray(v.palette) && v.palette.length > 0
-      ? v.palette.slice(0, 5)
-      : [],
+    palette:
+      Array.isArray(v.palette) && v.palette.length > 0
+        ? v.palette.slice(0, 5)
+        : [],
     confidence: typeof v.confidence === 'number' ? v.confidence : 70,
     reasoningSummary: v.reasoningSummary || '',
 
     aspectRatio,
     visualDirection:
       v.visualDirection ||
-      'Clear focal subject in a visible environment with considered lighting and composition',
+      scenario?.sceneDescription ||
+      'Clear focal subject in a visible environment with considered lighting',
     compositionHint:
-      v.compositionHint || 'Subject off-center with reserved space for overlay text',
+      v.compositionHint ||
+      scenario?.subjectFraming ||
+      'Subject off-center with reserved space for overlay text',
     intensity,
-    // styleHint temporarily set; diversity pass will override
     styleHint:
-      (v.styleHint as VisualStyle) || pickDefaultStyleForLayout(layout, intensity),
+      (v.styleHint as VisualStyle) ||
+      pickDefaultStyleForLayout(layout, intensity),
+
+    // Enrichment
+    scenario,
+    productCategory,
   };
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// FALLBACK VARIANTS — each uses a DIFFERENT style (no "premium/gold" bias)
+// FALLBACK — uses scenarios from detected category
 // ═══════════════════════════════════════════════════════════════════
 
-function fallback(brief: ProductBrief, aspectRatio: AspectRatio): Variant[] {
+function fallback(
+  brief: ProductBrief,
+  aspectRatio: AspectRatio,
+  productCategory: ProductCategory,
+): Variant[] {
   const isEs = brief.locale === 'es';
-  const palette = brief.palette && brief.palette.length > 0
-    ? brief.palette
-    : ['#1a1a1a', '#f5f5f5'];
+  const palette =
+    brief.palette && brief.palette.length > 0
+      ? brief.palette
+      : ['#1a1a1a', '#f5f5f5'];
 
-  return [
-    {
-      id: 'fallback-1',
-      layout: 'hero_app',
-      angle: 'result',
-      intent: 'fallback clean product hero',
+  const scenarios = getScenariosForCategory(productCategory);
+
+  const layouts: Array<Variant['layout']> = [
+    'hero_app',
+    'story_ad',
+    'ui_focus',
+    'minimal_branding',
+    'feature_grid',
+  ];
+  const angles: Array<Variant['angle']> = [
+    'result',
+    'pain',
+    'authority',
+    'curiosity',
+    'aggressive',
+  ];
+  const intensities: Array<Variant['intensity']> = [
+    'medium',
+    'aggressive',
+    'soft',
+    'soft',
+    'medium',
+  ];
+
+  const variants: Variant[] = [];
+
+  for (let i = 0; i < 5; i++) {
+    const scenario = scenarios[i % scenarios.length];
+    const preferredStyle =
+      scenario.preferredStyles[0] ||
+      pickDefaultStyleForLayout(layouts[i], intensities[i]);
+
+    variants.push({
+      id: `fallback-${i + 1}`,
+      layout: layouts[i],
+      angle: angles[i],
+      intent: `fallback for ${productCategory}`,
       engine: 'flux',
       copy: {
-        headline: isEs ? 'La forma más simple.' : 'The simplest way.',
-        subheadline: isEs ? 'Creado para funcionar.' : 'Built to just work.',
-        cta: isEs ? 'Probar' : 'Try it',
-      },
-      composition: {
-        heroAssetIndex: undefined,
-        supportAssetIndices: [],
-        logoIndex: undefined,
-        logoPosition: 'top-center',
-        mockupType: 'none',
-      },
-      mood: 'fresh',
-      palette,
-      confidence: 50,
-      reasoningSummary: 'fallback clean bright product hero',
-      aspectRatio,
-      visualDirection:
-        'Product centered on pure white cyclorama, overhead soft lighting with subtle floor shadow, bright clean atmosphere, studio product shot',
-      compositionHint:
-        'Product centered vertically, upper third reserved for headline, ample whitespace',
-      intensity: 'medium',
-      styleHint: 'tech_product_white',
-    },
-    {
-      id: 'fallback-2',
-      layout: 'story_ad',
-      angle: 'pain',
-      intent: 'fallback lifestyle tension',
-      engine: 'flux',
-      copy: {
-        headline: isEs ? 'Algo tenía que cambiar.' : 'Something had to change.',
+        headline: defaultHeadline(productCategory, i, isEs),
         subheadline: '',
-        cta: isEs ? 'Descubrir' : 'See more',
-      },
-      composition: {
-        heroAssetIndex: undefined,
-        supportAssetIndices: [],
-        logoIndex: undefined,
-        logoPosition: 'bottom-center',
-        mockupType: 'none',
-      },
-      mood: 'tense',
-      palette,
-      confidence: 50,
-      reasoningSummary: 'fallback dark cinematic story',
-      aspectRatio,
-      visualDirection:
-        'Subject in moody interior with single directional light from window, atmospheric haze, desaturated color grade with amber accent, off-center composition with deep shadows retaining detail',
-      compositionHint:
-        'Subject lower-left third, right side reserved for overlay copy, negative space in upper area',
-      intensity: 'aggressive',
-      styleHint: 'dark_cinematic',
-    },
-    {
-      id: 'fallback-3',
-      layout: 'ui_focus',
-      angle: 'authority',
-      intent: 'fallback minimalist authority',
-      engine: 'flux',
-      copy: {
-        headline: isEs ? 'Construido con precisión.' : 'Built with precision.',
-        subheadline: '',
-        cta: '',
-      },
-      composition: {
-        heroAssetIndex: undefined,
-        supportAssetIndices: [],
-        logoIndex: undefined,
-        logoPosition: 'top-left',
-        mockupType: 'none',
-      },
-      mood: 'confident',
-      palette,
-      confidence: 50,
-      reasoningSummary: 'fallback swiss minimal',
-      aspectRatio,
-      visualDirection:
-        'Single geometric object on flat neutral surface, diffused even lighting, minimal shadows, two-color palette, grid-based composition with dominant negative space',
-      compositionHint:
-        'Subject in lower-right quadrant following rule of thirds, dominant negative space 60 percent of frame',
-      intensity: 'soft',
-      styleHint: 'minimal_swiss',
-    },
-    {
-      id: 'fallback-4',
-      layout: 'minimal_branding',
-      angle: 'curiosity',
-      intent: 'fallback warm luxury',
-      engine: 'flux',
-      copy: {
-        headline: isEs ? 'Hecho con cuidado.' : 'Made with care.',
-        subheadline: '',
-        cta: '',
-      },
-      composition: {
-        heroAssetIndex: undefined,
-        supportAssetIndices: [],
-        logoIndex: undefined,
-        logoPosition: 'bottom-center',
-        mockupType: 'none',
-      },
-      mood: 'refined',
-      palette,
-      confidence: 50,
-      reasoningSummary: 'fallback luxury beige warm',
-      aspectRatio,
-      visualDirection:
-        'Object resting on linen-textured surface in warm window light, cream and beige tones throughout, soft amber shadows, refined editorial placement with breathing room',
-      compositionHint:
-        'Subject in upper-center third, lower half empty beige surface for overlay text',
-      intensity: 'soft',
-      styleHint: 'luxury_beige',
-    },
-    {
-      id: 'fallback-5',
-      layout: 'feature_grid',
-      angle: 'aggressive',
-      intent: 'fallback bold startup',
-      engine: 'flux',
-      copy: {
-        headline: isEs ? 'Todo en uno.' : 'Everything in one place.',
-        subheadline: isEs ? 'Más rápido.' : 'Faster.',
-        cta: isEs ? 'Ver más' : 'See more',
-        bullets: isEs ? ['Crear', 'Automatizar', 'Publicar'] : ['Create', 'Automate', 'Ship'],
+        cta: i === 4 ? (isEs ? 'Ver más' : 'See more') : '',
       },
       composition: {
         heroAssetIndex: undefined,
@@ -372,17 +342,44 @@ function fallback(brief: ProductBrief, aspectRatio: AspectRatio): Variant[] {
         logoPosition: 'top-right',
         mockupType: 'none',
       },
-      mood: 'energetic',
+      mood: 'confident',
       palette,
       confidence: 50,
-      reasoningSummary: 'fallback bold startup saas hero',
+      reasoningSummary: 'fallback with category scenario',
       aspectRatio,
-      visualDirection:
-        'Product hero on gradient backdrop with subtle color glow, floating UI elements suggesting depth, clean studio lighting, one dominant vibrant brand color with complementary accent',
-      compositionHint:
-        'Product anchored center with geometric accents around, headline space reserved upper portion',
-      intensity: 'medium',
-      styleHint: 'bold_startup',
-    },
+      visualDirection: scenario.sceneDescription,
+      compositionHint: scenario.subjectFraming,
+      intensity: intensities[i],
+      styleHint: preferredStyle,
+      scenario,
+      productCategory,
+    });
+  }
+
+  return variants;
+}
+
+function defaultHeadline(
+  category: ProductCategory,
+  index: number,
+  isEs: boolean,
+): string {
+  if (isEs) {
+    const lines = [
+      'Diseñado para durar.',
+      'Lo sentirás distinto.',
+      'Hecho con precisión.',
+      'Pensado para ti.',
+      'Todo en uno.',
+    ];
+    return lines[index] || lines[0];
+  }
+  const lines = [
+    'Built to last.',
+    'Feel the difference.',
+    'Made with precision.',
+    'Designed for you.',
+    'Everything in one.',
   ];
+  return lines[index] || lines[0];
 }
