@@ -1,57 +1,87 @@
-import { renderFlux } from '@/features/creative-studio/server/renderers/flux-renderer';
+import 'server-only';
 import type {
   Variant,
-  ImageAnalysis,
+  ProductBrief,
   CampaignDirection,
-  QualityReport,
-} from '@/features/creative-studio/types';
+  RenderEngine,
+} from '../types';
+import { renderFlux } from './renderers/flux-renderer';
+import { renderGptImage } from './renderers/gpt-image-renderer';
+import { selectEngine, explainEngineChoice } from './engine-selector';
+
+// ═══════════════════════════════════════════════════════════════════
+// RENDER ROUTER
+//
+// - Selects engine via selectEngine(variant, category)
+// - If primary is gpt-image and fails → automatic fallback to Flux
+// - Flux does NOT fall back (it's the baseline)
+// - Same output contract regardless of engine
+// ═══════════════════════════════════════════════════════════════════
 
 export interface RenderInput {
   variant: Variant;
-  imageUrls: string[];
-  analyses: ImageAnalysis[];
-  direction?: CampaignDirection | null;
+  brief?: ProductBrief;
 }
 
 export interface RenderOutput {
   imageUrl: string;
-  engine: 'flux';
+  engine: RenderEngine;
+  /** True if primary engine failed and we fell back */
+  retried?: boolean;
+  /** Which engine originally failed, if any */
+  fallbackFrom?: RenderEngine;
 }
 
-export interface RenderWithQualityOutput extends RenderOutput {
-  retried: boolean;
-  qualityReport: QualityReport | null;
-}
+export async function renderVariant(
+  input: RenderInput & { direction?: CampaignDirection },
+): Promise<RenderOutput> {
+  const primary = selectEngine(input.variant, input.variant.productCategory);
 
-/**
- * Router simplificado:
- * - renderiza con Flux
- * - no usa quality gate por ahora
- * - mantiene compatibilidad con flux-renderer.ts
- */
-export async function renderWithQuality(
-  input: RenderInput,
-): Promise<RenderWithQualityOutput> {
-  try {
-    const result = await renderFlux({
-      variant: input.variant,
-      imageUrls: input.imageUrls,
-      analyses: input.analyses,
-      direction: input.direction ?? undefined,
+  // Debug logging in non-prod
+  if (process.env.NODE_ENV !== 'production') {
+    const explanation = explainEngineChoice(
+      input.variant,
+      input.variant.productCategory,
+    );
+    console.log('[render-router]', {
+      variantId: input.variant.id,
+      category: input.variant.productCategory,
+      engine: explanation.engine,
+      reason: explanation.reason,
     });
-
-    if (!result?.imageUrl) {
-      throw new Error('Flux returned no image');
-    }
-
-    return {
-      imageUrl: result.imageUrl,
-      engine: 'flux',
-      retried: false,
-      qualityReport: null,
-    };
-  } catch (err: any) {
-    console.error('[render-router] error:', err?.message || err);
-    throw err;
   }
+
+  // Path 1: GPT-Image with Flux fallback
+  if (primary === 'gpt-image') {
+    try {
+      const result = await renderGptImage(input);
+      return result;
+    } catch (err) {
+      console.warn('[render-router] gpt-image failed, falling back to flux', {
+        variantId: input.variant.id,
+        error: err instanceof Error ? err.message : String(err),
+      });
+
+      try {
+        const fluxResult = await renderFlux(input);
+        return {
+          ...fluxResult,
+          retried: true,
+          fallbackFrom: 'gpt-image',
+        };
+      } catch (fluxErr) {
+        console.error('[render-router] flux fallback also failed', {
+          variantId: input.variant.id,
+          originalError: err instanceof Error ? err.message : String(err),
+          fallbackError:
+            fluxErr instanceof Error ? fluxErr.message : String(fluxErr),
+        });
+        // Last attempt was Flux, preserve that error
+        throw fluxErr;
+      }
+    }
+  }
+
+  // Path 2: Flux (baseline, no fallback)
+  return renderFlux(input);
 }
