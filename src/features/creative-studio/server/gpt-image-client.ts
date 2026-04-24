@@ -1,5 +1,5 @@
 import 'server-only';
-import type { AspectRatio } from '../../types';
+import type { AspectRatio } from '../types';
 
 // ═══════════════════════════════════════════════════════════════════
 // GPT-Image Client
