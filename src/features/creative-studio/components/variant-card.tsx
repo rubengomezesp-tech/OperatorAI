@@ -8,6 +8,7 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import { proxiedImageUrl } from '@/lib/image-utils';
+import { cn } from '@/lib/utils';
 import type { Variant, QualityReport } from '../types';
 
 const LAYOUT_LABELS: Record<string, { en: string; es: string }> = {
