@@ -96,7 +96,8 @@ export function AdEditor({ imageUrl, variant, locale, onBack }: Props) {
     if (!stageRef.current) return;
     setExporting(true);
     try {
-      const canvas = await renderToCanvas(imageUrl, blocks, variant.aspectRatio);
+      const proxiedUrl = proxiedImageUrl(imageUrl) || imageUrl;
+const canvas = await renderToCanvas(proxiedUrl, blocks, variant.aspectRatio);
       const blob: Blob = await new Promise((res, rej) =>
         canvas.toBlob(
           (b) => (b ? res(b) : rej(new Error('toBlob null'))),
@@ -137,11 +138,11 @@ export function AdEditor({ imageUrl, variant, locale, onBack }: Props) {
           onPointerLeave={handlePointerUp}
         >
           <img
-            src={imageUrl}
-            alt=""
-            crossOrigin="anonymous"
-            className="absolute inset-0 w-full h-full object-cover pointer-events-none"
-          />
+  src={proxiedImageUrl(imageUrl) || imageUrl}  ← ✅ PROXIED
+  alt=""
+  crossOrigin="anonymous"
+  ...
+/>
           {blocks.map((b) =>
             b.text ? (
               <div
