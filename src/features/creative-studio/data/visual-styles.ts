@@ -601,15 +601,18 @@ export const VISUAL_STYLES: Record<VisualStyle, VisualStyleSpec> = {
  *
  * Algorithm:
  * 1. For each variant, score each available style by layoutAffinity
- * 2. Pick the highest scoring style for this variant
- * 3. Remove that style from pool (no duplicates)
- * 4. Small random boost to avoid always picking the same style
+ * 2. Boost scenario-preferred styles significantly
+ * 3. Boost styles matching intensity
+ * 4. Add random jitter to avoid always picking same style
+ * 5. Pick the highest scoring style
+ * 6. Remove that style from pool (no duplicates)
  *
- * Returns map of variantIndex → VisualStyle
+ * Returns array of VisualStyle, one per variant index.
  */
 export function assignDiverseStyles(
   layouts: string[],
   intensities: Array<'soft' | 'medium' | 'aggressive'>,
+  preferredStylesPerVariant?: Array<VisualStyle[] | undefined>,
 ): VisualStyle[] {
   const pool: VisualStyle[] = [...ALL_STYLES];
   const result: VisualStyle[] = [];
@@ -617,24 +620,38 @@ export function assignDiverseStyles(
   for (let i = 0; i < layouts.length; i++) {
     const layout = layouts[i] as keyof VisualStyleSpec['layoutAffinity'];
     const intensity = intensities[i];
+    const preferred = preferredStylesPerVariant?.[i];
 
-    // Score each remaining style for this layout
+    // Score each remaining style for this variant
     const scored = pool.map((styleId) => {
       const spec = VISUAL_STYLES[styleId];
       let score = spec.layoutAffinity[layout] ?? 5;
 
-      // Intensity influence (soft pairs with clean/editorial, aggressive with social/dark)
+      // Scenario preferred styles get strong boost (product intelligence)
+      if (preferred && preferred.includes(styleId)) {
+        score += 5;
+      }
+
+      // Intensity influence
       if (intensity === 'aggressive') {
-        if (styleId === 'dark_cinematic' || styleId === 'social_media_ad' || styleId === 'bold_startup') {
+        if (
+          styleId === 'dark_cinematic' ||
+          styleId === 'social_media_ad' ||
+          styleId === 'bold_startup'
+        ) {
           score += 2;
         }
       } else if (intensity === 'soft') {
-        if (styleId === 'minimal_swiss' || styleId === 'editorial_magazine' || styleId === 'luxury_beige') {
+        if (
+          styleId === 'minimal_swiss' ||
+          styleId === 'editorial_magazine' ||
+          styleId === 'luxury_beige'
+        ) {
           score += 2;
         }
       }
 
-      // Small random jitter so we don't always pick same top style
+      // Random jitter
       score += Math.random() * 2;
 
       return { styleId, score };
@@ -645,7 +662,6 @@ export function assignDiverseStyles(
     result.push(picked);
     pool.splice(pool.indexOf(picked), 1);
 
-    // If we ran out of unique styles (>9 variants), refill
     if (pool.length === 0) pool.push(...ALL_STYLES);
   }
 
