@@ -7,6 +7,11 @@ import {
   AlignCenter,
   AlignRight,
   ArrowLeft,
+  Copy,
+  Trash2,
+  ArrowUp,
+  ArrowDown,
+  RotateCcw,
 } from 'lucide-react';
 import { proxiedImageUrl } from '@/lib/image-utils';
 import { cn } from '@/lib/utils';
@@ -18,13 +23,28 @@ interface TextBlock {
   id: 'headline' | 'subheadline' | 'cta';
   text: string;
   color: string;
-  fontSize: number; // as percentage of canvas height
-  x: number; // 0-1 relative to canvas width
-  y: number; // 0-1 relative to canvas height
+  fontSize: number;
+  x: number;
+  y: number;
   align: Alignment;
   weight: number;
-  maxWidth: number; // 0-1 relative
+  maxWidth: number;
+  fontFamily: 'inter' | 'system' | 'serif' | 'mono';
+  opacity: number;
+  shadowEnabled: boolean;
+  shadowBlur: number;
+  shadowColor: string;
+  letterSpacing: number;
+  lineHeight: number;
+  zIndex: number;
 }
+
+const FONT_FAMILIES = {
+  inter: { name: 'Inter', class: 'var(--font-inter)' },
+  system: { name: 'System', class: 'system-ui' },
+  serif: { name: 'Serif', class: 'Georgia, serif' },
+  mono: { name: 'Mono', class: 'Courier, monospace' },
+} as const;
 
 interface Props {
   imageUrl: string;
@@ -33,18 +53,6 @@ interface Props {
   onBack?: () => void;
 }
 
-/**
- * AD EDITOR v6
- *
- * Flow:
- * 1. Flux image is the fixed background (loaded via <img crossOrigin>).
- * 2. Three HTML text blocks overlay the image with absolute positioning.
- * 3. User edits inline (click to focus), adjusts color/size/align/position.
- * 4. Export: draws the image to a hidden canvas, then draws text blocks
- *    at the same relative coordinates, and downloads PNG.
- *
- * No dependency on canvas-spec-renderer, html2canvas, or any library.
- */
 export function AdEditor({ imageUrl, variant, locale, onBack }: Props) {
   const es = locale === 'es';
   const aspect =
@@ -62,6 +70,7 @@ export function AdEditor({ imageUrl, variant, locale, onBack }: Props) {
   const [exporting, setExporting] = useState(false);
 
   const stageRef = useRef<HTMLDivElement>(null);
+  const originalOverflow = useRef<string>('');
 
   const active = useMemo(
     () => blocks.find((b) => b.id === activeId) || blocks[0],
@@ -75,21 +84,91 @@ export function AdEditor({ imageUrl, variant, locale, onBack }: Props) {
   }
 
   function handlePointerDown(e: React.PointerEvent, id: TextBlock['id']) {
+    e.preventDefault();
+    e.stopPropagation();
+    
     setActiveId(id);
     setDragId(id);
-    (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+    
+    // Lock body scroll
+    originalOverflow.current = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
   }
 
   function handlePointerMove(e: React.PointerEvent) {
     if (!dragId || !stageRef.current) return;
+    
+    e.preventDefault();
+    e.stopPropagation();
+    
     const rect = stageRef.current.getBoundingClientRect();
     const x = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
     const y = Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height));
     updateBlock(dragId, { x, y });
   }
 
-  function handlePointerUp() {
+  function handlePointerUp(e: React.PointerEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    
     setDragId(null);
+    
+    // Restore body scroll
+    document.body.style.overflow = originalOverflow.current;
+    
+    (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+  }
+
+  function handleDuplicate() {
+    const block = active;
+    const newId = (block.id + '_dup') as any;
+    const newBlock: TextBlock = {
+      ...block,
+      id: newId,
+      x: Math.min(1, block.x + 0.05),
+      y: Math.min(1, block.y + 0.05),
+    };
+    setBlocks((prev) => [...prev, newBlock]);
+  }
+
+  function handleDelete() {
+    if (blocks.length <= 1) {
+      alert(es ? 'No puedes eliminar la última capa' : 'Cannot delete last layer');
+      return;
+    }
+    setBlocks((prev) => prev.filter((b) => b.id !== activeId));
+    setActiveId('headline');
+  }
+
+  function handleBringForward() {
+    const idx = blocks.findIndex((b) => b.id === activeId);
+    if (idx < blocks.length - 1) {
+      const newBlocks = [...blocks];
+      [newBlocks[idx], newBlocks[idx + 1]] = [newBlocks[idx + 1], newBlocks[idx]];
+      setBlocks(newBlocks);
+    }
+  }
+
+  function handleSendBackward() {
+    const idx = blocks.findIndex((b) => b.id === activeId);
+    if (idx > 0) {
+      const newBlocks = [...blocks];
+      [newBlocks[idx], newBlocks[idx - 1]] = [newBlocks[idx - 1], newBlocks[idx]];
+      setBlocks(newBlocks);
+    }
+  }
+
+  function handleReset() {
+    const defaults = initialBlocks(variant).find((b) => b.id === activeId);
+    if (defaults) {
+      updateBlock(activeId, {
+        x: defaults.x,
+        y: defaults.y,
+        fontSize: defaults.fontSize,
+      });
+    }
   }
 
   async function handleExport() {
@@ -97,7 +176,11 @@ export function AdEditor({ imageUrl, variant, locale, onBack }: Props) {
     setExporting(true);
     try {
       const proxiedUrl = proxiedImageUrl(imageUrl) || imageUrl;
-      const canvas = await renderToCanvas(proxiedUrl, blocks, variant.aspectRatio);
+      const canvas = await renderToCanvas(
+        proxiedUrl,
+        blocks,
+        variant.aspectRatio,
+      );
       const blob: Blob = await new Promise((res, rej) =>
         canvas.toBlob(
           (b) => (b ? res(b) : rej(new Error('toBlob null'))),
@@ -122,247 +205,438 @@ export function AdEditor({ imageUrl, variant, locale, onBack }: Props) {
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-6">
-      {/* Stage */}
-      <div className="flex items-start justify-center">
-        <div
-          ref={stageRef}
-          className="relative bg-black rounded-xl overflow-hidden border border-border shadow-2xl select-none"
-          style={{
-            aspectRatio: aspect,
-            width: '100%',
-            maxWidth: 520,
-          }}
-          onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerUp}
-          onPointerLeave={handlePointerUp}
-        >
-          <img
-            src={proxiedImageUrl(imageUrl) || imageUrl}
-            alt=""
-            crossOrigin="anonymous"
-            className="absolute inset-0 w-full h-full object-cover pointer-events-none"
-          />
-          {blocks.map((b) =>
-            b.text ? (
-              <div
-                key={b.id}
-                onPointerDown={(e) => handlePointerDown(e, b.id)}
-                className={cn(
-                  'absolute cursor-move px-1',
-                  activeId === b.id
-                    ? 'outline outline-1 outline-gold/60'
-                    : 'hover:outline hover:outline-1 hover:outline-white/30',
-                )}
-                style={{
-                  left: b.x * 100 + '%',
-                  top: b.y * 100 + '%',
-                  transform: computeAnchor(b.align),
-                  fontSize: b.fontSize + 'cqh',
-                  color: b.color,
-                  fontWeight: b.weight,
-                  textAlign: b.align,
-                  maxWidth: b.maxWidth * 100 + '%',
-                  lineHeight: 1.15,
-                  fontFamily:
-                    b.id === 'cta'
-                      ? 'var(--font-inter), system-ui, sans-serif'
-                      : 'var(--font-inter), system-ui, sans-serif',
-                  textShadow:
-                    '0 2px 24px rgba(0,0,0,0.6), 0 1px 2px rgba(0,0,0,0.5)',
-                  containerType: 'size',
-                }}
-              >
-                {b.id === 'cta' && b.text ? (
-                  <span
-                    className="inline-block rounded-full"
+    <div className="w-full h-full overflow-hidden overscroll-contain bg-surface-2">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-4 h-full p-4">
+        {/* Stage */}
+        <div className="flex flex-col items-start justify-start overflow-hidden">
+          {onBack && (
+            <button
+              onClick={onBack}
+              className="flex items-center gap-1.5 text-[11px] text-fg-muted hover:text-fg mb-3"
+            >
+              <ArrowLeft className="h-3 w-3" />
+              {es ? 'Volver' : 'Back'}
+            </button>
+          )}
+
+          <div className="flex items-center justify-center w-full flex-1 overflow-hidden">
+            <div
+              ref={stageRef}
+              className="relative bg-black rounded-xl overflow-hidden border border-border shadow-2xl select-none touch-action-none"
+              style={{
+                aspectRatio: aspect,
+                width: '100%',
+                maxWidth: 520,
+                touchAction: 'none',
+              }}
+              onPointerMove={handlePointerMove}
+              onPointerUp={handlePointerUp}
+              onPointerLeave={handlePointerUp}
+            >
+              <img
+                src={proxiedImageUrl(imageUrl) || imageUrl}
+                alt=""
+                crossOrigin="anonymous"
+                className="absolute inset-0 w-full h-full object-cover pointer-events-none"
+              />
+
+              {blocks.map((b) =>
+                b.text ? (
+                  <div
+                    key={b.id}
+                    onPointerDown={(e) => handlePointerDown(e, b.id)}
+                    className={cn(
+                      'absolute cursor-move px-1 select-none',
+                      activeId === b.id
+                        ? 'outline outline-1 outline-gold/60'
+                        : 'hover:outline hover:outline-1 hover:outline-white/30',
+                    )}
                     style={{
-                      background: '#fff',
-                      color: '#000',
-                      padding: '0.5em 1.2em',
-                      fontWeight: 700,
-                      textShadow: 'none',
+                      left: b.x * 100 + '%',
+                      top: b.y * 100 + '%',
+                      transform: computeAnchor(b.align),
+                      fontSize: b.fontSize + 'cqh',
+                      color: b.color,
+                      fontWeight: b.weight,
+                      textAlign: b.align,
+                      maxWidth: b.maxWidth * 100 + '%',
+                      lineHeight: b.lineHeight,
+                      fontFamily: FONT_FAMILIES[b.fontFamily].class,
+                      opacity: b.opacity,
+                      letterSpacing: b.letterSpacing + 'em',
+                      textShadow: b.shadowEnabled
+                        ? `0 2px ${b.shadowBlur}px ${b.shadowColor}`
+                        : 'none',
+                      containerType: 'size',
+                      zIndex: b.zIndex,
+                      touchAction: 'none',
                     }}
                   >
-                    {b.text}
-                  </span>
-                ) : (
-                  <span style={{ display: 'inline-block' }}>{b.text}</span>
+                    {b.id === 'cta' && b.text ? (
+                      <span
+                        className="inline-block rounded-full"
+                        style={{
+                          background: '#fff',
+                          color: '#000',
+                          padding: '0.5em 1.2em',
+                          fontWeight: 700,
+                          textShadow: 'none',
+                        }}
+                      >
+                        {b.text}
+                      </span>
+                    ) : (
+                      <span style={{ display: 'inline-block' }}>{b.text}</span>
+                    )}
+                  </div>
+                ) : null,
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Controls Panel */}
+        <div className="overflow-y-auto overscroll-contain space-y-4 pr-2">
+          {/* Layer Tabs */}
+          <div className="rounded-xl border border-border bg-surface p-3 space-y-3">
+            <div className="text-[10px] uppercase tracking-[0.14em] text-fg-subtle font-medium">
+              {es ? 'Capas' : 'Layers'}
+            </div>
+            <div className="flex gap-1">
+              {(['headline', 'subheadline', 'cta'] as const).map((id) => (
+                <button
+                  key={id}
+                  onClick={() => setActiveId(id)}
+                  className={cn(
+                    'flex-1 h-7 rounded-md text-[10px] font-medium border capitalize',
+                    activeId === id
+                      ? 'bg-gold/15 text-gold border-gold/30'
+                      : 'bg-surface-2 text-fg-muted border-border',
+                  )}
+                >
+                  {id === 'headline'
+                    ? es
+                      ? 'Titular'
+                      : 'Headline'
+                    : id === 'subheadline'
+                    ? es
+                      ? 'Subtítulo'
+                      : 'Subhead'
+                    : 'CTA'}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Text Content */}
+          <div className="rounded-xl border border-border bg-surface p-3 space-y-2">
+            <div className="text-[10px] uppercase tracking-[0.14em] text-fg-subtle font-medium">
+              {es ? 'Contenido' : 'Content'}
+            </div>
+            <textarea
+              value={active.text}
+              onChange={(e) => updateBlock(active.id, { text: e.target.value })}
+              rows={2}
+              placeholder={es ? 'Escribe...' : 'Type...'}
+              className="w-full px-3 py-2 rounded-lg border border-border bg-surface-2 text-[12px] placeholder:text-fg-subtle focus:outline-none focus:border-gold/40 resize-none"
+            />
+          </div>
+
+          {/* Font & Typography */}
+          <div className="rounded-xl border border-border bg-surface p-3 space-y-3">
+            <div className="text-[10px] uppercase tracking-[0.14em] text-fg-subtle font-medium flex items-center gap-1.5">
+              <Type className="h-3 w-3" />
+              {es ? 'Tipografía' : 'Typography'}
+            </div>
+
+            <div>
+              <label className="text-[9px] text-fg-subtle uppercase tracking-wide block mb-2">
+                {es ? 'Fuente' : 'Font'}
+              </label>
+              <div className="grid grid-cols-2 gap-1">
+                {(Object.entries(FONT_FAMILIES) as any[]).map(([key, val]) => (
+                  <button
+                    key={key}
+                    onClick={() => updateBlock(active.id, { fontFamily: key })}
+                    className={cn(
+                      'h-7 rounded-md text-[10px] font-medium border',
+                      active.fontFamily === key
+                        ? 'bg-gold/15 text-gold border-gold/30'
+                        : 'bg-surface-2 text-fg-muted border-border',
+                    )}
+                  >
+                    {val.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="text-[9px] text-fg-subtle uppercase tracking-wide block mb-1">
+                {es ? 'Tamaño' : 'Size'}: {active.fontSize.toFixed(1)}
+              </label>
+              <input
+                type="range"
+                min={2}
+                max={16}
+                step={0.5}
+                value={active.fontSize}
+                onChange={(e) =>
+                  updateBlock(active.id, { fontSize: Number(e.target.value) })
+                }
+                className="w-full"
+              />
+            </div>
+
+            <div>
+              <label className="text-[9px] text-fg-subtle uppercase tracking-wide block mb-1">
+                {es ? 'Grosor' : 'Weight'}: {active.weight}
+              </label>
+              <input
+                type="range"
+                min={300}
+                max={900}
+                step={100}
+                value={active.weight}
+                onChange={(e) =>
+                  updateBlock(active.id, { weight: Number(e.target.value) })
+                }
+                className="w-full"
+              />
+            </div>
+
+            <div>
+              <label className="text-[9px] text-fg-subtle uppercase tracking-wide block mb-1">
+                {es ? 'Espaciado' : 'Letter Spacing'}: {(active.letterSpacing * 100).toFixed(0)}%
+              </label>
+              <input
+                type="range"
+                min={0}
+                max={0.2}
+                step={0.01}
+                value={active.letterSpacing}
+                onChange={(e) =>
+                  updateBlock(active.id, { letterSpacing: Number(e.target.value) })
+                }
+                className="w-full"
+              />
+            </div>
+
+            <div>
+              <label className="text-[9px] text-fg-subtle uppercase tracking-wide block mb-1">
+                {es ? 'Altura línea' : 'Line Height'}: {active.lineHeight.toFixed(2)}
+              </label>
+              <input
+                type="range"
+                min={0.8}
+                max={2.5}
+                step={0.1}
+                value={active.lineHeight}
+                onChange={(e) =>
+                  updateBlock(active.id, { lineHeight: Number(e.target.value) })
+                }
+                className="w-full"
+              />
+            </div>
+          </div>
+
+          {/* Color & Appearance */}
+          <div className="rounded-xl border border-border bg-surface p-3 space-y-3">
+            <div className="text-[10px] uppercase tracking-[0.14em] text-fg-subtle font-medium">
+              {es ? 'Apariencia' : 'Appearance'}
+            </div>
+
+            <div>
+              <label className="text-[9px] text-fg-subtle uppercase tracking-wide block mb-2">
+                {es ? 'Color' : 'Color'}
+              </label>
+              <div className="flex gap-1 mb-2">
+                {['#ffffff', '#000000', '#c9a863', '#ff3b30', '#34c759'].map(
+                  (c) => (
+                    <button
+                      key={c}
+                      onClick={() => updateBlock(active.id, { color: c })}
+                      className={cn(
+                        'h-6 w-6 rounded-md border-2',
+                        active.color === c ? 'border-gold' : 'border-border',
+                      )}
+                      style={{ background: c }}
+                    />
+                  ),
                 )}
               </div>
-            ) : null,
-          )}
-        </div>
-      </div>
-
-      {/* Controls */}
-      <div className="space-y-4">
-        {onBack && (
-          <button
-            onClick={onBack}
-            className="flex items-center gap-1.5 text-[11px] text-fg-muted hover:text-fg"
-          >
-            <ArrowLeft className="h-3 w-3" />
-            {es ? 'Volver' : 'Back'}
-          </button>
-        )}
-
-        <div className="rounded-xl border border-border bg-surface p-3 space-y-3">
-          <div className="text-[10px] uppercase tracking-[0.14em] text-fg-subtle font-medium">
-            {es ? 'Texto' : 'Text'}
-          </div>
-          <div className="flex gap-1">
-            {(['headline', 'subheadline', 'cta'] as const).map((id) => (
-              <button
-                key={id}
-                onClick={() => setActiveId(id)}
-                className={cn(
-                  'flex-1 h-7 rounded-md text-[10px] font-medium border capitalize',
-                  activeId === id
-                    ? 'bg-gold/15 text-gold border-gold/30'
-                    : 'bg-surface-2 text-fg-muted border-border',
-                )}
-              >
-                {id === 'headline'
-                  ? es
-                    ? 'Titular'
-                    : 'Headline'
-                  : id === 'subheadline'
-                  ? es
-                    ? 'Subtitulo'
-                    : 'Subhead'
-                  : 'CTA'}
-              </button>
-            ))}
-          </div>
-
-          <textarea
-            value={active.text}
-            onChange={(e) => updateBlock(active.id, { text: e.target.value })}
-            rows={2}
-            placeholder={es ? 'Escribe...' : 'Type...'}
-            className="w-full px-3 py-2 rounded-lg border border-border bg-surface-2 text-[12px] placeholder:text-fg-subtle focus:outline-none focus:border-gold/40 resize-none"
-          />
-        </div>
-
-        <div className="rounded-xl border border-border bg-surface p-3 space-y-3">
-          <div className="text-[10px] uppercase tracking-[0.14em] text-fg-subtle font-medium flex items-center gap-1.5">
-            <Type className="h-3 w-3" />
-            {es ? 'Estilo' : 'Style'}
-          </div>
-
-          <div>
-            <label className="text-[9px] text-fg-subtle uppercase tracking-wide">
-              {es ? 'Tamano' : 'Size'}
-            </label>
-            <input
-              type="range"
-              min={2}
-              max={16}
-              step={0.5}
-              value={active.fontSize}
-              onChange={(e) =>
-                updateBlock(active.id, { fontSize: Number(e.target.value) })
-              }
-              className="w-full"
-            />
-          </div>
-
-          <div>
-            <label className="text-[9px] text-fg-subtle uppercase tracking-wide">
-              {es ? 'Grosor' : 'Weight'}
-            </label>
-            <input
-              type="range"
-              min={300}
-              max={900}
-              step={100}
-              value={active.weight}
-              onChange={(e) =>
-                updateBlock(active.id, { weight: Number(e.target.value) })
-              }
-              className="w-full"
-            />
-          </div>
-
-          <div>
-            <label className="text-[9px] text-fg-subtle uppercase tracking-wide">
-              Color
-            </label>
-            <div className="flex gap-1 mt-1">
-              {['#ffffff', '#000000', '#c9a863', '#ff3b30', '#34c759'].map(
-                (c) => (
-                  <button
-                    key={c}
-                    onClick={() => updateBlock(active.id, { color: c })}
-                    className={cn(
-                      'h-7 w-7 rounded-md border-2',
-                      active.color === c ? 'border-gold' : 'border-border',
-                    )}
-                    style={{ background: c }}
-                  />
-                ),
-              )}
               <input
                 type="color"
                 value={active.color}
                 onChange={(e) =>
                   updateBlock(active.id, { color: e.target.value })
                 }
-                className="h-7 w-7 rounded-md border-2 border-border cursor-pointer"
+                className="w-full h-8 rounded-md border border-border cursor-pointer"
               />
             </div>
-          </div>
 
-          <div>
-            <label className="text-[9px] text-fg-subtle uppercase tracking-wide">
-              {es ? 'Alineacion' : 'Align'}
-            </label>
-            <div className="flex gap-1 mt-1">
-              {(
-                [
-                  ['left', AlignLeft],
-                  ['center', AlignCenter],
-                  ['right', AlignRight],
-                ] as const
-              ).map(([val, Icon]) => (
-                <button
-                  key={val}
-                  onClick={() => updateBlock(active.id, { align: val })}
-                  className={cn(
-                    'flex-1 h-8 rounded-md border flex items-center justify-center',
-                    active.align === val
-                      ? 'bg-gold/15 border-gold/30 text-gold'
-                      : 'bg-surface-2 border-border text-fg-muted',
-                  )}
-                >
-                  <Icon className="h-3.5 w-3.5" />
-                </button>
-              ))}
+            <div>
+              <label className="text-[9px] text-fg-subtle uppercase tracking-wide block mb-1">
+                {es ? 'Opacidad' : 'Opacity'}: {(active.opacity * 100).toFixed(0)}%
+              </label>
+              <input
+                type="range"
+                min={0}
+                max={1}
+                step={0.05}
+                value={active.opacity}
+                onChange={(e) =>
+                  updateBlock(active.id, { opacity: Number(e.target.value) })
+                }
+                className="w-full"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 text-[10px] text-fg">
+                <input
+                  type="checkbox"
+                  checked={active.shadowEnabled}
+                  onChange={(e) =>
+                    updateBlock(active.id, { shadowEnabled: e.target.checked })
+                  }
+                  className="w-3 h-3"
+                />
+                {es ? 'Sombra' : 'Shadow'}
+              </label>
+
+              {active.shadowEnabled && (
+                <>
+                  <div>
+                    <label className="text-[9px] text-fg-subtle uppercase tracking-wide block mb-1">
+                      {es ? 'Desenfoque' : 'Blur'}: {active.shadowBlur}
+                    </label>
+                    <input
+                      type="range"
+                      min={0}
+                      max={20}
+                      step={1}
+                      value={active.shadowBlur}
+                      onChange={(e) =>
+                        updateBlock(active.id, {
+                          shadowBlur: Number(e.target.value),
+                        })
+                      }
+                      className="w-full"
+                    />
+                  </div>
+                  <input
+                    type="color"
+                    value={active.shadowColor}
+                    onChange={(e) =>
+                      updateBlock(active.id, { shadowColor: e.target.value })
+                    }
+                    className="w-full h-8 rounded-md border border-border"
+                  />
+                </>
+              )}
             </div>
           </div>
+
+          {/* Layout */}
+          <div className="rounded-xl border border-border bg-surface p-3 space-y-3">
+            <div className="text-[10px] uppercase tracking-[0.14em] text-fg-subtle font-medium">
+              {es ? 'Diseño' : 'Layout'}
+            </div>
+
+            <div>
+              <label className="text-[9px] text-fg-subtle uppercase tracking-wide block mb-2">
+                {es ? 'Alineación' : 'Align'}
+              </label>
+              <div className="flex gap-1">
+                {(
+                  [
+                    ['left', AlignLeft],
+                    ['center', AlignCenter],
+                    ['right', AlignRight],
+                  ] as const
+                ).map(([val, Icon]) => (
+                  <button
+                    key={val}
+                    onClick={() => updateBlock(active.id, { align: val })}
+                    className={cn(
+                      'flex-1 h-8 rounded-md border flex items-center justify-center',
+                      active.align === val
+                        ? 'bg-gold/15 border-gold/30 text-gold'
+                        : 'bg-surface-2 border-border text-fg-muted',
+                    )}
+                  >
+                    <Icon className="h-3.5 w-3.5" />
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Layer Actions */}
+          <div className="rounded-xl border border-border bg-surface p-3 space-y-2">
+            <div className="text-[10px] uppercase tracking-[0.14em] text-fg-subtle font-medium mb-2">
+              {es ? 'Capas' : 'Layers'}
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={handleBringForward}
+                className="h-8 rounded-md bg-surface-2 border border-border text-fg-muted hover:border-gold/40 text-[10px] flex items-center justify-center gap-1"
+                title={es ? 'Traer adelante' : 'Bring forward'}
+              >
+                <ArrowUp className="h-3 w-3" />
+              </button>
+              <button
+                onClick={handleSendBackward}
+                className="h-8 rounded-md bg-surface-2 border border-border text-fg-muted hover:border-gold/40 text-[10px] flex items-center justify-center gap-1"
+                title={es ? 'Enviar atrás' : 'Send backward'}
+              >
+                <ArrowDown className="h-3 w-3" />
+              </button>
+              <button
+                onClick={handleDuplicate}
+                className="h-8 rounded-md bg-surface-2 border border-border text-fg-muted hover:border-gold/40 text-[10px] flex items-center justify-center gap-1"
+                title={es ? 'Duplicar' : 'Duplicate'}
+              >
+                <Copy className="h-3 w-3" />
+              </button>
+              <button
+                onClick={handleReset}
+                className="h-8 rounded-md bg-surface-2 border border-border text-fg-muted hover:border-gold/40 text-[10px] flex items-center justify-center gap-1"
+                title={es ? 'Resetear' : 'Reset'}
+              >
+                <RotateCcw className="h-3 w-3" />
+              </button>
+            </div>
+
+            {blocks.length > 1 && (
+              <button
+                onClick={handleDelete}
+                className="w-full h-8 rounded-md bg-red-500/10 border border-red-500/30 text-red-400 hover:border-red-500/60 text-[10px] font-medium flex items-center justify-center gap-1"
+              >
+                <Trash2 className="h-3 w-3" />
+                {es ? 'Eliminar' : 'Delete'}
+              </button>
+            )}
+          </div>
+
+          {/* Export */}
+          <button
+            onClick={handleExport}
+            disabled={exporting}
+            className="w-full h-11 rounded-xl bg-gold text-black text-[13px] font-semibold flex items-center justify-center gap-2 hover:brightness-110 disabled:opacity-60"
+          >
+            <Download className="h-4 w-4" />
+            {exporting
+              ? es
+                ? 'Exportando...'
+                : 'Exporting...'
+              : es
+              ? 'Descargar PNG'
+              : 'Download PNG'}
+          </button>
         </div>
-
-        <button
-          onClick={handleExport}
-          disabled={exporting}
-          className="w-full h-11 rounded-xl bg-gold text-black text-[13px] font-semibold flex items-center justify-center gap-2 hover:brightness-110 disabled:opacity-60"
-        >
-          <Download className="h-4 w-4" />
-          {exporting
-            ? es
-              ? 'Exportando...'
-              : 'Exporting...'
-            : es
-            ? 'Descargar PNG'
-            : 'Download PNG'}
-        </button>
-
-        <p className="text-[10px] text-fg-subtle leading-relaxed">
-          {es
-            ? 'Arrastra los textos sobre la imagen para reposicionarlos.'
-            : 'Drag text blocks on the image to reposition.'}
-        </p>
       </div>
     </div>
   );
@@ -373,8 +647,6 @@ export function AdEditor({ imageUrl, variant, locale, onBack }: Props) {
 // ═══════════════════════════════════════════════════════════
 
 function initialBlocks(variant: Variant): TextBlock[] {
-  const pos = variant.composition.logoPosition;
-  // Reasonable defaults based on layout; user can drag to refine.
   const layoutDefaults: Record<
     string,
     { hX: number; hY: number; subY: number; ctaY: number; align: Alignment }
@@ -404,6 +676,14 @@ function initialBlocks(variant: Variant): TextBlock[] {
       align: d.align,
       weight: 800,
       maxWidth: 0.85,
+      fontFamily: 'inter',
+      opacity: 1,
+      shadowEnabled: true,
+      shadowBlur: 8,
+      shadowColor: 'rgba(0,0,0,0.6)',
+      letterSpacing: 0,
+      lineHeight: 1.15,
+      zIndex: 2,
     },
     {
       id: 'subheadline',
@@ -415,6 +695,14 @@ function initialBlocks(variant: Variant): TextBlock[] {
       align: d.align,
       weight: 400,
       maxWidth: 0.8,
+      fontFamily: 'inter',
+      opacity: 0.9,
+      shadowEnabled: true,
+      shadowBlur: 4,
+      shadowColor: 'rgba(0,0,0,0.5)',
+      letterSpacing: 0,
+      lineHeight: 1.35,
+      zIndex: 1,
     },
     {
       id: 'cta',
@@ -426,6 +714,14 @@ function initialBlocks(variant: Variant): TextBlock[] {
       align: 'center',
       weight: 700,
       maxWidth: 0.6,
+      fontFamily: 'inter',
+      opacity: 1,
+      shadowEnabled: false,
+      shadowBlur: 0,
+      shadowColor: 'rgba(0,0,0,0)',
+      letterSpacing: 0,
+      lineHeight: 1.2,
+      zIndex: 3,
     },
   ];
 }
@@ -453,31 +749,27 @@ async function renderToCanvas(
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('Canvas context unavailable');
 
-  // 1) Draw background
   const img = await loadImg(imageUrl);
   const s = Math.max(W / img.width, H / img.height);
   const iw = img.width * s;
   const ih = img.height * s;
   ctx.drawImage(img, (W - iw) / 2, (H - ih) / 2, iw, ih);
 
-  // 2) Draw text blocks
-  for (const b of blocks) {
+  const sorted = [...blocks].sort((a, b) => a.zIndex - b.zIndex);
+
+  for (const b of sorted) {
     if (!b.text) continue;
     const fontPx = (b.fontSize / 100) * H;
-    ctx.font =
-      b.weight +
-      ' ' +
-      fontPx +
-      'px "Inter", -apple-system, system-ui, sans-serif';
+    ctx.font = `${b.weight} ${fontPx}px "${FONT_FAMILIES[b.fontFamily].name}", -apple-system, system-ui, sans-serif`;
     ctx.textAlign = b.align;
     ctx.textBaseline = 'middle';
+    ctx.globalAlpha = b.opacity;
 
     const cx = b.x * W;
     const cy = b.y * H;
     const maxW = b.maxWidth * W;
 
     if (b.id === 'cta') {
-      // Pill CTA
       const metrics = ctx.measureText(b.text);
       const padX = fontPx * 0.9;
       const padY = fontPx * 0.55;
@@ -490,18 +782,28 @@ async function renderToCanvas(
       roundRect(ctx, px, py, pillW, pillH, pillH / 2);
       ctx.fill();
 
-      ctx.fillStyle = '#000000';
+      ctx.fillStyle = b.color;
       ctx.fillText(b.text, cx, cy);
     } else {
-      // Headline / subheadline with soft shadow
-      ctx.shadowColor = 'rgba(0,0,0,0.55)';
-      ctx.shadowBlur = fontPx * 0.25;
+      if (b.shadowEnabled) {
+        ctx.shadowColor = b.shadowColor;
+        ctx.shadowBlur = b.shadowBlur;
+      }
       ctx.fillStyle = b.color;
-      wrapText(ctx, b.text, cx, cy, maxW, fontPx * 1.15);
+      ctx.letterSpacing = b.letterSpacing + 'em';
+      wrapText(
+        ctx,
+        b.text,
+        cx,
+        cy,
+        maxW,
+        fontPx * b.lineHeight,
+      );
       ctx.shadowBlur = 0;
     }
   }
 
+  ctx.globalAlpha = 1;
   return canvas;
 }
 
