@@ -93,33 +93,33 @@ export function AdEditor({ imageUrl, variant, locale, onBack }: Props) {
   }
 
   async function handleExport() {
-    if (!stageRef.current) return;
-    setExporting(true);
-    try {
-      const proxiedUrl = proxiedImageUrl(imageUrl) || imageUrl;
-const canvas = await renderToCanvas(proxiedUrl, blocks, variant.aspectRatio);
-      const blob: Blob = await new Promise((res, rej) =>
-        canvas.toBlob(
-          (b) => (b ? res(b) : rej(new Error('toBlob null'))),
-          'image/png',
-          0.95,
-        ),
-      );
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = variant.layout + '-final.png';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
-    } catch (err) {
-      console.error('[ad-editor] export failed:', err);
-      alert(es ? 'Error al exportar' : 'Export failed');
-    } finally {
-      setExporting(false);
-    }
+  if (!stageRef.current) return;
+  setExporting(true);
+  try {
+    const proxiedUrl = proxiedImageUrl(imageUrl) || imageUrl;
+    const canvas = await renderToCanvas(proxiedUrl, blocks, variant.aspectRatio);
+    const blob: Blob = await new Promise((res, rej) =>
+      canvas.toBlob(
+        (b) => (b ? res(b) : rej(new Error('toBlob null'))),
+        'image/png',
+        0.95,
+      ),
+    );
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = variant.layout + '-final.png';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  } catch (err) {
+    console.error('[ad-editor] export failed:', err);
+    alert(es ? 'Error al exportar' : 'Export failed');
+  } finally {
+    setExporting(false);
   }
+}
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-6">
