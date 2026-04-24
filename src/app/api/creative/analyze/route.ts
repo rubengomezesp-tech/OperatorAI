@@ -6,13 +6,29 @@ import { resolveOrgContext } from '@/features/chat/server/resolve-org-context';
 import { analyzeImages } from '@/features/creative-studio/server/vision-layer';
 import { synthesizeBrief } from '@/features/creative-studio/server/understanding-layer';
 import { deriveCampaignDirection } from '@/features/creative-studio/server/creative-brain';
-import type { CampaignIntent, AspectRatio } from '@/features/creative-studio/types';
+import type {
+  CampaignIntent,
+  AspectRatio,
+  BrandAssets,
+} from '@/features/creative-studio/types';
 
 export const runtime = 'nodejs';
 export const maxDuration = 120;
 
+const BrandAssetsSchema = z.object({
+  logoUrl: z.string().url(),
+  brandName: z.string().max(120).optional(),
+  slogan: z.string().max(240).optional(),
+  palette: z.array(z.string()).max(8).optional(),
+  fontNotes: z.string().max(500).optional(),
+  defaultLogoPosition: z
+    .enum(['top-left', 'top-right', 'top-center', 'bottom-center'])
+    .optional(),
+});
+
 const Body = z.object({
   imageUrls: z.array(z.string().url()).min(1).max(10),
+  brandAssets: BrandAssetsSchema.optional(),
   instructions: z.string().max(2000).optional(),
   locale: z.enum(['en', 'es']).default('en'),
   campaignIntent: z
@@ -42,25 +58,60 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'No active workspace' }, { status: 403 });
     }
 
-    // LAYER 1: Vision (parallel per image)
+    // Enrich brand assets with automatic logo analysis if provided
+    let brandAssets: BrandAssets | undefined = body.brandAssets;
+    if (brandAssets?.logoUrl) {
+      try {
+        const logoAnalyses = await analyzeImages([brandAssets.logoUrl]);
+        const logoAnalysis = logoAnalyses[0];
+        if (logoAnalysis) {
+          // Extract palette from logo if user didn't provide one
+          if (!brandAssets.palette || brandAssets.palette.length === 0) {
+            brandAssets = {
+              ...brandAssets,
+              palette: logoAnalysis.dominantColors?.slice(0, 5),
+            };
+          }
+        }
+      } catch (err) {
+        console.warn('[analyze] logo analysis failed (non-fatal):', err);
+      }
+    }
+
+    // LAYER 1: Vision on PRODUCT images only
     const analyses = await analyzeImages(body.imageUrls);
 
-    // LAYER 2: Understanding (synthesize brief)
-    const brief = await synthesizeBrief(
-  analyses,
-  body.instructions,
-  body.locale,
-  body.campaignIntent as CampaignIntent,
-);
+    // LAYER 2: Understanding — pass brand context to the brief synthesizer
+    const enrichedInstructions = buildEnrichedInstructions(
+      body.instructions,
+      brandAssets,
+    );
 
-    // LAYER 3: Creative Brain (campaign-level art direction)
+    const brief = await synthesizeBrief(
+      analyses,
+      enrichedInstructions,
+      body.locale,
+      body.campaignIntent as CampaignIntent,
+    );
+
+    // If brand palette exists, merge it into the brief
+    if (brandAssets?.palette && brandAssets.palette.length > 0) {
+      brief.palette = Array.from(
+        new Set([...(brandAssets.palette || []), ...(brief.palette || [])]),
+      ).slice(0, 5);
+    }
+    if (brandAssets?.brandName && !brief.name) {
+      brief.name = brandAssets.brandName;
+    }
+
+    // LAYER 3: Creative Brain
     const direction = await deriveCampaignDirection(
       brief,
       analyses,
-      body.instructions,
+      enrichedInstructions,
     );
 
-    // Persist campaign row
+    // Persist campaign
     let campaignId = body.campaignId;
 
     if (campaignId) {
@@ -68,6 +119,7 @@ export async function POST(req: NextRequest) {
         .from('campaigns' as any)
         .update({
           image_urls: body.imageUrls,
+          brand_assets: brandAssets ?? null,
           instructions: body.instructions || null,
           aspect_ratio: body.aspectRatio as AspectRatio,
           campaign_intent: body.campaignIntent,
@@ -93,6 +145,7 @@ export async function POST(req: NextRequest) {
           org_id: orgId,
           user_id: user.id,
           image_urls: body.imageUrls,
+          brand_assets: brandAssets ?? null,
           instructions: body.instructions || null,
           aspect_ratio: body.aspectRatio as AspectRatio,
           campaign_intent: body.campaignIntent,
@@ -129,6 +182,7 @@ export async function POST(req: NextRequest) {
       analyses,
       brief,
       direction,
+      brandAssets,
     });
   } catch (err) {
     console.error('[analyze] error:', err);
@@ -137,4 +191,27 @@ export async function POST(req: NextRequest) {
       { status: 500 },
     );
   }
+}
+
+function buildEnrichedInstructions(
+  userInstructions: string | undefined,
+  brand: BrandAssets | undefined,
+): string {
+  const parts: string[] = [];
+  if (userInstructions) parts.push(userInstructions);
+  if (brand) {
+    if (brand.brandName) {
+      parts.push(`Brand name: ${brand.brandName}.`);
+    }
+    if (brand.slogan) {
+      parts.push(`Tagline/slogan: "${brand.slogan}".`);
+    }
+    if (brand.fontNotes) {
+      parts.push(`Typography preference: ${brand.fontNotes}.`);
+    }
+    parts.push(
+      'Important: reserve clean visual space in the scene for a brand logo overlay (top-right corner by default). Do NOT generate or render any logo, text, or brand mark in the background image itself — the logo will be composited separately in the editor.',
+    );
+  }
+  return parts.join(' ');
 }
