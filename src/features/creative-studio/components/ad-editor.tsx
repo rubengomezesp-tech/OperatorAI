@@ -8,7 +8,7 @@ import {
   AlignRight,
   ArrowLeft,
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { proxiedImageUrl } from '@/lib/image-utils';
 import type { Variant } from '../types';
 
 type Alignment = 'left' | 'center' | 'right';
