@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { createSupabaseServiceClient } from '@/lib/supabase/service';
-import { renderFlux } from '@/features/creative-studio/server/renderers/flux-renderer';
+import { renderVariant } from '@/features/creative-studio/server/render-router';
 import type {
   Variant,
   ImageAnalysis,
@@ -119,14 +119,14 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  let result: { imageUrl: string; engine: 'flux' };
-  try {
-    result = await renderFlux({
-      variant,
-      imageUrls: campaign.image_urls,
-      analyses: campaign.analyses,
-      direction: campaign.direction ?? undefined,
-    });
+  let result: { imageUrl: string; engine: string; retried?: boolean };
+try {
+  result = await renderVariant({
+    variant,
+    imageUrls: campaign.image_urls,
+    analyses: campaign.analyses,
+    direction: campaign.direction ?? undefined,
+  });
   } catch (err) {
     const mapped = mapRenderError(err);
     console.error(
