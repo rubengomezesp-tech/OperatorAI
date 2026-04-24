@@ -22,12 +22,20 @@ export type VariantAngle =
 
 export type Intensity = 'soft' | 'medium' | 'aggressive';
 
+// ─── Visual style system v2 ─────────────────────────────────
+// Expanded from 5 to 9 styles for real visual diversity.
+// Legacy values ('luxury', 'minimal', 'startup', 'aggressive', 'cinematic')
+// are supported via normalizeVisualStyle() in /data/visual-styles.ts
 export type VisualStyle =
-  | 'luxury'
-  | 'minimal'
-  | 'startup'
-  | 'aggressive'
-  | 'cinematic';
+  | 'dark_cinematic'
+  | 'clean_bright'
+  | 'luxury_beige'
+  | 'bold_startup'
+  | 'editorial_magazine'
+  | 'tech_product_white'
+  | 'social_media_ad'
+  | 'lifestyle_product'
+  | 'minimal_swiss';
 
 export type LogoPosition =
   | 'top-left'
@@ -36,7 +44,7 @@ export type LogoPosition =
   | 'bottom-center';
 
 // ═══════════════════════════════════════════════════════════
-// NEW in Tanda 5 — Creative Brain types
+// Creative Brain types (from Tanda 5)
 // ═══════════════════════════════════════════════════════════
 
 export type CampaignArchetype =
@@ -93,7 +101,7 @@ export interface CampaignDirection {
 }
 
 // ═══════════════════════════════════════════════════════════
-// Existing types
+// Core domain types
 // ═══════════════════════════════════════════════════════════
 
 export interface ImageAnalysis {
@@ -199,7 +207,7 @@ export interface PersistedCampaign {
   instructions?: string;
   brief: ProductBrief;
   analyses: ImageAnalysis[];
-  direction?: CampaignDirection; // NEW in Tanda 5
+  direction?: CampaignDirection;
   variants: Variant[];
   memory: CampaignMemory;
   aspectRatio: AspectRatio;
