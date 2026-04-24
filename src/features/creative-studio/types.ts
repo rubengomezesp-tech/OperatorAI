@@ -1,4 +1,8 @@
-// Creative Studio v2 — shared types (v3 — Product Intelligence + Editor Layers)
+// Creative Studio v2 — shared types (v4 — Pixel-perfect editor)
+//
+// Change vs v3: TextLayerData.fontSizePercent is REPLACED by fontSize (px).
+// The field is still there for backward compat with templates that use %,
+// but the editor works in real pixels internally.
 
 export type CampaignIntent = 'launch' | 'conversion' | 'branding' | 'retargeting';
 export type Vertical = 'saas_app' | 'apparel' | 'ecommerce' | 'physical';
@@ -40,7 +44,7 @@ export type LogoPosition =
   | 'bottom-center';
 
 // ═══════════════════════════════════════════════════════════
-// Product Intelligence (NEW)
+// Product Intelligence
 // ═══════════════════════════════════════════════════════════
 
 export type ProductCategory =
@@ -66,20 +70,15 @@ export type ProductCategory =
 export interface AdScenario {
   id: string;
   name: string;
-  /** Core scene description injected into Flux prompt */
   sceneDescription: string;
-  /** How subject is framed and placed */
   subjectFraming: string;
-  /** Where negative space sits for overlay */
   overlaySpace: 'top' | 'bottom' | 'left' | 'right' | 'centered_safe';
-  /** Which visual styles fit this scenario (for style assignment pass) */
   preferredStyles: VisualStyle[];
-  /** Short human-readable summary shown in UI */
   summary: string;
 }
 
 // ═══════════════════════════════════════════════════════════
-// Creative Brain types (from Tanda 5)
+// Creative Brain types
 // ═══════════════════════════════════════════════════════════
 
 export type CampaignArchetype =
@@ -201,9 +200,7 @@ export interface Variant {
   compositionHint: string;
   intensity: Intensity;
   styleHint: VisualStyle;
-  /** NEW: scenario picked by product intelligence */
   scenario?: AdScenario;
-  /** NEW: detected product category (stored on variant for resilience) */
   productCategory?: ProductCategory;
 }
 
@@ -256,7 +253,13 @@ export interface PersistedCampaign {
 }
 
 // ═══════════════════════════════════════════════════════════
-// Ad Editor Layer System (NEW)
+// Ad Editor Layer System (v4 - pixel-perfect)
+//
+// All coordinates are in PIXELS of the native canvas.
+// Canvas sizes: 1080×1080 (1:1), 1080×1350 (4:5), 1080×1920 (9:16).
+//
+// Note: templates return 0-1 normalized. The editor converts them
+// to px when the template is applied.
 // ═══════════════════════════════════════════════════════════
 
 export type LayerType = 'text' | 'image' | 'shape' | 'logo';
@@ -264,13 +267,13 @@ export type LayerType = 'text' | 'image' | 'shape' | 'logo';
 export interface BaseLayer {
   id: string;
   type: LayerType;
-  /** 0-1 relative to canvas width */
+  /** Canvas px (0 = left edge). When applied from template, starts as 0-1 then converted. */
   x: number;
-  /** 0-1 relative to canvas height */
+  /** Canvas px (0 = top edge). */
   y: number;
-  /** 0-1 relative to canvas width */
+  /** Canvas px width. */
   width: number;
-  /** 0-1 relative to canvas height */
+  /** Canvas px height. */
   height: number;
   rotation: number;
   opacity: number;
@@ -284,6 +287,12 @@ export interface TextLayerData extends BaseLayer {
   type: 'text';
   text: string;
   color: string;
+  /**
+   * NOTE: historical name. Templates store this as % of canvas height
+   * (e.g. 6 = 6% of canvas height). When template is applied, editor
+   * multiplies by canvasHeight to get real font-size in px.
+   * Editor stores final value in pixels.
+   */
   fontSizePercent: number;
   fontFamily: 'inter' | 'system' | 'serif' | 'mono' | 'display';
   fontWeight: number;
