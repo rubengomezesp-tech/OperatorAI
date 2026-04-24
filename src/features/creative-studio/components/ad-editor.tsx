@@ -9,6 +9,7 @@ import {
   ArrowLeft,
 } from 'lucide-react';
 import { proxiedImageUrl } from '@/lib/image-utils';
+import { cn } from '@/lib/utils';
 import type { Variant } from '../types';
 
 type Alignment = 'left' | 'center' | 'right';
