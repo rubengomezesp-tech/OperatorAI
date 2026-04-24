@@ -6,10 +6,10 @@ import { useI18n, LanguageToggle } from '@/lib/i18n';
 const t_landing: Record<string, Record<string, string>> = {
   badge: { en: 'Brand execution engine', es: 'Motor de ejecucion de marca' },
   h1_1: { en: 'Your brand.', es: 'Tu marca.' },
-  h1_2: { en: 'Your campaigns. Done.', es: 'Tus campanas. Listas.' },
+  h1_2: { en: 'Your campaigns. Done.', es: 'Tus campañas. Listas.' },
   hero_p: {
     en: 'Upload your assets. The system composes, generates copy, creates video, and delivers publish-ready campaigns. No design skills. No prompts.',
-    es: 'Sube tus assets. El sistema compone, genera copy, crea video y entrega campanas listas para publicar. Sin disenar. Sin prompts.',
+    es: 'Sube tus assets. El sistema compone, genera copy, crea video y entrega campañas listas para publicar. Sin disenar. Sin prompts.',
   },
   cta_trial: { en: 'Start 7-day free trial', es: 'Prueba gratis 7 días' },
   cta_pricing: { en: 'View pricing', es: 'Ver precios' },
