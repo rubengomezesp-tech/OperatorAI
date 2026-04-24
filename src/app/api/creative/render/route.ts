@@ -8,6 +8,7 @@ import type {
   ImageAnalysis,
   QualityReport,
   CampaignDirection,
+  RenderEngine,
 } from '@/features/creative-studio/types';
 
 export const runtime = 'nodejs';
@@ -24,7 +25,8 @@ type RenderOk = {
   imageUrl: string;
   cached: boolean;
   retried: boolean;
-  engine: string;
+  engine: RenderEngine | 'cached';
+  fallbackFrom?: RenderEngine;
   qualityReport: QualityReport | null;
 };
 
@@ -119,14 +121,14 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  let result: { imageUrl: string; engine: string; retried?: boolean };
-try {
-  result = await renderVariant({
-    variant,
-    imageUrls: campaign.image_urls,
-    analyses: campaign.analyses,
-    direction: campaign.direction ?? undefined,
-  });
+  let result: { imageUrl: string; engine: RenderEngine; retried?: boolean; fallbackFrom?: RenderEngine };
+  try {
+    result = await renderVariant({
+      variant,
+      imageUrls: campaign.image_urls,
+      analyses: campaign.analyses,
+      direction: campaign.direction ?? undefined,
+    });
   } catch (err) {
     const mapped = mapRenderError(err);
     console.error(
@@ -169,8 +171,9 @@ try {
     ok: true,
     imageUrl: result.imageUrl,
     cached: false,
-    retried: false,
+    retried: result.retried ?? false,
     engine: result.engine,
+    fallbackFrom: result.fallbackFrom,
     qualityReport: null,
   });
 }
@@ -209,7 +212,7 @@ function mapRenderError(err: unknown): RenderFail {
   if (is429) {
     return {
       ok: false,
-      error: 'Replicate rate limit hit. Try again in a few seconds.',
+      error: 'Rate limit hit. Try again in a few seconds.',
       code: 'RATE_LIMITED',
     };
   }
@@ -226,7 +229,8 @@ function mapRenderError(err: unknown): RenderFail {
     msgLower.includes('no url') ||
     msgLower.includes('invalid output') ||
     msgLower.includes('prediction failed') ||
-    msgLower.includes('canceled')
+    msgLower.includes('canceled') ||
+    msgLower.includes('generation failed')
   ) {
     return {
       ok: false,
