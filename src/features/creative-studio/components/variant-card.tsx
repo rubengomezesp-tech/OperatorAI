@@ -122,7 +122,7 @@ function VariantCardInner({
           </div>
         ) : hasRenderableImage ? (
           <img
-            src={imageUrl!}
+            src={proxiedImageUrl(imageUrl) || ''}
             alt={variant.copy.headline || variant.layout}
             className="absolute inset-0 w-full h-full object-cover"
             loading="lazy"
