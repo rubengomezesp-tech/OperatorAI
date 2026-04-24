@@ -7,7 +7,7 @@ import {
   Edit3,
   AlertTriangle,
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { proxiedImageUrl } from '@/lib/image-utils';
 import type { Variant, QualityReport } from '../types';
 
 const LAYOUT_LABELS: Record<string, { en: string; es: string }> = {
