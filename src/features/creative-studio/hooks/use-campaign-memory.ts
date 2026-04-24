@@ -9,11 +9,13 @@ import type {
   ImageAnalysis,
   CampaignDirection,
   CampaignMemory,
+  BrandAssets,
 } from '../types';
 
 export interface CampaignState {
   id: string;
   imageUrls: string[];
+  brandAssets?: BrandAssets;
   instructions: string;
   aspectRatio: AspectRatio;
   campaignIntent: CampaignIntent;
@@ -72,7 +74,6 @@ export function useCampaignMemory(): UseCampaignMemoryResult {
     }
   }, []);
 
-  // Auto-load from URL on mount
   useEffect(() => {
     if (loadedOnceRef.current) return;
     loadedOnceRef.current = true;
@@ -84,7 +85,6 @@ export function useCampaignMemory(): UseCampaignMemoryResult {
     }
   }, [load]);
 
-  // Sync URL when campaign id changes
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const params = new URLSearchParams(window.location.search);
