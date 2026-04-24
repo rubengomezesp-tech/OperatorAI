@@ -1,4 +1,5 @@
 'use client';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { ArrowRight, Rocket, Target, Zap, Check, Sparkles } from 'lucide-react';
 import { useI18n, LanguageToggle } from '@/lib/i18n';
@@ -6,10 +7,10 @@ import { useI18n, LanguageToggle } from '@/lib/i18n';
 const t_landing: Record<string, Record<string, string>> = {
   badge: { en: 'Brand execution engine', es: 'Motor de ejecucion de marca' },
   h1_1: { en: 'Your brand.', es: 'Tu marca.' },
-  h1_2: { en: 'Your campaigns. Done.', es: 'Tus campañas. Listas.' },
+  h1_2: { en: 'Your campaigns. Done.', es: 'Tus campanas. Listas.' },
   hero_p: {
     en: 'Upload your assets. The system composes, generates copy, creates video, and delivers publish-ready campaigns. No design skills. No prompts.',
-    es: 'Sube tus assets. El sistema compone, genera copy, crea video y entrega campañas listas para publicar. Sin disenar. Sin prompts.',
+    es: 'Sube tus assets. El sistema compone, genera copy, crea video y entrega campanas listas para publicar. Sin disenar. Sin prompts.',
   },
   cta_trial: { en: 'Start 7-day free trial', es: 'Prueba gratis 7 días' },
   cta_pricing: { en: 'View pricing', es: 'Ver precios' },
@@ -17,7 +18,7 @@ const t_landing: Record<string, Record<string, string>> = {
   no_card: { en: 'No card required', es: 'Sin tarjeta' },
   from: { en: 'Starter from $29/mo', es: 'Starter desde 29 $/mes' },
 
-  // === NEW HERO KEYS (mockup + efectos) ===
+  // === HERO KEYS (mockup + efectos) ===
   hero_announcement: { en: 'Now with Brand OS v2', es: 'Ahora con Brand OS v2' },
   hero_check_1: { en: 'Free 7-day trial', es: 'Prueba 7 días gratis' },
   hero_check_2: { en: 'No card required', es: 'Sin tarjeta' },
@@ -36,6 +37,7 @@ const t_landing: Record<string, Record<string, string>> = {
   mockup_check_1: { en: 'Brand colors applied', es: 'Colores aplicados' },
   mockup_check_2: { en: 'Tone of voice matched', es: 'Tono ajustado' },
   mockup_check_3: { en: 'Publish-ready', es: 'Listo para publicar' },
+  mockup_progress_label: { en: 'Generating assets', es: 'Generando assets' },
 
   shift: { en: 'The shift', es: 'El cambio' },
   shift_h2_1: { en: 'From prompts to ', es: 'De prompts a ' },
@@ -81,6 +83,20 @@ export default function LandingPage() {
   const { locale } = useI18n();
   const l = (key: string) => t_landing[key]?.[locale] ?? t_landing[key]?.en ?? key;
 
+  // === MICRO-INTERACTIONS del mockup ===
+  const [step, setStep] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setStep((s) => (s + 1) % 5);
+    }, 1400);
+    return () => clearInterval(interval);
+  }, []);
+
+  const assetVisible = (idx: number) => step > idx && step < 5;
+  const progressWidth = step === 0 ? '0%' : step >= 4 ? '100%' : `${(step / 3) * 100}%`;
+  const progressPercent = step === 0 ? 0 : step >= 4 ? 100 : Math.round((step / 3) * 100);
+
   return (
     <div className="min-h-screen bg-bg text-fg">
       {/* Nav */}
@@ -110,7 +126,7 @@ export default function LandingPage() {
         </div>
       </header>
 
-      {/* Hero (MEJORADO) */}
+      {/* Hero */}
       <section className="relative px-5 lg:px-8 pt-20 lg:pt-28 pb-12 overflow-hidden">
         {/* Background: Grid pattern */}
         <div
@@ -163,7 +179,7 @@ export default function LandingPage() {
             </Link>
           </div>
 
-          {/* Checks con iconos (reemplaza al no_card · from) */}
+          {/* Checks con iconos */}
           <div className="flex items-center justify-center gap-5 flex-wrap text-[11.5px] text-fg-subtle">
             <span className="inline-flex items-center gap-1.5">
               <Check className="h-3 w-3 text-gold" />
@@ -185,15 +201,37 @@ export default function LandingPage() {
           </div>
         </div>
 
-        {/* === MOCKUP DEL PRODUCTO === */}
-        <div className="relative max-w-[980px] mx-auto mt-16 lg:mt-20">
+        {/* === MOCKUP DEL PRODUCTO con micro-interactions === */}
+        <div className="relative max-w-[980px] mx-auto mt-16 lg:mt-20 group">
+          {/* Sparkles dorados flotantes alrededor del mockup */}
+          <div
+            className="absolute top-[5%] -left-2 h-1.5 w-1.5 rounded-full bg-gold animate-ping pointer-events-none"
+            style={{ animationDuration: '3s', animationDelay: '0s' }}
+          />
+          <div
+            className="absolute top-[25%] -right-3 h-1 w-1 rounded-full bg-gold animate-ping pointer-events-none"
+            style={{ animationDuration: '2.5s', animationDelay: '1s' }}
+          />
+          <div
+            className="absolute bottom-[20%] -left-3 h-1 w-1 rounded-full bg-gold animate-ping pointer-events-none"
+            style={{ animationDuration: '3.5s', animationDelay: '2s' }}
+          />
+          <div
+            className="absolute bottom-[10%] right-[15%] h-1.5 w-1.5 rounded-full bg-gold animate-ping pointer-events-none"
+            style={{ animationDuration: '2.8s', animationDelay: '1.5s' }}
+          />
+          <div
+            className="absolute top-[40%] -right-2 h-1 w-1 rounded-full bg-gold animate-pulse pointer-events-none"
+            style={{ animationDuration: '2s', animationDelay: '0.5s' }}
+          />
+
           {/* Glow detrás del mockup */}
-          <div className="absolute inset-0 -top-10 -bottom-10 blur-3xl opacity-30 pointer-events-none">
+          <div className="absolute inset-0 -top-10 -bottom-10 blur-3xl opacity-30 pointer-events-none transition-opacity duration-500 group-hover:opacity-50">
             <div className="absolute inset-0 gold-grad rounded-[40px]" />
           </div>
 
-          {/* Container del mockup */}
-          <div className="relative rounded-2xl border border-border bg-surface overflow-hidden shadow-[0_20px_80px_rgba(0,0,0,0.5)]">
+          {/* Container del mockup con hover lift */}
+          <div className="relative rounded-2xl border border-border bg-surface overflow-hidden shadow-[0_20px_80px_rgba(0,0,0,0.5)] transition-transform duration-500 group-hover:-translate-y-1">
             {/* Browser chrome */}
             <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-surface-2">
               <div className="flex gap-1.5">
@@ -219,7 +257,7 @@ export default function LandingPage() {
                 ].map((item, i) => (
                   <div
                     key={i}
-                    className={`px-3 py-2 rounded-md text-[12px] font-medium ${
+                    className={`px-3 py-2 rounded-md text-[12px] font-medium transition-colors ${
                       item.active
                         ? 'bg-gold/10 text-gold border border-gold/20'
                         : 'text-fg-muted'
@@ -233,7 +271,7 @@ export default function LandingPage() {
               {/* Main content */}
               <div className="p-6">
                 {/* Mission header */}
-                <div className="flex items-center justify-between mb-5">
+                <div className="flex items-center justify-between mb-4">
                   <div>
                     <div className="text-[10px] uppercase tracking-[0.14em] text-fg-subtle mb-1">
                       {l('mockup_mission_label')}
@@ -243,28 +281,60 @@ export default function LandingPage() {
                     </div>
                   </div>
                   <div className="inline-flex items-center gap-1.5 text-[11px] text-gold">
-                    <span className="h-1.5 w-1.5 rounded-full bg-gold animate-pulse" />
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-gold opacity-75" />
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-gold" />
+                    </span>
                     {l('mockup_generating')}
                   </div>
                 </div>
 
-                {/* Asset grid */}
+                {/* Progress bar animado */}
+                <div className="mb-5">
+                  <div className="flex items-center justify-between text-[10px] text-fg-subtle mb-1.5">
+                    <span>{l('mockup_progress_label')}</span>
+                    <span className="font-mono text-gold">{progressPercent}%</span>
+                  </div>
+                  <div className="h-1 w-full bg-border rounded-full overflow-hidden">
+                    <div
+                      className="h-full gold-grad transition-all duration-700 ease-out"
+                      style={{ width: progressWidth }}
+                    />
+                  </div>
+                </div>
+
+                {/* Asset grid con animación en loop */}
                 <div className="grid grid-cols-3 gap-3 mb-5">
                   {[
                     { label: l('mockup_asset_1'), color: 'from-pink-500/20 to-purple-500/10' },
                     { label: l('mockup_asset_2'), color: 'from-blue-500/20 to-cyan-500/10' },
                     { label: l('mockup_asset_3'), color: 'from-orange-500/20 to-red-500/10' },
-                  ].map((asset, i) => (
-                    <div
-                      key={i}
-                      className={`aspect-[4/5] rounded-lg border border-border bg-gradient-to-br ${asset.color} p-3 flex flex-col justify-end relative overflow-hidden`}
-                    >
-                      <div className="absolute top-2 right-2">
-                        <Check className="h-3 w-3 text-gold" />
+                  ].map((asset, i) => {
+                    const visible = assetVisible(i);
+                    return (
+                      <div
+                        key={i}
+                        className={`aspect-[4/5] rounded-lg border bg-gradient-to-br ${asset.color} p-3 flex flex-col justify-end relative overflow-hidden transition-all duration-700 ease-out ${
+                          visible
+                            ? 'opacity-100 translate-y-0 border-gold/30 scale-100'
+                            : 'opacity-30 translate-y-2 border-border scale-[0.98]'
+                        }`}
+                      >
+                        {/* Check solo cuando visible */}
+                        <div
+                          className={`absolute top-2 right-2 transition-all duration-500 ${
+                            visible ? 'opacity-100 scale-100' : 'opacity-0 scale-50'
+                          }`}
+                        >
+                          <div className="h-4 w-4 rounded-full bg-gold/20 border border-gold/40 flex items-center justify-center">
+                            <Check className="h-2.5 w-2.5 text-gold" />
+                          </div>
+                        </div>
+
+                        <div className="text-[11px] text-fg font-medium relative">{asset.label}</div>
                       </div>
-                      <div className="text-[11px] text-fg font-medium">{asset.label}</div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
 
                 {/* Checks */}
