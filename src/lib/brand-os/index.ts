@@ -29,6 +29,9 @@ export { extractBrandFromUrl, type ExtractFromUrlOptions } from './url-extractor
 // Logo upload
 export { uploadLogo, type UploadLogoOptions } from './logo-uploader';
 
+// Font upload
+export { uploadFont, type UploadFontOptions } from './font-uploader';
+
 // Auto-detect pipeline
 export {
   autoDetectBrand,
