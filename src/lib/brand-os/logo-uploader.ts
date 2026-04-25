@@ -1,6 +1,6 @@
 /**
  * Operator AI — Brand OS
- * Phase 3 / Logo Uploader
+ * Phase 3 / Logo Uploader (FIXED — strict TS)
  *
  * Validates and uploads brand logos.
  *
@@ -40,9 +40,9 @@ const ALLOWED_MIME_TYPES = new Set([
 export interface UploadLogoOptions {
   supabase: SupabaseClient;
   orgId: string;
-  /** Logo source: Buffer, ArrayBuffer, or remote URL */
-  source: Buffer | ArrayBuffer | string;
-  /** MIME type (required if source is Buffer/ArrayBuffer) */
+  /** Logo source: Buffer, ArrayBuffer, Uint8Array, or remote URL */
+  source: Buffer | ArrayBuffer | Uint8Array | string;
+  /** MIME type (required if source is binary, optional if URL) */
   contentType?: string;
   /** Variant: 'main' or 'dark' (for dark mode logo) */
   variant?: 'main' | 'dark';
@@ -63,21 +63,11 @@ export async function uploadLogo(options: UploadLogoOptions): Promise<LogoUpload
     autoResize = true,
   } = options;
 
-  // 1. Resolve source to Buffer
-  let buffer: Buffer;
-  let detectedContentType: string;
-
-  if (typeof source === 'string') {
-    const fetched = await fetchRemoteAsset(source);
-    buffer = fetched.buffer;
-    detectedContentType = fetched.contentType;
-  } else if (source instanceof Buffer) {
-    buffer = source;
-    detectedContentType = explicitContentType ?? 'application/octet-stream';
-  } else {
-    buffer = Buffer.from(source);
-    detectedContentType = explicitContentType ?? 'application/octet-stream';
-  }
+  // 1. Resolve source to Buffer (defensive against any input type)
+  const { buffer, contentType: detectedContentType } = await resolveBuffer(
+    source,
+    explicitContentType
+  );
 
   // 2. Validate size
   if (buffer.byteLength > MAX_FILE_SIZE) {
@@ -162,6 +152,54 @@ export async function uploadLogo(options: UploadLogoOptions): Promise<LogoUpload
     sizeBytes: finalBuffer.byteLength,
     hasTransparency,
     warnings: warnings.length > 0 ? warnings : undefined,
+  };
+}
+
+// ────────────────────────────────────────────────────────────────
+// SOURCE RESOLUTION (defensive against all input types)
+// ────────────────────────────────────────────────────────────────
+
+async function resolveBuffer(
+  source: Buffer | ArrayBuffer | Uint8Array | string,
+  explicitContentType?: string
+): Promise<{ buffer: Buffer; contentType: string }> {
+  // Remote URL
+  if (typeof source === 'string') {
+    const fetched = await fetchRemoteAsset(source);
+    return {
+      buffer: fetched.buffer,
+      contentType: fetched.contentType,
+    };
+  }
+
+  // Already a Buffer
+  if (Buffer.isBuffer(source)) {
+    return {
+      buffer: source,
+      contentType: explicitContentType ?? 'application/octet-stream',
+    };
+  }
+
+  // ArrayBuffer (need to wrap in Uint8Array first for strict TS)
+  if (source instanceof ArrayBuffer) {
+    return {
+      buffer: Buffer.from(new Uint8Array(source)),
+      contentType: explicitContentType ?? 'application/octet-stream',
+    };
+  }
+
+  // Uint8Array (or any TypedArray)
+  if (source instanceof Uint8Array) {
+    return {
+      buffer: Buffer.from(source),
+      contentType: explicitContentType ?? 'application/octet-stream',
+    };
+  }
+
+  // Last resort
+  return {
+    buffer: Buffer.from(source as Uint8Array),
+    contentType: explicitContentType ?? 'application/octet-stream',
   };
 }
 
