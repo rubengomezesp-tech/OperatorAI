@@ -1,14 +1,13 @@
 'use client';
 
 /**
- * Campaign Intake Form
+ * Campaign Intake Form (i18n)
  *
- * Premium form for entering campaign brief.
- * Uses useCampaignDraft for auto-save with 1.5s debounce.
- * Shows save status indicator.
+ * All user-visible strings go through useI18n.
  */
 
 import { useState } from 'react';
+import { useI18n } from '@/lib/i18n';
 import { useCampaignDraft } from '@/features/campaign-brain/hooks/use-campaign-draft';
 import type { Platform, VerticalSlug, CampaignTypeSlug } from '@/features/campaign-brain/types';
 
@@ -23,32 +22,32 @@ const PLATFORM_OPTIONS: Array<{ value: Platform; label: string }> = [
   { value: 'twitter', label: 'Twitter / X' },
 ];
 
-const VERTICAL_OPTIONS: Array<{ value: VerticalSlug; label: string }> = [
-  { value: 'fashion-apparel', label: 'Fashion & Apparel' },
-  { value: 'fitness-wellness', label: 'Fitness & Wellness' },
-  { value: 'tech-saas-app', label: 'Tech / SaaS / App' },
-  { value: 'ecommerce-physical', label: 'E-commerce — Physical' },
-  { value: 'services-coaching', label: 'Services & Coaching' },
+const VERTICAL_OPTIONS: Array<{ value: VerticalSlug; labelEn: string; labelEs: string }> = [
+  { value: 'fashion-apparel', labelEn: 'Fashion & Apparel', labelEs: 'Moda y Ropa' },
+  { value: 'fitness-wellness', labelEn: 'Fitness & Wellness', labelEs: 'Fitness y Bienestar' },
+  { value: 'tech-saas-app', labelEn: 'Tech / SaaS / App', labelEs: 'Tech / SaaS / App' },
+  { value: 'ecommerce-physical', labelEn: 'E-commerce — Physical', labelEs: 'E-commerce — Fisico' },
+  { value: 'services-coaching', labelEn: 'Services & Coaching', labelEs: 'Servicios y Coaching' },
 ];
 
-const TYPE_OPTIONS: Array<{ value: CampaignTypeSlug; label: string }> = [
-  { value: 'product-launch', label: 'Product Launch' },
-  { value: 'flash-sale', label: 'Flash Sale' },
-  { value: 'lead-generation', label: 'Lead Generation' },
-  { value: 'brand-awareness', label: 'Brand Awareness' },
-  { value: 'seasonal', label: 'Seasonal' },
-  { value: 'social-proof', label: 'Social Proof' },
-  { value: 'retargeting', label: 'Retargeting' },
-  { value: 'waitlist-launch', label: 'Waitlist / Pre-Launch' },
-  { value: 'webinar-event', label: 'Webinar / Event' },
+const TYPE_OPTIONS: Array<{ value: CampaignTypeSlug; labelEn: string; labelEs: string }> = [
+  { value: 'product-launch', labelEn: 'Product Launch', labelEs: 'Lanzamiento de producto' },
+  { value: 'flash-sale', labelEn: 'Flash Sale', labelEs: 'Oferta relampago' },
+  { value: 'lead-generation', labelEn: 'Lead Generation', labelEs: 'Captacion de leads' },
+  { value: 'brand-awareness', labelEn: 'Brand Awareness', labelEs: 'Notoriedad de marca' },
+  { value: 'seasonal', labelEn: 'Seasonal', labelEs: 'Temporada' },
+  { value: 'social-proof', labelEn: 'Social Proof', labelEs: 'Prueba social' },
+  { value: 'retargeting', labelEn: 'Retargeting', labelEs: 'Retargeting' },
+  { value: 'waitlist-launch', labelEn: 'Waitlist / Pre-Launch', labelEs: 'Lista de espera / Pre-lanzamiento' },
+  { value: 'webinar-event', labelEn: 'Webinar / Event', labelEs: 'Webinar / Evento' },
 ];
 
 interface CampaignIntakeFormProps {
-  /** Called when user clicks "Generate Strategy" with the current draft id */
   onStrategize: (draftId: string) => void;
 }
 
 export function CampaignIntakeForm({ onStrategize }: CampaignIntakeFormProps) {
+  const { t, locale } = useI18n();
   const { draft, intake, status, error, updateIntake, saveNow } = useCampaignDraft();
   const [strategizing, setStrategizing] = useState(false);
 
@@ -61,13 +60,9 @@ export function CampaignIntakeForm({ onStrategize }: CampaignIntakeFormProps) {
     if (!canStrategize || strategizing) return;
     setStrategizing(true);
     try {
-      // Force save first
       await saveNow();
-      // Wait a tiny bit so the draft id propagates
       await new Promise((r) => setTimeout(r, 200));
-      if (draft?.id) {
-        onStrategize(draft.id);
-      }
+      if (draft?.id) onStrategize(draft.id);
     } finally {
       setStrategizing(false);
     }
@@ -79,22 +74,23 @@ export function CampaignIntakeForm({ onStrategize }: CampaignIntakeFormProps) {
     updateIntake({ platforms: next });
   }
 
+  const verticalLabel = (v: { labelEn: string; labelEs: string }) =>
+    locale === 'es' ? v.labelEs : v.labelEn;
+
   return (
     <div className="max-w-3xl mx-auto px-4 py-8 space-y-8">
-      {/* Header + save status */}
       <div className="flex items-start justify-between">
         <div>
           <div className="text-[11px] uppercase tracking-[0.18em] text-gold mb-2">
-            New Campaign
+            {t('cb.intake.eyebrow')}
           </div>
           <h1 className="font-display text-[34px] leading-tight">
-            Brief us like an <span className="text-gold-grad">agency</span>
+            {t('cb.intake.title_a')}{' '}
+            <span className="text-gold-grad">{t('cb.intake.title_accent')}</span>
           </h1>
-          <p className="text-[14px] text-fg-muted mt-2">
-            Fill in what you know — Brain handles the rest. Your work auto-saves.
-          </p>
+          <p className="text-[14px] text-fg-muted mt-2">{t('cb.intake.subtitle')}</p>
         </div>
-        <SaveIndicator status={status} />
+        <SaveIndicator status={status} t={t} />
       </div>
 
       {error && (
@@ -103,17 +99,16 @@ export function CampaignIntakeForm({ onStrategize }: CampaignIntakeFormProps) {
         </div>
       )}
 
-      {/* Section: The basics */}
-      <Section title="The basics" subtitle="Required to run the Brain">
-        <Field label="Campaign name">
+      <Section title={t('cb.intake.section_basics')} subtitle={t('cb.intake.section_basics_sub')}>
+        <Field label={t('cb.intake.label.campaign_name')}>
           <Input
             value={intake.campaignName ?? ''}
             onChange={(v) => updateIntake({ campaignName: v })}
-            placeholder="Spring Drop Launch"
+            placeholder={t('cb.intake.placeholder.campaign_name')}
           />
         </Field>
 
-        <Field label="Product / Service" required>
+        <Field label={t('cb.intake.label.product')} required>
           <Input
             value={intake.productName ?? ''}
             onChange={(v) => updateIntake({ productName: v })}
@@ -121,55 +116,64 @@ export function CampaignIntakeForm({ onStrategize }: CampaignIntakeFormProps) {
           />
         </Field>
 
-        <Field label="What is it?" required>
+        <Field label={t('cb.intake.label.description')} required>
           <Textarea
             value={intake.productDescription ?? ''}
             onChange={(v) => updateIntake({ productDescription: v })}
-            placeholder="An AI-powered brand and campaign system that turns your URL into a complete strategic brief in 60 seconds."
+            placeholder={t('cb.intake.placeholder.description')}
             rows={4}
           />
         </Field>
 
-        <Field label="Goal of this campaign" required>
+        <Field label={t('cb.intake.label.goal')} required>
           <Textarea
             value={intake.goalDescription ?? ''}
             onChange={(v) => updateIntake({ goalDescription: v })}
-            placeholder="Drive 1000 free trial signups in week 1"
+            placeholder={t('cb.intake.placeholder.goal')}
             rows={3}
           />
         </Field>
 
-        <Field label="Audience">
+        <Field label={t('cb.intake.label.audience')}>
           <Textarea
             value={intake.audienceDescription ?? ''}
             onChange={(v) => updateIntake({ audienceDescription: v })}
-            placeholder="Founders, marketing leads at startups, agency owners. They juggle Canva + ChatGPT + Photoshop."
+            placeholder={t('cb.intake.placeholder.audience')}
             rows={3}
           />
         </Field>
       </Section>
 
-      {/* Section: Strategy hints */}
-      <Section title="Strategy" subtitle="Optional — Brain auto-detects if blank">
+      <Section title={t('cb.intake.section_strategy')} subtitle={t('cb.intake.section_strategy_sub')}>
         <div className="grid sm:grid-cols-2 gap-4">
-          <Field label="Vertical (industry)">
+          <Field label={t('cb.intake.label.vertical')}>
             <Select
               value={intake.vertical ?? ''}
-              onChange={(v) => updateIntake({ vertical: (v || undefined) as VerticalSlug | undefined })}
-              options={[{ value: '', label: 'Auto-detect' }, ...VERTICAL_OPTIONS]}
+              onChange={(v) =>
+                updateIntake({ vertical: (v || undefined) as VerticalSlug | undefined })
+              }
+              options={[
+                { value: '', label: t('cb.intake.option_auto') },
+                ...VERTICAL_OPTIONS.map((v) => ({ value: v.value, label: verticalLabel(v) })),
+              ]}
             />
           </Field>
 
-          <Field label="Campaign type">
+          <Field label={t('cb.intake.label.type')}>
             <Select
               value={intake.campaignType ?? ''}
-              onChange={(v) => updateIntake({ campaignType: (v || undefined) as CampaignTypeSlug | undefined })}
-              options={[{ value: '', label: 'Auto-detect' }, ...TYPE_OPTIONS]}
+              onChange={(v) =>
+                updateIntake({ campaignType: (v || undefined) as CampaignTypeSlug | undefined })
+              }
+              options={[
+                { value: '', label: t('cb.intake.option_auto') },
+                ...TYPE_OPTIONS.map((v) => ({ value: v.value, label: verticalLabel(v) })),
+              ]}
             />
           </Field>
         </div>
 
-        <Field label="Platforms (where this campaign runs)">
+        <Field label={t('cb.intake.label.platforms')}>
           <div className="flex flex-wrap gap-2">
             {PLATFORM_OPTIONS.map((p) => {
               const selected = (intake.platforms ?? []).includes(p.value as never);
@@ -193,45 +197,43 @@ export function CampaignIntakeForm({ onStrategize }: CampaignIntakeFormProps) {
         </Field>
       </Section>
 
-      {/* Section: Voice & offer */}
-      <Section title="Voice & offer" subtitle="Help Brain match your tone">
+      <Section title={t('cb.intake.section_voice')} subtitle={t('cb.intake.section_voice_sub')}>
         <div className="grid sm:grid-cols-2 gap-4">
-          <Field label="Brand tone">
+          <Field label={t('cb.intake.label.tone')}>
             <Input
               value={intake.brandTone ?? ''}
               onChange={(v) => updateIntake({ brandTone: v })}
-              placeholder="confident, modern, considered"
+              placeholder={t('cb.intake.placeholder.tone')}
             />
           </Field>
 
-          <Field label="Preferred CTA">
+          <Field label={t('cb.intake.label.cta')}>
             <Input
               value={intake.callToAction ?? ''}
               onChange={(v) => updateIntake({ callToAction: v })}
-              placeholder="Try free"
+              placeholder={t('cb.intake.placeholder.cta')}
             />
           </Field>
         </div>
 
-        <Field label="Offer (if any)">
+        <Field label={t('cb.intake.label.offer')}>
           <Input
             value={intake.offer ?? ''}
             onChange={(v) => updateIntake({ offer: v })}
-            placeholder="50% off, 14-day trial, free first month"
+            placeholder={t('cb.intake.placeholder.offer')}
           />
         </Field>
 
-        <Field label="Things to avoid">
+        <Field label={t('cb.intake.label.avoid')}>
           <Textarea
             value={intake.doNotInclude ?? ''}
             onChange={(v) => updateIntake({ doNotInclude: v })}
-            placeholder="No 'revolutionary'. No countdown timers. No fake testimonials."
+            placeholder={t('cb.intake.placeholder.avoid')}
             rows={2}
           />
         </Field>
       </Section>
 
-      {/* Submit */}
       <div className="sticky bottom-0 bg-surface/80 backdrop-blur-md border-t border-border py-4 -mx-4 px-4 mt-8">
         <button
           type="button"
@@ -244,21 +246,19 @@ export function CampaignIntakeForm({ onStrategize }: CampaignIntakeFormProps) {
               : 'bg-surface-2 text-fg-subtle cursor-not-allowed border border-border',
           ].join(' ')}
         >
-          {strategizing ? 'Brain is thinking…' : 'Generate Strategy →'}
+          {strategizing
+            ? t('cb.intake.cta_strategize_loading')
+            : t('cb.intake.cta_strategize')}
         </button>
         {!canStrategize && (
           <p className="text-[11.5px] text-fg-subtle text-center mt-2">
-            Fill product name, description, and goal to enable.
+            {t('cb.intake.cta_disabled_hint')}
           </p>
         )}
       </div>
     </div>
   );
 }
-
-// ────────────────────────────────────────────────────────────────
-// Sub-components
-// ────────────────────────────────────────────────────────────────
 
 function Section({
   title,
@@ -368,17 +368,23 @@ function Select({
   );
 }
 
-function SaveIndicator({ status }: { status: string }) {
+function SaveIndicator({
+  status,
+  t,
+}: {
+  status: string;
+  t: (k: string) => string;
+}) {
   const label =
     status === 'saving'
-      ? 'Saving…'
+      ? t('cb.intake.save.saving')
       : status === 'saved'
-      ? 'Saved'
+      ? t('cb.intake.save.saved')
       : status === 'error'
-      ? 'Error'
+      ? t('cb.intake.save.error')
       : status === 'loading'
-      ? 'Loading…'
-      : 'Auto-save on';
+      ? t('cb.intake.save.loading')
+      : t('cb.intake.save.idle');
 
   const color =
     status === 'error'
