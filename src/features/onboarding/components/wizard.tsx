@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { StepWelcome } from './step-welcome';
+import { StepOrganization } from './step-organization';
 import { StepAbout } from './step-about';
 import { StepBrand } from './step-brand';
 import { StepVibe } from './step-vibe';
@@ -10,13 +11,36 @@ import { StepFirstPrompt } from './step-first-prompt';
 import { StepTour } from './step-tour';
 
 export interface OnboardingData {
+  // Welcome
   full_name?: string;
   user_role?: string;
+
+  // Organization (Step 1 — NEW)
+  workspace_name?: string;
+
+  // About (Step 2)
+  // user_role lives here too (overlap with welcome OK)
+
+  // Brand (Step 3) — UPDATED with C2 fields
   brand_name?: string;
   description?: string;
+  website_url?: string;
+  detected_logo_url?: string;
+  detected_colors?: {
+    primary?: string;
+    secondary?: string;
+    accent?: string;
+    palette?: Array<{ hex: string; weight: number }>;
+  };
+
+  // Vibe (Step 4)
   vibe?: 'minimal' | 'editorial' | 'bold' | 'playful';
+
+  // First prompt (Step 5)
   first_prompt?: string;
 }
+
+const TOTAL_STEPS = 7; // 0:Welcome 1:Org 2:About 3:Brand 4:Vibe 5:FirstPrompt 6:Tour
 
 export function OnboardingWizard({ userEmail }: { userEmail: string }) {
   const router = useRouter();
@@ -44,7 +68,9 @@ export function OnboardingWizard({ userEmail }: { userEmail: string }) {
       } catch {}
       if (!cancelled) setLoading(false);
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [router]);
 
   async function saveState(newStep: number, newData: OnboardingData, completed = false) {
@@ -70,8 +96,8 @@ export function OnboardingWizard({ userEmail }: { userEmail: string }) {
   async function complete(partial: Partial<OnboardingData>) {
     const merged = { ...data, ...partial };
     setData(merged);
-    await saveState(6, merged, true);
-    toast.success('You\'re all set!');
+    await saveState(TOTAL_STEPS - 1, merged, true);
+    toast.success("You're all set!");
     router.push('/dashboard');
     router.refresh();
   }
@@ -82,45 +108,21 @@ export function OnboardingWizard({ userEmail }: { userEmail: string }) {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-bg flex items-center justify-center">
-        <div className="h-8 w-8 rounded-full gold-grad animate-pulse" />
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-fg-subtle text-sm">Loading…</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-bg text-fg flex flex-col">
-      {/* Progress bar */}
-      <div className="h-0.5 bg-surface-2 relative overflow-hidden">
-        <div
-          className="absolute left-0 top-0 bottom-0 gold-grad transition-all duration-500 ease-out"
-          style={{ width: `${(step / 5) * 100}%` }}
-        />
-      </div>
-
-      <div className="flex-1 flex items-center justify-center px-6 py-10">
-        <div className="w-full max-w-[640px]">
-          {step === 0 && <StepWelcome onNext={() => next({})} email={userEmail} />}
-          {step === 1 && <StepAbout data={data} onNext={next} onBack={back} />}
-          {step === 2 && <StepBrand data={data} onNext={next} onBack={back} />}
-          {step === 3 && <StepVibe data={data} onNext={next} onBack={back} />}
-          {step === 4 && <StepFirstPrompt data={data} onNext={next} onBack={back} />}
-          {step === 5 && <StepTour data={data} onComplete={complete} onBack={back} />}
-        </div>
-      </div>
-
-      {/* Skip — available after step 1 */}
-      {step > 0 && step < 5 && (
-        <div className="text-center pb-6">
-          <button
-            type="button"
-            onClick={() => complete(data)}
-            className="text-[11.5px] uppercase tracking-[0.14em] text-fg-subtle hover:text-gold transition-colors"
-          >
-            Skip onboarding
-          </button>
-        </div>
-      )}
+    <div className="max-w-2xl mx-auto px-4 py-8">
+      {step === 0 && <StepWelcome userEmail={userEmail} onNext={next} />}
+      {step === 1 && <StepOrganization data={data} onNext={next} onBack={back} />}
+      {step === 2 && <StepAbout data={data} onNext={next} onBack={back} />}
+      {step === 3 && <StepBrand data={data} onNext={next} onBack={back} />}
+      {step === 4 && <StepVibe data={data} onNext={next} onBack={back} />}
+      {step === 5 && <StepFirstPrompt data={data} onNext={next} onBack={back} />}
+      {step === 6 && <StepTour data={data} onComplete={complete} onBack={back} />}
     </div>
   );
 }
