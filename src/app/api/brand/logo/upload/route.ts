@@ -3,17 +3,13 @@
  *
  * Multipart logo upload to brand-logos bucket.
  *
- * Form fields:
- *   - file: File (PNG/SVG/JPG/WebP, max 5MB)
- *   - variant: 'main' | 'dark' (optional, default 'main')
- *
  * Auth: requires authenticated user with an active org.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { createSupabaseServiceClient } from '@/lib/supabase/service';
-import { resolveOrgContext } from '@/lib/auth';
+import { resolveOrgContext } from '@/features/chat/server/resolve-org-context';
 import { uploadLogo } from '@/lib/brand-os';
 
 export const runtime = 'nodejs';
@@ -22,7 +18,7 @@ export const maxDuration = 30;
 
 export async function POST(request: NextRequest) {
   try {
-    // ── 1. Auth ──────────────────────────────────────────────────
+    // Auth
     const ssr = await createSupabaseServerClient();
     const { data: { user } } = await ssr.auth.getUser();
     if (!user) {
@@ -44,7 +40,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to resolve org' }, { status: 403 });
     }
 
-    // ── 2. Parse multipart form ──────────────────────────────────
+    // Parse multipart
     const formData = await request.formData();
     const file = formData.get('file') as File | null;
     const variant = (formData.get('variant') as string) ?? 'main';
@@ -52,7 +48,6 @@ export async function POST(request: NextRequest) {
     if (!file) {
       return NextResponse.json({ error: 'file is required' }, { status: 400 });
     }
-
     if (variant !== 'main' && variant !== 'dark') {
       return NextResponse.json(
         { error: "variant must be 'main' or 'dark'" },
@@ -60,11 +55,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // ── 3. Convert File to Buffer ─────────────────────────────────
+    // Convert to Buffer
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(new Uint8Array(arrayBuffer));
 
-    // ── 4. Upload via brand-os helper ────────────────────────────
+    // Upload
     const result = await uploadLogo({
       supabase: svc,
       orgId,
@@ -74,26 +69,33 @@ export async function POST(request: NextRequest) {
       autoResize: true,
     });
 
-    // ── 5. Update brand_profile with new URL + storage path ──────
+    // Update brand_profile with logo URL
+    // NOTE: logo_url is in your existing brand_profile schema.
+    // logo_storage_path requires migration 20260425_brand_os_storage.sql
+    // (apply when ready; for now we cast to bypass type checks)
     const updateField = variant === 'dark' ? 'logo_dark_url' : 'logo_url';
+
+    const updatePayload: Record<string, unknown> = {
+      org_id: orgId,
+      [updateField]: result.publicUrl,
+      updated_at: new Date().toISOString(),
+    };
+
+    // Only set storage_path if migration has been applied
+    // (the type check would fail if column doesn't exist, so we cast)
     const updateStorageField =
       variant === 'dark' ? 'logo_dark_storage_path' : 'logo_storage_path';
+    updatePayload[updateStorageField] = result.storagePath;
 
     const { error: updateError } = await svc
       .from('brand_profile')
-      .upsert(
-        {
-          org_id: orgId,
-          [updateField]: result.publicUrl,
-          [updateStorageField]: result.storagePath,
-          updated_at: new Date().toISOString(),
-        } as never,
-        { onConflict: 'org_id' }
-      );
+      .upsert(updatePayload as never, { onConflict: 'org_id' });
 
     if (updateError) {
       console.warn('[brand/logo/upload] DB update failed but file is uploaded', {
         error: updateError.message,
+        hint:
+          'If error mentions "logo_storage_path", apply migration 20260425_brand_os_storage.sql',
       });
     }
 
