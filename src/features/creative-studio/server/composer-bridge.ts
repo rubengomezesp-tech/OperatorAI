@@ -1,17 +1,11 @@
 /**
- * Operator AI — Composer V2 Bridge (FINAL)
+ * Operator AI — Composer V2 Bridge (DEFINITIVE)
  *
- * Converts Variant → CreativePlan using actual types from @/lib/composer.
- * All types verified against src/lib/composer/types.ts:
- *   - PlanHeadline { text, fontRole, sizePct, colorRole, position, align }
- *   - PlanCta { text, style, bgColorRole, textColorRole }
- *   - PlanLogo { position, paddingPct, maxWidthPct }
- *   - CtaStyle: 'pill' | 'rect' | 'underline' | 'ghost'
- *   - LogoPosition: 'top-left' | 'top-right' | 'top-center' | 'bottom-left' | 'bottom-right' | 'bottom-center' | 'center'
- *   - SafeZonePosition: 'top' | 'center' | 'bottom'
- *   - ColorRole: 'primary' | 'secondary' | 'accent' | 'onDark' | 'onLight' | 'background'
- *   - TextAlign: 'left' | 'center' | 'right'
- *   - Platform: 'instagram_feed' | 'instagram_story' | 'instagram_reel' | 'tiktok' | 'meta_ad_square' | 'meta_ad_landscape' | 'youtube_short' | 'twitter_post'
+ * Converts Variant → CreativePlan with 100% type compliance:
+ *   - AspectRatio: '9:16' | '1:1' | '4:5' (your exact values)
+ *   - CreativePlan.headline is REQUIRED (so we always provide one)
+ *   - CreativePlan.cta is optional
+ *   - All composer types verified
  */
 
 import 'server-only';
@@ -35,34 +29,43 @@ import type {
 
 /**
  * Convert a Variant to a CreativePlan (without background).
- * The background URL is added later in the pipeline.
+ *
+ * Headline is always required by CreativePlan, so if variant
+ * doesn't have one, we use the variant intent as fallback.
+ * If neither exists, returns null (caller should skip V2).
  */
 export function variantToCreativePlan(
   variant: Variant
-): Omit<CreativePlan, 'background'> {
+): Omit<CreativePlan, 'background'> | null {
+  const headlineText = (variant.copy?.headline?.trim() || variant.intent?.trim() || '').slice(0, 80);
+
+  // CreativePlan requires headline — if we have nothing usable, skip V2
+  if (!headlineText) {
+    return null;
+  }
+
   const platform = aspectRatioToPlatform(variant.aspectRatio);
-  const headline = variant.copy?.headline?.trim() || null;
-  const cta = variant.copy?.cta?.trim() || null;
+  const ctaText = variant.copy?.cta?.trim() || null;
+
+  // Build required fields
+  const planHeadline: PlanHeadline = {
+    text: headlineText,
+    fontRole: pickHeadlineFontRole(variant.layout),
+    sizePct: pickHeadlineSize(variant.layout),
+    colorRole: pickHeadlineColor(variant),
+    position: pickHeadlinePosition(variant.layout),
+    align: pickHeadlineAlign(variant.layout),
+  };
 
   const plan: Omit<CreativePlan, 'background'> = {
     platform,
+    headline: planHeadline,
   };
 
-  if (headline) {
-    const planHeadline: PlanHeadline = {
-      text: headline,
-      fontRole: pickHeadlineFontRole(variant.layout),
-      sizePct: pickHeadlineSize(variant.layout),
-      colorRole: pickHeadlineColor(variant),
-      position: pickHeadlinePosition(variant.layout),
-      align: pickHeadlineAlign(variant.layout),
-    };
-    plan.headline = planHeadline;
-  }
-
-  if (cta) {
+  // Optional CTA
+  if (ctaText) {
     const planCta: PlanCta = {
-      text: cta,
+      text: ctaText,
       style: pickCtaStyle(variant.layout),
       bgColorRole: 'primary',
       textColorRole: 'onLight',
@@ -70,6 +73,7 @@ export function variantToCreativePlan(
     plan.cta = planCta;
   }
 
+  // Optional logo
   if (variant.composition?.logoIndex !== undefined) {
     const planLogo: PlanLogo = {
       position: mapLogoPosition(variant.composition.logoPosition),
@@ -83,34 +87,37 @@ export function variantToCreativePlan(
 }
 
 /**
- * Heuristic: should we even try V2 for this variant?
- * Returns false if there's nothing to compose.
+ * Should we even try V2 for this variant?
+ * Returns false if there's no headline or fallback intent.
  */
 export function variantHasComposableContent(variant: Variant): boolean {
-  const hasHeadline = !!variant.copy?.headline?.trim();
-  const hasCta = !!variant.copy?.cta?.trim();
-  const hasLogo = variant.composition?.logoIndex !== undefined;
-  return hasHeadline || hasCta || hasLogo;
+  const text =
+    variant.copy?.headline?.trim() || variant.intent?.trim() || '';
+  return text.length > 0;
 }
 
 // ────────────────────────────────────────────────────────────────
-// MAPPING HELPERS — VALIDATED TYPES
+// MAPPING HELPERS
 // ────────────────────────────────────────────────────────────────
 
+/**
+ * Map your AspectRatio (9:16 | 1:1 | 4:5) → composer Platform.
+ * Composer derives width/height/safe-zone from platform name.
+ */
 function aspectRatioToPlatform(ratio: AspectRatio): Platform {
   switch (ratio) {
     case '1:1':
       return 'instagram_feed';
     case '4:5':
-      return 'instagram_feed';
+      return 'meta_ad_square';
     case '9:16':
       return 'instagram_story';
-    case '16:9':
-      return 'twitter_post';
-    case '1.91:1':
-      return 'meta_ad_landscape';
-    default:
+    default: {
+      // Exhaustive check — TypeScript ensures all AspectRatio cases handled
+      const _exhaustive: never = ratio;
+      void _exhaustive;
       return 'instagram_feed';
+    }
   }
 }
 
@@ -212,7 +219,6 @@ function pickCtaStyle(layout: VariantLayout): CtaStyle {
 }
 
 function mapLogoPosition(pos: unknown): LogoPosition {
-  // Defensive: pos may be string, undefined, or object
   const str = String(pos ?? '').toLowerCase();
   if (str.includes('top-left')) return 'top-left';
   if (str.includes('top-right')) return 'top-right';
