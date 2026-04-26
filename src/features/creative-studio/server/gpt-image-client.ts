@@ -89,7 +89,8 @@ function resolveQuality(override?: GptImageQuality): GptImageQuality {
   ) {
     return envQuality;
   }
-  return 'medium';
+  // Default to 'high' for premium quality (TIER S output)
+  return 'high';
 }
 
 // ═══════════════════════════════════════════════════════════════════
