@@ -99,7 +99,7 @@ export function StepBrand({
             <Button
               onClick={handleAutoDetect}
               disabled={!websiteUrl.trim() || detecting}
-              variant="default"
+              variant="primary"
             >
               {detecting ? 'Detecting…' : 'Auto-detect'}
             </Button>
