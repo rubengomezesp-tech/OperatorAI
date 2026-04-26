@@ -19,6 +19,8 @@ const TITLES: Record<string, string> = {
   '/knowledge': 'Knowledge',
   '/memory': 'Memory',
   '/assistants': 'Assistants',
+  '/ai-mockup': 'Mockup Studio',
+  '/campaigns/new': 'Create Campaign',
   '/settings': 'Settings',
   '/settings/profile': 'Profile',
   '/settings/integrations': 'Integrations',

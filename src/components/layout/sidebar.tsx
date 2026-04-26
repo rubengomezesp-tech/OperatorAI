@@ -17,6 +17,7 @@ import {
   Settings,
   Shield,
   ChevronLeft,
+  Shirt,
   type LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -103,6 +104,13 @@ export function Sidebar({ isAdmin = false, onClose }: Props) {
           fallback: 'Voice',
           icon: Mic,
           badge: 'Beta',
+        },
+        {
+          href: '/ai-mockup',
+          labelKey: 'nav.mockup_studio',
+          fallback: 'Mockup Studio',
+          icon: Shirt,
+          badge: 'New',
         },
       ],
     },

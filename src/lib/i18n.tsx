@@ -22,6 +22,7 @@ const translations: Record<string, { en: string; es: string }> = {
   'nav.image_studio': { en: 'Image Studio', es: 'Estudio de Imagen' },
   'nav.video_studio': { en: 'Video Studio', es: 'Estudio de Video' },
   'nav.voice_mode': { en: 'Voice Mode', es: 'Modo Voz' },
+  'nav.mockup_studio': { en: 'Mockup Studio', es: 'Estudio de Mockups' },
   'nav.workflows': { en: 'Workflows', es: 'Flujos' },
   'nav.files': { en: 'Files & Analysis', es: 'Archivos y Análisis' },
   'nav.knowledge': { en: 'Knowledge', es: 'Conocimiento' },

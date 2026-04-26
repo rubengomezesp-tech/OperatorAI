@@ -7,7 +7,7 @@ import { useI18n } from '@/lib/i18n';
 import {LayoutDashboard, MessageSquare, FolderOpen, ImageIcon, Video,
   Mic, FileSpreadsheet, FileText, Brain, Sparkles, Plug,
   CreditCard, X, Menu,
-   Target, Rocket, Palette, LogOut, HelpCircle, Zap} from 'lucide-react';
+   Target, Rocket, Palette, LogOut, HelpCircle, Zap, Shirt} from 'lucide-react';
 
 import type { LucideIcon } from 'lucide-react';
 
@@ -37,6 +37,7 @@ const nav: NavSection[] = [
     { href: '/studio/video', labelKey: 'nav.video_studio', icon: Video },
     
     { href: '/voice', labelKey: 'nav.voice_mode', icon: Mic },
+    { href: '/ai-mockup', labelKey: 'nav.mockup_studio', icon: Shirt, badge: 'NEW' },
   ]},
   { groupKey: 'nav.automate', items: [
     
