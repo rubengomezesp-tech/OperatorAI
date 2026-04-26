@@ -116,7 +116,7 @@ export function OnboardingWizard({ userEmail }: { userEmail: string }) {
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-8">
-      {step === 0 && <StepWelcome userEmail={userEmail} onNext={next} />}
+      {step === 0 && <StepWelcome email={userEmail} onNext={() => next({})} />}
       {step === 1 && <StepOrganization data={data} onNext={next} onBack={back} />}
       {step === 2 && <StepAbout data={data} onNext={next} onBack={back} />}
       {step === 3 && <StepBrand data={data} onNext={next} onBack={back} />}
