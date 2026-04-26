@@ -191,7 +191,7 @@ export function StrategyBriefView({
               <span className="text-fg-muted">{v.platform}</span>
               <span className="text-fg-subtle">·</span>
               <span className="text-fg-muted">{v.aspectRatio}</span>
-              <span className="text-fg flex-1 truncate ml-2">"{v.headline}"</span>
+              <span className="text-fg flex-1 truncate ml-2">&ldquo;{v.headline}&rdquo;</span>
             </div>
           ))}
           {brainOutput.variantBriefs.length > 4 && (
