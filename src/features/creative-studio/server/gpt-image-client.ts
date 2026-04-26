@@ -110,7 +110,7 @@ export async function generateWithGptImage(
 
   const quality = resolveQuality(input.quality);
   const size = aspectToSize(input.aspectRatio);
-  const timeoutMs = input.timeoutMs ?? 45000;
+  const timeoutMs = input.timeoutMs ?? 180000;
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);

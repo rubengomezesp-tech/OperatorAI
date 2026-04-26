@@ -33,6 +33,7 @@ import { selectVertical, buildNegativePrompt } from '../verticals/_base';
 import { selectCampaignType } from '../campaign-types/_base';
 import { selectBestAngles, getAllAngles } from '../angles';
 import { validateIntake } from './intake-validator';
+import { buildResearchDossier } from '../server/research-dossier';
 
 const BRAIN_MODEL = 'claude-sonnet-4-5-20250929';
 const MAX_TOKENS = 4000;
@@ -63,6 +64,30 @@ export async function runCampaignBrain(
 
   // 4. Select best angles for this campaign type
   const angles = selectBestAngles(campaignType.recommendedAngles, 4);
+
+  // 4.5 Research dossier (web search + visual refs)
+  let researchDossier = null;
+  try {
+    researchDossier = await buildResearchDossier({
+      productName: intake.productName,
+      productDescription: intake.productDescription,
+      audienceDescription: intake.audienceDescription,
+      vertical: vertical.id,
+      campaignType: campaignType.id,
+      primaryAngle: angles[0]?.id ?? 'desire',
+    });
+    console.log('[brain] research dossier built', {
+      fromLiveSearch: researchDossier.fromLiveSearch,
+      durationMs: researchDossier.durationMs,
+      productFacts: researchDossier.productFacts.length,
+      competitors: researchDossier.competitorSignals.length,
+      visualRefs: researchDossier.visualReferences.length,
+    });
+  } catch (err) {
+    console.warn('[brain] research dossier failed (non-fatal)', {
+      error: (err as Error).message,
+    });
+  }
 
   // 5. Run Brain with Claude
   const brainResult = await callBrainLLM(intake, vertical, campaignType, angles);
@@ -144,6 +169,7 @@ export async function runCampaignBrain(
     hooks: brainResult.hooks,
     ctas: brainResult.ctas,
     variantBriefs,
+    researchDossier,
     launchPlan: brainResult.launchPlan,
   };
 

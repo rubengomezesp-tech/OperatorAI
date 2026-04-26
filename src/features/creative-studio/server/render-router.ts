@@ -107,30 +107,19 @@ async function renderBackground(input: RenderInput): Promise<RenderOutput> {
     try {
       return await renderGptImage(input);
     } catch (err) {
-      console.warn('[render-router] gpt-image failed, falling back to flux', {
+      // NO FALLBACK to Flux — premium-only mode.
+      // If gpt-image fails, surface the error so render-batch shows it
+      // and user can retry. Better than serving inconsistent low-quality output.
+      console.error('[render-router] gpt-image failed (no fallback)', {
         variantId: input.variant.id,
         error: err instanceof Error ? err.message : String(err),
       });
-
-      try {
-        const fluxResult = await renderFlux(input);
-        return {
-          ...fluxResult,
-          retried: true,
-          fallbackFrom: 'gpt-image',
-        };
-      } catch (fluxErr) {
-        console.error('[render-router] flux fallback also failed', {
-          variantId: input.variant.id,
-          originalError: err instanceof Error ? err.message : String(err),
-          fallbackError:
-            fluxErr instanceof Error ? fluxErr.message : String(fluxErr),
-        });
-        throw fluxErr;
-      }
+      throw err;
     }
   }
 
+  // No primary engine matched (shouldn't happen — selectEngine returns gpt-image or flux)
+  // If we reach here, fall through to flux as last resort
   return renderFlux(input);
 }
 
