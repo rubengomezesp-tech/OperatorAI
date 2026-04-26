@@ -1,12 +1,8 @@
 /**
- * Brain → Variant Bridge
+ * Brain → Variant Bridge (Premium)
  *
- * Converts BrainOutput.variantBriefs (Campaign Brain V2 format)
- * into Variant[] (creative-studio legacy format) so that the existing
- * render-router pipeline can render them with Composer V2.
- *
- * This is the connection between the Brain (strategy) and the
- * existing render pipeline (Flux/GPT-image + Composer V2).
+ * Now async — loads Brand kit and constructs premium prompt
+ * before producing legacy Variant[] for the render-router.
  */
 
 import 'server-only';
@@ -15,6 +11,7 @@ import type {
   VariantBrief,
   AspectRatio as BrainAspectRatio,
   AngleSlug,
+  VerticalSlug,
 } from '../types';
 import type {
   Variant,
@@ -25,42 +22,36 @@ import type {
   Intensity,
   VisualStyle,
 } from '@/features/creative-studio/types';
+import {
+  buildPremiumImagePrompt,
+  loadBrandKitForPrompt,
+  type BrandKitForPrompt,
+} from './premium-prompt-builder';
+import { createSupabaseServiceClient } from '@/lib/supabase/service';
 
 // ────────────────────────────────────────────────────────────────
-// MAPPERS
+// MAPPERS (unchanged from previous bridge)
 // ────────────────────────────────────────────────────────────────
 
-/**
- * Map Campaign Brain angles to legacy VariantAngle.
- *
- * Legacy supports: 'pain' | 'result' | 'authority' | 'curiosity' | 'aggressive'
- * Brain has 9 angles — we map them to the closest legacy match.
- */
 function mapAngle(slug: AngleSlug): VariantAngle {
   const map: Record<AngleSlug, VariantAngle> = {
     'pain-point': 'pain',
-    'desire': 'result',
-    'authority': 'authority',
-    'luxury': 'authority',
-    'viral': 'aggressive',
-    'conversion': 'result',
-    'curiosity': 'curiosity',
-    'urgency': 'aggressive',
+    desire: 'result',
+    authority: 'authority',
+    luxury: 'authority',
+    viral: 'aggressive',
+    conversion: 'result',
+    curiosity: 'curiosity',
+    urgency: 'aggressive',
     'social-proof': 'authority',
   };
   return map[slug] ?? 'result';
 }
 
-/**
- * Aspect ratios are compatible — both use '9:16' | '1:1' | '4:5'
- */
 function mapAspectRatio(ar: BrainAspectRatio): LegacyAspectRatio {
   return ar;
 }
 
-/**
- * Map angle to layout (best-fit for visual structure).
- */
 function pickLayout(angle: AngleSlug): VariantLayout {
   switch (angle) {
     case 'authority':
@@ -81,9 +72,6 @@ function pickLayout(angle: AngleSlug): VariantLayout {
   }
 }
 
-/**
- * Map angle to intensity.
- */
 function pickIntensity(angle: AngleSlug): Intensity {
   switch (angle) {
     case 'urgency':
@@ -99,9 +87,6 @@ function pickIntensity(angle: AngleSlug): Intensity {
   }
 }
 
-/**
- * Pick a default visual style based on angle + aesthetic.
- */
 function pickVisualStyle(angle: AngleSlug, aesthetic?: string): VisualStyle {
   if (aesthetic === 'editorial') return 'editorial_magazine';
   if (aesthetic === 'luxury') return 'luxury_beige';
@@ -126,53 +111,158 @@ function pickVisualStyle(angle: AngleSlug, aesthetic?: string): VisualStyle {
 }
 
 // ────────────────────────────────────────────────────────────────
-// MAIN BRIDGE FUNCTION
+// PREMIUM BRIDGE
 // ────────────────────────────────────────────────────────────────
 
+export interface BridgeContext {
+  /** Org id — for loading Brand kit */
+  orgId: string;
+  /** Optional uploaded product photos */
+  productPhotoUrls?: string[];
+}
+
 /**
- * Convert ONE variant brief from Brain → legacy Variant.
+ * Convert ONE variant brief → premium Variant.
+ *
+ * Builds a layered prompt that includes:
+ *   - Brand kit (Brand OS)
+ *   - Brain diagnostic (audience, hidden desire)
+ *   - Visual direction
+ *   - Hook → visual translation
+ *   - Vertical knowledge
+ *   - Platform safe-zones
+ *   - Negative prompt
  */
-export function variantBriefToVariant(
+async function variantBriefToVariantAsync(
   brief: VariantBrief,
   brainOutput: BrainOutput,
-): Variant {
+  vertical: VerticalSlug,
+  brandKit: BrandKitForPrompt | null,
+  productPhotoUrls: string[] | undefined,
+): Promise<Variant> {
+  const premium = buildPremiumImagePrompt({
+    variantBrief: brief,
+    brainOutput,
+    vertical,
+    brandKit,
+    productPhotoUrls,
+  });
+
+  console.log('[brain-to-variant] premium prompt built', {
+    variantId: brief.id,
+    layers: premium.layers,
+    promptLength: premium.prompt.length,
+  });
+
   return {
     id: brief.id,
     layout: pickLayout(brief.angle),
     angle: mapAngle(brief.angle),
     intent: brief.headline,
-    engine: 'flux' as RenderEngine, // Default to Flux; engine-selector may switch
+    engine: 'gpt-image' as RenderEngine, // Premium default
     copy: {
       headline: brief.headline,
       subheadline: '',
       cta: brief.cta,
-      // Legacy types may have more fields — these can stay empty
     } as never,
     composition: {
-      // Composer V2 will derive composition from prompt + brand
-      // Leaving as a minimal default
       heroPosition: 'center',
       textPosition: 'bottom',
       logoPosition: 'top-left',
     } as never,
-    mood: brainOutput.visualDirection.moodDescription,
-    palette: [], // Brand kit is fetched by Composer V2 via orgId
+    mood: brainOutput.visualDirection?.moodDescription ?? '',
+    palette: brandKit?.palette ?? [],
     confidence: brainOutput.confidence,
     reasoningSummary: brief.reasoning,
     aspectRatio: mapAspectRatio(brief.aspectRatio),
-    renderPrompt: brief.backgroundPrompt,
-    visualDirection: brainOutput.visualDirection.aesthetic,
-    compositionHint: brainOutput.visualDirection.composition,
+    // ★ THIS is what the renderer must respect — the layered premium prompt
+    renderPrompt: premium.prompt,
+    visualDirection: brainOutput.visualDirection?.aesthetic ?? '',
+    compositionHint: brainOutput.visualDirection?.composition ?? '',
     intensity: pickIntensity(brief.angle),
-    styleHint: pickVisualStyle(brief.angle, brainOutput.visualDirection.aesthetic),
+    styleHint: pickVisualStyle(
+      brief.angle,
+      brainOutput.visualDirection?.aesthetic,
+    ),
   };
 }
 
 /**
- * Convert ALL variant briefs from Brain → legacy Variant[].
+ * Convert ALL variant briefs → Variant[] with premium prompts.
+ *
+ * IMPORTANT: this is async now — caller must await.
+ */
+export async function brainOutputToVariantsAsync(
+  brainOutput: BrainOutput,
+  context: BridgeContext,
+): Promise<Variant[]> {
+  // Load brand kit ONCE (shared across all variants)
+  const svc = createSupabaseServiceClient();
+  const brandKit = await loadBrandKitForPrompt(svc, context.orgId);
+
+  // Determine vertical from brain output
+  const vertical: VerticalSlug =
+    (brainOutput.detectedVertical as VerticalSlug) ?? 'other';
+
+  return Promise.all(
+    brainOutput.variantBriefs.map((brief) =>
+      variantBriefToVariantAsync(
+        brief,
+        brainOutput,
+        vertical,
+        brandKit,
+        context.productPhotoUrls,
+      ),
+    ),
+  );
+}
+
+/**
+ * Sync version (legacy) — still exported for backwards compat.
+ * Does NOT load brand kit, but otherwise produces a working Variant.
  */
 export function brainOutputToVariants(brainOutput: BrainOutput): Variant[] {
-  return brainOutput.variantBriefs.map((brief) =>
-    variantBriefToVariant(brief, brainOutput),
-  );
+  const vertical: VerticalSlug =
+    (brainOutput.detectedVertical as VerticalSlug) ?? 'other';
+
+  return brainOutput.variantBriefs.map((brief) => {
+    const premium = buildPremiumImagePrompt({
+      variantBrief: brief,
+      brainOutput,
+      vertical,
+      brandKit: null,
+      productPhotoUrls: undefined,
+    });
+
+    return {
+      id: brief.id,
+      layout: pickLayout(brief.angle),
+      angle: mapAngle(brief.angle),
+      intent: brief.headline,
+      engine: 'gpt-image' as RenderEngine,
+      copy: {
+        headline: brief.headline,
+        subheadline: '',
+        cta: brief.cta,
+      } as never,
+      composition: {
+        heroPosition: 'center',
+        textPosition: 'bottom',
+        logoPosition: 'top-left',
+      } as never,
+      mood: brainOutput.visualDirection?.moodDescription ?? '',
+      palette: [],
+      confidence: brainOutput.confidence,
+      reasoningSummary: brief.reasoning,
+      aspectRatio: mapAspectRatio(brief.aspectRatio),
+      renderPrompt: premium.prompt,
+      visualDirection: brainOutput.visualDirection?.aesthetic ?? '',
+      compositionHint: brainOutput.visualDirection?.composition ?? '',
+      intensity: pickIntensity(brief.angle),
+      styleHint: pickVisualStyle(
+        brief.angle,
+        brainOutput.visualDirection?.aesthetic,
+      ),
+    };
+  });
 }
