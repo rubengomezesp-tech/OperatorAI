@@ -1,8 +1,12 @@
 /**
- * /api/campaign/render-batch
+ * /api/campaign/render-batch (Premium)
  *
- * Renders all variant briefs and ensures every returned URL is a
- * signed URL valid for 7 days. Works whether Composer V2 acted or not.
+ * Now uses async brain-to-variant bridge that:
+ *   1. Loads Brand kit from Brand OS
+ *   2. Builds premium prompt in 8 layers
+ *   3. Passes orgId + product photos to bridge
+ *
+ * Always downloads external URLs and stores ourselves with 7-day signed URLs.
  */
 
 import { NextResponse, type NextRequest } from 'next/server';
@@ -10,7 +14,7 @@ import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { createSupabaseServiceClient } from '@/lib/supabase/service';
 import { resolveOrgContext } from '@/features/chat/server/resolve-org-context';
 import { renderVariant } from '@/features/creative-studio/server/render-router';
-import { brainOutputToVariants } from '@/features/campaign-brain/server/brain-to-variant';
+import { brainOutputToVariantsAsync } from '@/features/campaign-brain/server/brain-to-variant';
 import type { BrainOutput } from '@/features/campaign-brain/types';
 
 export const runtime = 'nodejs';
@@ -31,73 +35,45 @@ interface BatchResult {
 // Helpers
 // ────────────────────────────────────────────────────────────────
 
-/**
- * Extract storage path from a Supabase URL (signed or public).
- * Returns null if not a Supabase Storage URL.
- *
- * Examples:
- *   https://xxx.supabase.co/storage/v1/object/sign/image-outputs/path.png?token=...
- *   https://xxx.supabase.co/storage/v1/object/public/image-outputs/path.png
- *   https://xxx.supabase.co/storage/v1/object/image-outputs/path.png
- */
-function extractStoragePath(url: string, bucket: string): string | null {
+async function downloadImage(url: string): Promise<Buffer | null> {
   try {
-    const u = new URL(url);
-    if (!u.hostname.includes('supabase')) return null;
-
-    const path = u.pathname;
-    // Match patterns: /storage/v1/object/{sign,public,}/{bucket}/{rest}
-    const patterns = [
-      new RegExp(`/storage/v1/object/sign/${bucket}/(.+)$`),
-      new RegExp(`/storage/v1/object/public/${bucket}/(.+)$`),
-      new RegExp(`/storage/v1/object/${bucket}/(.+)$`),
-    ];
-
-    for (const re of patterns) {
-      const match = path.match(re);
-      if (match && match[1]) {
-        return decodeURIComponent(match[1]);
-      }
-    }
-    return null;
+    const res = await fetch(url, { signal: AbortSignal.timeout(30000) });
+    if (!res.ok) return null;
+    const ab = await res.arrayBuffer();
+    return Buffer.from(ab);
   } catch {
     return null;
   }
 }
 
-/**
- * Given any image URL, return a fresh signed URL valid for 7 days.
- * If we can't (e.g. URL is external), returns the original.
- */
-async function ensureSignedUrl(
+async function uploadAndSign(
   svc: ReturnType<typeof createSupabaseServiceClient>,
-  imageUrl: string,
-): Promise<string> {
-  const path = extractStoragePath(imageUrl, BUCKET);
-  if (!path) {
-    // External URL or can't parse — return as-is
-    return imageUrl;
-  }
+  path: string,
+  buffer: Buffer,
+): Promise<string | null> {
+  const { error: upErr } = await svc.storage
+    .from(BUCKET)
+    .upload(path, buffer, {
+      contentType: 'image/png',
+      cacheControl: '604800',
+      upsert: true,
+    });
 
-  const { data, error } = await svc.storage
+  if (upErr) return null;
+
+  const { data: signed } = await svc.storage
     .from(BUCKET)
     .createSignedUrl(path, SIGNED_URL_TTL_SECONDS);
 
-  if (error || !data?.signedUrl) {
-    // Fallback to original
-    return imageUrl;
-  }
-
-  return data.signedUrl;
+  return signed?.signedUrl ?? null;
 }
 
 // ────────────────────────────────────────────────────────────────
-// MAIN HANDLER
+// MAIN
 // ────────────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
   try {
-    // 1. Auth
     const ssr = await createSupabaseServerClient();
     const {
       data: { user },
@@ -106,7 +82,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
 
-    // 2. Body
     const body = (await req.json().catch(() => ({}))) as {
       draftId?: string;
       maxVariants?: number;
@@ -117,7 +92,7 @@ export async function POST(req: NextRequest) {
 
     const svc = createSupabaseServiceClient();
 
-    // 3. Load draft
+    // Load draft
     const { data: draftRaw, error: loadErr } = await svc
       .from('campaigns' as never)
       .select('*')
@@ -133,6 +108,7 @@ export async function POST(req: NextRequest) {
       id: string;
       brain_output?: BrainOutput | null;
       org_id?: string | null;
+      intake_data?: { visualReferences?: string[] } | null;
     };
 
     if (!draft.brain_output) {
@@ -142,21 +118,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 4. Convert brain output -> Variant[]
-    const allVariants = brainOutputToVariants(draft.brain_output);
-    const maxVariants = Math.min(body.maxVariants ?? 4, allVariants.length);
-    const variants = allVariants.slice(0, maxVariants);
-
-    // 5. Update campaign row
-    await svc
-      .from('campaigns' as never)
-      .update({
-        variants: variants as never,
-        is_draft: false,
-      } as never)
-      .eq('id' as never, draft.id as never);
-
-    // 6. Resolve org for Composer V2
+    // Resolve org context
     let orgId: string | undefined;
     try {
       const ctx = await resolveOrgContext(svc, user.id);
@@ -165,7 +127,32 @@ export async function POST(req: NextRequest) {
       orgId = draft.org_id ?? undefined;
     }
 
-    // 7. Render in parallel (max 2 concurrent)
+    if (!orgId) {
+      return NextResponse.json(
+        { error: 'No organization context — cannot store images' },
+        { status: 400 },
+      );
+    }
+
+    // ★ Premium bridge: loads Brand kit + builds layered prompts
+    const productPhotoUrls = draft.intake_data?.visualReferences ?? undefined;
+    const allVariants = await brainOutputToVariantsAsync(draft.brain_output, {
+      orgId,
+      productPhotoUrls,
+    });
+    const maxVariants = Math.min(body.maxVariants ?? 4, allVariants.length);
+    const variants = allVariants.slice(0, maxVariants);
+
+    // Update campaign row
+    await svc
+      .from('campaigns' as never)
+      .update({
+        variants: variants as never,
+        is_draft: false,
+      } as never)
+      .eq('id' as never, draft.id as never);
+
+    // Render in parallel (max 2)
     const results: BatchResult[] = [];
     const concurrency = 2;
 
@@ -181,35 +168,37 @@ export async function POST(req: NextRequest) {
               direction: undefined,
             });
 
-            let finalUrl = result.imageUrl;
+            const path = `${orgId}/campaigns/${draft.id}/${variant.id}.png`;
+            let buffer: Buffer | null = null;
 
-            // Path A: Composer V2 produced a buffer — upload it
-            if (result.composedBuffer && orgId) {
-              const path = `${orgId}/campaigns/${draft.id}/${variant.id}.png`;
-              const { error: upErr } = await svc.storage
-                .from(BUCKET)
-                .upload(path, result.composedBuffer, {
-                  contentType: 'image/png',
-                  upsert: true,
-                });
+            if (result.composedBuffer) {
+              buffer = result.composedBuffer;
+            } else if (result.imageUrl) {
+              buffer = await downloadImage(result.imageUrl);
+            }
 
-              if (!upErr) {
-                const { data: signed } = await svc.storage
-                  .from(BUCKET)
-                  .createSignedUrl(path, SIGNED_URL_TTL_SECONDS);
-                if (signed?.signedUrl) {
-                  finalUrl = signed.signedUrl;
-                }
-              }
-            } else if (finalUrl) {
-              // Path B: No buffer — re-sign whatever URL renderVariant returned
-              // (handles cases where renderer returned a short-lived signed URL)
-              finalUrl = await ensureSignedUrl(svc, finalUrl);
+            if (!buffer) {
+              return {
+                id: variant.id,
+                imageUrl: null,
+                composedV2: false,
+                error: 'No image buffer obtained',
+              };
+            }
+
+            const signedUrl = await uploadAndSign(svc, path, buffer);
+            if (!signedUrl) {
+              return {
+                id: variant.id,
+                imageUrl: null,
+                composedV2: !!result.composedV2,
+                error: 'Upload or signing failed',
+              };
             }
 
             return {
               id: variant.id,
-              imageUrl: finalUrl,
+              imageUrl: signedUrl,
               composedV2: !!result.composedV2,
             };
           } catch (err) {
@@ -225,7 +214,7 @@ export async function POST(req: NextRequest) {
       results.push(...batchResults);
     }
 
-    // 8. Save URLs to campaign row
+    // Save URLs
     const renderedMap: Record<string, string> = {};
     for (const r of results) {
       if (r.imageUrl) renderedMap[r.id] = r.imageUrl;
