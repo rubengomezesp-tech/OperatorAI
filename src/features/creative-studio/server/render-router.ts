@@ -19,13 +19,7 @@ import { createSupabaseServiceClient } from '@/lib/supabase/service';
 // Pipeline:
 //   1. Select engine (Flux / GPT-Image) via selectEngine()
 //   2. Render background image
-//   3. (Optional, if composer V2 enabled) Apply Sharp+SVG overlay
-//      with brand-aware text, CTA, logo
-//
-// Composer V2 is OFF by default — controlled by env vars:
-//   COMPOSER_V2_ENABLED=true    → on for everyone
-//   COMPOSER_V2_TIERS=pro       → on for specific tiers
-//   COMPOSER_V2_ORGS=org_abc    → on for specific orgs
+//   3. (Optional) Apply Composer V2 (Sharp+SVG overlay) if flag enabled
 // ═══════════════════════════════════════════════════════════════════
 
 export interface RenderInput {
@@ -36,35 +30,37 @@ export interface RenderInput {
   direction?: CampaignDirection;
   /** Org ID — used by composer V2 to fetch brand kit */
   orgId?: string;
-  /** User tier — used by composer V2 for feature flag routing */
+  /** User tier — must be one of 'free' | 'pro' | 'agency' or undefined */
   tier?: string;
 }
 
 export interface RenderOutput {
   imageUrl: string;
   engine: RenderEngine;
-  /** True if primary engine failed and we fell back */
   retried?: boolean;
-  /** Which engine originally failed, if any */
   fallbackFrom?: RenderEngine;
-  /** True if Composer V2 was applied successfully (Sharp+SVG overlay) */
+  /** True if Composer V2 was applied successfully */
   composedV2?: boolean;
   /** Background URL before composition (only set if composedV2=true) */
   backgroundUrl?: string;
-  /** Optional buffer if composer ran (callers may upload it themselves) */
+  /** Buffer of composed image (caller can upload) */
   composedBuffer?: Buffer;
+}
+
+const VALID_TIERS = ['free', 'pro', 'agency'] as const;
+type ValidTier = (typeof VALID_TIERS)[number];
+
+function normalizeTier(input: string | undefined): ValidTier | undefined {
+  if (!input) return undefined;
+  const lower = input.toLowerCase();
+  return VALID_TIERS.includes(lower as ValidTier) ? (lower as ValidTier) : undefined;
 }
 
 export async function renderVariant(
   input: RenderInput,
 ): Promise<RenderOutput> {
-  // ── STEP 1: Render background ──────────────────────────────────
   const bgResult = await renderBackground(input);
 
-  // ── STEP 2: Optionally apply Composer V2 ───────────────────────
-  // Only attempt composition if:
-  //   - We have org context (needed for brand kit)
-  //   - Variant has composable content (headline / CTA / logo)
   if (input.orgId && variantHasComposableContent(input.variant)) {
     try {
       const composedResult = await applyComposerV2(input, bgResult.imageUrl);
@@ -77,7 +73,6 @@ export async function renderVariant(
         };
       }
     } catch (err) {
-      // Graceful degradation — log and return original bg
       console.warn('[render-router] composer V2 failed, returning bg-only', {
         variantId: input.variant.id,
         error: err instanceof Error ? err.message : String(err),
@@ -85,12 +80,11 @@ export async function renderVariant(
     }
   }
 
-  // ── STEP 3: Return whatever we got ─────────────────────────────
   return bgResult;
 }
 
 // ────────────────────────────────────────────────────────────────
-// BACKGROUND RENDER (extracted from old renderVariant body)
+// BACKGROUND RENDER
 // ────────────────────────────────────────────────────────────────
 
 async function renderBackground(input: RenderInput): Promise<RenderOutput> {
@@ -144,42 +138,32 @@ async function renderBackground(input: RenderInput): Promise<RenderOutput> {
 // COMPOSER V2 STEP
 // ────────────────────────────────────────────────────────────────
 
-/**
- * Apply Sharp+SVG composition on top of the rendered background.
- *
- * Returns null if:
- *   - Feature flag is disabled
- *   - Variant has no composable content
- *   - Composer V2 raised any error (graceful fallback)
- */
 async function applyComposerV2(
   input: RenderInput,
   bgImageUrl: string,
 ): Promise<{ buffer: Buffer } | null> {
   if (!input.orgId) return null;
 
-  // Build the plan from variant data
+  // Build the plan from variant data — returns null if no composable content
   const plan = variantToCreativePlan(input.variant);
+  if (!plan) return null;
 
-  // Service client for brand kit fetching
   const supabase = createSupabaseServiceClient();
 
-  // Build flag context
+  // Validate tier — ComposerFlagContext requires literal type
+  const validTier = normalizeTier(input.tier);
+
   const flagContext = {
     orgId: input.orgId,
-    tier: input.tier,
+    tier: validTier,
   };
 
-  // Run composer pipeline. tryComposerV2 returns null if flag is off
-  // or if composer raises ComposerDisabledError (expected case).
   const result = await tryComposerV2({
     flag: flagContext,
     orgId: input.orgId,
     prompt: input.variant.renderPrompt ?? input.variant.intent ?? '',
     plan,
     supabase,
-    // The pipeline expects a renderBackground function — we already have
-    // the URL, so we provide a function that just returns it.
     renderBackground: async () => ({ imageUrl: bgImageUrl }),
   });
 
