@@ -1,12 +1,10 @@
 'use client';
 
 /**
- * Strategy Brief View
- *
- * Premium presentation of Brain output.
- * Looks like a real agency strategic deck.
+ * Strategy Brief View (i18n)
  */
 
+import { useI18n } from '@/lib/i18n';
 import type { BrainOutput } from '@/features/campaign-brain/types';
 
 interface StrategyBriefViewProps {
@@ -15,59 +13,63 @@ interface StrategyBriefViewProps {
   onEdit: () => void;
 }
 
+function humanize(s: string): string {
+  return s
+    .split('-')
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ');
+}
+
 export function StrategyBriefView({
   brainOutput,
   onRenderVariants,
   onEdit,
 }: StrategyBriefViewProps) {
+  const { t } = useI18n();
+
   return (
     <div className="max-w-4xl mx-auto px-4 py-8 space-y-10">
-      {/* Header */}
       <div className="space-y-3">
         <div className="text-[11px] uppercase tracking-[0.18em] text-gold">
-          Strategy Brief
+          {t('cb.brief.eyebrow')}
         </div>
         <h1 className="font-display text-[34px] leading-tight">
-          {brainOutput.detectedVertical
-            .split('-')
-            .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-            .join(' ')}{' '}
-          ·{' '}
-          <span className="text-gold-grad">
-            {brainOutput.detectedCampaignType
-              .split('-')
-              .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-              .join(' ')}
-          </span>
+          {humanize(brainOutput.detectedVertical)} ·{' '}
+          <span className="text-gold-grad">{humanize(brainOutput.detectedCampaignType)}</span>
         </h1>
         <p className="text-[14px] text-fg-muted">{brainOutput.reasoning}</p>
         <div className="flex items-center gap-3 text-[11.5px] text-fg-subtle">
-          <span>Confidence: {Math.round(brainOutput.confidence * 100)}%</span>
+          <span>
+            {t('cb.brief.confidence')}: {Math.round(brainOutput.confidence * 100)}%
+          </span>
           <span>·</span>
-          <span>{brainOutput.variantBriefs.length} variant briefs prepared</span>
+          <span>
+            {brainOutput.variantBriefs.length} {t('cb.brief.variants_ready')}
+          </span>
         </div>
       </div>
 
-      {/* Diagnostic */}
-      <Section title="Diagnostic" emoji="🔍">
+      <Section title={t('cb.brief.section_diagnostic')} emoji="🔍">
         <div className="grid sm:grid-cols-2 gap-4">
-          <DiagnosticCard label="Pain" value={brainOutput.diagnostic.pain} />
-          <DiagnosticCard label="Desire" value={brainOutput.diagnostic.desire} />
-          <DiagnosticCard label="Objection" value={brainOutput.diagnostic.objection} />
+          <DiagnosticCard label={t('cb.brief.diag_pain')} value={brainOutput.diagnostic.pain} />
+          <DiagnosticCard label={t('cb.brief.diag_desire')} value={brainOutput.diagnostic.desire} />
           <DiagnosticCard
-            label="Hidden desire"
+            label={t('cb.brief.diag_objection')}
+            value={brainOutput.diagnostic.objection}
+          />
+          <DiagnosticCard
+            label={t('cb.brief.diag_hidden')}
             value={brainOutput.diagnostic.hiddenDesire}
             highlight
           />
         </div>
       </Section>
 
-      {/* Audience */}
-      <Section title="Audience" emoji="👥">
+      <Section title={t('cb.brief.section_audience')} emoji="👥">
         <div className="space-y-4">
           <div>
             <div className="text-[10.5px] uppercase tracking-[0.14em] text-fg-subtle mb-1">
-              Primary persona
+              {t('cb.brief.audience_primary')}
             </div>
             <p className="text-[15px] text-fg">{brainOutput.audience.primaryPersona}</p>
           </div>
@@ -75,7 +77,7 @@ export function StrategyBriefView({
           {brainOutput.audience.secondaryPersonas.length > 0 && (
             <div>
               <div className="text-[10.5px] uppercase tracking-[0.14em] text-fg-subtle mb-1">
-                Also reaches
+                {t('cb.brief.audience_also')}
               </div>
               <ul className="space-y-1">
                 {brainOutput.audience.secondaryPersonas.map((p, i) => (
@@ -90,22 +92,22 @@ export function StrategyBriefView({
           <div className="grid sm:grid-cols-2 gap-4 pt-2">
             <div>
               <div className="text-[10.5px] uppercase tracking-[0.14em] text-fg-subtle mb-1.5">
-                Triggers
+                {t('cb.brief.audience_triggers')}
               </div>
               <div className="flex flex-wrap gap-1.5">
-                {brainOutput.audience.triggers.map((t, i) => (
-                  <Chip key={i}>{t}</Chip>
+                {brainOutput.audience.triggers.map((tx, i) => (
+                  <Chip key={i}>{tx}</Chip>
                 ))}
               </div>
             </div>
             <div>
               <div className="text-[10.5px] uppercase tracking-[0.14em] text-fg-subtle mb-1.5">
-                Barriers
+                {t('cb.brief.audience_barriers')}
               </div>
               <div className="flex flex-wrap gap-1.5">
-                {brainOutput.audience.barriers.map((t, i) => (
+                {brainOutput.audience.barriers.map((tx, i) => (
                   <Chip key={i} variant="muted">
-                    {t}
+                    {tx}
                   </Chip>
                 ))}
               </div>
@@ -114,42 +116,34 @@ export function StrategyBriefView({
         </div>
       </Section>
 
-      {/* Strategic angles */}
-      <Section title="Strategic angles" emoji="🎯">
+      <Section title={t('cb.brief.section_angles')} emoji="🎯">
         <div className="space-y-3">
-          <p className="text-[13.5px] text-fg-muted">
-            {brainOutput.selectedAngles.reasoning}
-          </p>
+          <p className="text-[13.5px] text-fg-muted">{brainOutput.selectedAngles.reasoning}</p>
           <div className="flex flex-wrap gap-2">
-            <AngleBadge primary>{brainOutput.selectedAngles.primary}</AngleBadge>
+            <AngleBadge primary>{humanize(brainOutput.selectedAngles.primary)}</AngleBadge>
             {brainOutput.selectedAngles.alternatives.map((a, i) => (
-              <AngleBadge key={i}>{a}</AngleBadge>
+              <AngleBadge key={i}>{humanize(a)}</AngleBadge>
             ))}
           </div>
         </div>
       </Section>
 
-      {/* Hooks */}
-      <Section title="Hooks" emoji="🎣">
+      <Section title={t('cb.brief.section_hooks')} emoji="🎣">
         <div className="space-y-2.5">
           {brainOutput.hooks.map((h, i) => (
-            <div
-              key={i}
-              className="rounded-md border border-border bg-surface-2 px-4 py-3"
-            >
+            <div key={i} className="rounded-md border border-border bg-surface-2 px-4 py-3">
               <p className="text-[14.5px] text-fg leading-snug">{h.text}</p>
               <div className="flex items-center gap-2 mt-1.5 text-[11px] text-fg-subtle">
                 <span className="uppercase tracking-[0.12em]">{h.framework}</span>
                 <span>·</span>
-                <span>{h.targetAngle}</span>
+                <span>{humanize(h.targetAngle)}</span>
               </div>
             </div>
           ))}
         </div>
       </Section>
 
-      {/* CTAs */}
-      <Section title="CTAs" emoji="✨">
+      <Section title={t('cb.brief.section_ctas')} emoji="✨">
         <div className="flex flex-wrap gap-2">
           {brainOutput.ctas.map((c, i) => (
             <span
@@ -162,23 +156,30 @@ export function StrategyBriefView({
         </div>
       </Section>
 
-      {/* Visual direction */}
-      <Section title="Visual direction" emoji="🎨">
+      <Section title={t('cb.brief.section_visual')} emoji="🎨">
         <div className="grid sm:grid-cols-3 gap-3">
-          <VisualSpec label="Aesthetic" value={brainOutput.visualDirection.aesthetic} />
-          <VisualSpec label="Lighting" value={brainOutput.visualDirection.lighting} />
           <VisualSpec
-            label="Composition"
+            label={t('cb.brief.visual_aesthetic')}
+            value={brainOutput.visualDirection.aesthetic}
+          />
+          <VisualSpec
+            label={t('cb.brief.visual_lighting')}
+            value={brainOutput.visualDirection.lighting}
+          />
+          <VisualSpec
+            label={t('cb.brief.visual_composition')}
             value={brainOutput.visualDirection.composition}
           />
         </div>
         <p className="text-[12.5px] text-fg-muted mt-3 italic">
-          Mood: {brainOutput.visualDirection.moodDescription}
+          {t('cb.brief.visual_mood')}: {brainOutput.visualDirection.moodDescription}
         </p>
       </Section>
 
-      {/* Variant briefs preview */}
-      <Section title={`${brainOutput.variantBriefs.length} variants ready to render`} emoji="📦">
+      <Section
+        title={`${brainOutput.variantBriefs.length} ${t('cb.brief.section_variants')}`}
+        emoji="📦"
+      >
         <div className="space-y-2">
           {brainOutput.variantBriefs.slice(0, 4).map((v) => (
             <div
@@ -186,7 +187,7 @@ export function StrategyBriefView({
               className="rounded-md border border-border bg-surface-2 px-4 py-3 flex items-center gap-3 text-[13px]"
             >
               <span className="px-2 py-0.5 rounded bg-gold/15 text-gold text-[10.5px] uppercase tracking-[0.12em]">
-                {v.angle}
+                {humanize(v.angle)}
               </span>
               <span className="text-fg-muted">{v.platform}</span>
               <span className="text-fg-subtle">·</span>
@@ -196,26 +197,24 @@ export function StrategyBriefView({
           ))}
           {brainOutput.variantBriefs.length > 4 && (
             <p className="text-[12px] text-fg-subtle pl-1 pt-1">
-              + {brainOutput.variantBriefs.length - 4} more variants
+              + {brainOutput.variantBriefs.length - 4} {t('cb.brief.variants_more')}
             </p>
           )}
         </div>
       </Section>
 
-      {/* Launch plan (if present) */}
       {brainOutput.launchPlan && brainOutput.launchPlan.posts.length > 0 && (
         <Section
-          title={`${brainOutput.launchPlan.durationDays}-day launch plan`}
+          title={`${brainOutput.launchPlan.durationDays} ${t('cb.brief.section_launch')}`}
           emoji="📅"
         >
           <div className="space-y-2">
             {brainOutput.launchPlan.posts.map((post, i) => (
-              <div
-                key={i}
-                className="rounded-md border border-border bg-surface-2 px-4 py-3"
-              >
+              <div key={i} className="rounded-md border border-border bg-surface-2 px-4 py-3">
                 <div className="flex items-center gap-2 text-[11.5px] text-fg-subtle mb-1.5 uppercase tracking-[0.12em]">
-                  <span>Day {post.day}</span>
+                  <span>
+                    {t('cb.brief.day')} {post.day}
+                  </span>
                   {post.time && (
                     <>
                       <span>·</span>
@@ -225,11 +224,11 @@ export function StrategyBriefView({
                   <span>·</span>
                   <span>{post.platform}</span>
                   <span>·</span>
-                  <span className="text-gold">{post.angle}</span>
+                  <span className="text-gold">{humanize(post.angle)}</span>
                 </div>
                 <p className="text-[13.5px] text-fg">{post.copyHint}</p>
                 <p className="text-[12px] text-fg-muted italic mt-1">
-                  Visual: {post.visualHint}
+                  {t('cb.brief.visual_label')}: {post.visualHint}
                 </p>
               </div>
             ))}
@@ -237,30 +236,25 @@ export function StrategyBriefView({
         </Section>
       )}
 
-      {/* Sticky action bar */}
       <div className="sticky bottom-0 bg-surface/80 backdrop-blur-md border-t border-border py-4 -mx-4 px-4 mt-8 flex gap-3">
         <button
           type="button"
           onClick={onEdit}
           className="flex-1 py-3 rounded-md border border-border bg-surface-2 text-fg-muted hover:text-fg hover:border-fg-muted transition-all text-[14px]"
         >
-          Edit brief
+          {t('cb.brief.cta_edit')}
         </button>
         <button
           type="button"
           onClick={onRenderVariants}
           className="flex-[2] py-3 rounded-md bg-gold text-black font-medium hover:bg-gold/90 transition-all text-[14px]"
         >
-          Render variants →
+          {t('cb.brief.cta_render')}
         </button>
       </div>
     </div>
   );
 }
-
-// ────────────────────────────────────────────────────────────────
-// Sub-components
-// ────────────────────────────────────────────────────────────────
 
 function Section({
   title,
@@ -295,9 +289,7 @@ function DiagnosticCard({
     <div
       className={[
         'rounded-md px-4 py-3 border',
-        highlight
-          ? 'bg-gold/5 border-gold/30'
-          : 'bg-surface-2 border-border',
+        highlight ? 'bg-gold/5 border-gold/30' : 'bg-surface-2 border-border',
       ].join(' ')}
     >
       <div
