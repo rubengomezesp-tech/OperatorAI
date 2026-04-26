@@ -10,3 +10,4 @@ dist
 .turbo
 next-env.d.ts
 .supabase
+tsconfig.tsbuildinfo
