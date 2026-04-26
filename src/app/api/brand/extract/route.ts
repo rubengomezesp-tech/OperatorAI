@@ -1,29 +1,16 @@
 /**
  * POST /api/brand/extract
  *
- * Extracts brand DNA from a URL and optionally persists.
+ * Extracts brand DNA from a URL and optionally persists to brand_profile.
  *
- * Request:
- *   { url: string, persist?: boolean }
- *
- * Response:
- *   {
- *     brand: BrandProfile,
- *     extracted: ExtractedBrand,
- *     persisted: boolean,
- *     logoUploaded: boolean,
- *     meta: { durationMs, confidence, warnings }
- *   }
- *
- * Auth: requires authenticated user with org context.
+ * Auth: requires authenticated user with an active org.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { createSupabaseServerClient } from '@/lib/supabase/server';
+import { createSupabaseServiceClient } from '@/lib/supabase/service';
+import { resolveOrgContext } from '@/lib/auth';
 import { autoDetectBrand } from '@/lib/brand-os';
-
-// ⚠️ Replace with your real auth helpers
-// import { createSupabaseServiceClient } from '@/lib/supabase';
-// import { resolveOrgContext } from '@/lib/auth';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -37,26 +24,42 @@ interface ExtractRequest {
 
 export async function POST(request: NextRequest) {
   try {
-    const body = (await request.json()) as ExtractRequest;
+    // ── 1. Parse body ─────────────────────────────────────────────
+    const body = (await request.json().catch(() => ({}))) as ExtractRequest;
 
     if (!body.url || typeof body.url !== 'string') {
       return NextResponse.json({ error: 'url is required' }, { status: 400 });
     }
 
-    // ── Auth + org resolution ─────────────────────────────────────
-    // const supabase = createSupabaseServiceClient();
-    // const { user, orgId } = await resolveOrgContext(supabase, request);
-    // if (!user || !orgId) {
-    //   return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    // }
+    // ── 2. Auth: validate user via SSR client ─────────────────────
+    const ssr = await createSupabaseServerClient();
+    const { data: { user } } = await ssr.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
 
-    // ⚠️ TEMPORARY — replace with real auth above
-    const supabase = null as any;
-    const orgId = 'placeholder-org';
+    // ── 3. Resolve org context via service client ────────────────
+    const svc = createSupabaseServiceClient();
+    let orgId: string;
+    try {
+      const ctx = await resolveOrgContext(svc, user.id);
+      if (!ctx.orgId) {
+        return NextResponse.json(
+          { error: 'No active organization for user' },
+          { status: 403 }
+        );
+      }
+      orgId = ctx.orgId;
+    } catch (err) {
+      return NextResponse.json(
+        { error: 'Failed to resolve organization context' },
+        { status: 403 }
+      );
+    }
 
-    // ── Run pipeline ──────────────────────────────────────────────
+    // ── 4. Run extraction pipeline ────────────────────────────────
     const result = await autoDetectBrand({
-      supabase,
+      supabase: svc,
       orgId,
       url: body.url,
       persist: body.persist ?? true,
