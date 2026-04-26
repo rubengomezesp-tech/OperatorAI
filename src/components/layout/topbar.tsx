@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { Sparkles } from 'lucide-react';
 import { UserMenu } from './user-menu';
-import { LanguageToggle } from '@/lib/i18n';
+import { LanguageToggle, useI18n } from '@/lib/i18n';
 import { MobileMenu, MobileMenuButton } from './mobile-menu';
 
 const TITLES: Record<string, string> = {
@@ -30,10 +30,14 @@ const TITLES: Record<string, string> = {
 
 export function Topbar({ email, fullName }: { email: string; fullName: string | null }) {
   const pathname = usePathname();
+  const { t } = useI18n();
   const [menuOpen, setMenuOpen] = useState(false);
 
   const key = Object.keys(TITLES).find((k) => pathname === k || pathname.startsWith(k + '/'));
-  const title = key ? TITLES[key] : '';
+  const titleKey = key ? TITLES[key] : '';
+  // Fall back to the literal key if i18n doesn't have a translation
+  const resolved = titleKey ? t(titleKey) : '';
+  const title = resolved && resolved !== titleKey ? resolved : '';
 
   return (
     <>

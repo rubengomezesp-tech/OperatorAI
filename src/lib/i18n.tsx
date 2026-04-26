@@ -452,6 +452,25 @@ const translations: Record<string, { en: string; es: string }> = {
   'cb.variants.edit': { en: 'Edit', es: 'Editar' },
   'cb.variants.save_campaign': { en: 'Save campaign', es: 'Guardar campana' },
 
+  // Topbar titles
+  'topbar.title.dashboard': { en: 'Dashboard', es: 'Panel' },
+  'topbar.title.chat': { en: 'Creative Agent', es: 'Agente Creativo' },
+  'topbar.title.create_campaign': { en: 'Create Campaign', es: 'Crear Campana' },
+  'topbar.title.image_studio': { en: 'Image Studio', es: 'Estudio de Imagen' },
+  'topbar.title.video_studio': { en: 'Video Studio', es: 'Estudio de Video' },
+  'topbar.title.voice_mode': { en: 'Voice Mode', es: 'Modo Voz' },
+  'topbar.title.files': { en: 'Files & Analysis', es: 'Archivos y Analisis' },
+  'topbar.title.projects': { en: 'Projects', es: 'Proyectos' },
+  'topbar.title.knowledge': { en: 'Knowledge', es: 'Conocimiento' },
+  'topbar.title.memory': { en: 'Memory', es: 'Memoria' },
+  'topbar.title.assistants': { en: 'Assistants', es: 'Asistentes' },
+  'topbar.title.settings': { en: 'Settings', es: 'Ajustes' },
+  'topbar.title.profile': { en: 'Profile', es: 'Perfil' },
+  'topbar.title.integrations': { en: 'Integrations', es: 'Integraciones' },
+  'topbar.title.billing': { en: 'Billing', es: 'Facturacion' },
+  'topbar.title.mockup_studio': { en: 'Mockup Studio', es: 'Estudio de Mockups' },
+  'topbar.title.brand_os': { en: 'Brand OS', es: 'Brand OS' },
+
 };
 
 type TranslationKey = string;

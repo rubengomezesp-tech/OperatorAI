@@ -30,7 +30,6 @@ const nav: NavSection[] = [
     { href: '/projects', labelKey: 'nav.projects', icon: FolderOpen },
     { href: '/chat', labelKey: 'nav.creative_agent', icon: MessageSquare, badge: 'AI' },
           { href: '/campaigns/new', labelKey: 'nav.create_campaign', icon: Zap, badge: 'BETA' },
-    { href: '/creative-studio', labelKey: 'nav.legacy_studio', icon: Sparkles },
   ]},
   { groupKey: 'nav.studio', items: [
     { href: '/studio/image', labelKey: 'nav.image_studio', icon: ImageIcon },

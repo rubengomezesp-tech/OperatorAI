@@ -80,12 +80,7 @@ export function Sidebar({ isAdmin = false, onClose }: Props) {
           primary: true,
           badge: 'Beta',
         },
-        {
-          href: '/creative-studio',
-          labelKey: 'nav.legacy_studio',
-          fallback: 'Creative Studio',
-          icon: ImageIcon,
-        },
+
         {
           href: '/chat',
           labelKey: 'nav.creative_agent',
