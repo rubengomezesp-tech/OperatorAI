@@ -1,23 +1,42 @@
 'use client';
 
 /**
- * Stage Variants — render the variants and display them.
+ * Stage Variants — Agentic V1
  *
- * On mount: triggers /api/campaign/render-batch
- * Shows skeleton while rendering
- * Shows grid of generated variants when ready
- * Each variant has actions: regenerate, download, edit (V3)
+ * Triggers /api/campaign/render-batch (which now uses agentic renderer)
+ * and shows each variant with:
+ *   - Vision Critic score (0-100) + verdict badge
+ *   - Iterations run
+ *   - Click to expand: full critic summary + issues + suggestions
  */
 
 import { useEffect, useState } from 'react';
 import { useI18n } from '@/lib/i18n';
-import { Download, RotateCcw, Loader2, AlertTriangle } from 'lucide-react';
+import {
+  Download,
+  RotateCcw,
+  Loader2,
+  AlertTriangle,
+  CheckCircle2,
+  ChevronDown,
+  Sparkles,
+} from 'lucide-react';
 import type { BrainOutput } from '@/features/campaign-brain/types';
+
+interface VariantCritique {
+  score: number;
+  verdict: 'pass' | 'iterate' | 'fail';
+  summary: string;
+  issues: string[];
+  suggestions: string[];
+  iterationsRun: number;
+}
 
 interface BatchVariantResult {
   id: string;
   imageUrl: string | null;
   composedV2: boolean;
+  critique?: VariantCritique;
   error?: string;
 }
 
@@ -34,19 +53,21 @@ function humanize(s: string): string {
     .join(' ');
 }
 
-export function StageVariants({ draftId, brainOutput, onSaveCampaign }: StageVariantsProps) {
+export function StageVariants({
+  draftId,
+  brainOutput,
+  onSaveCampaign,
+}: StageVariantsProps) {
   const { t } = useI18n();
   const [variants, setVariants] = useState<BatchVariantResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Initial render
   useEffect(() => {
     let cancelled = false;
     (async () => {
       setLoading(true);
       setError(null);
-
       try {
         const res = await fetch('/api/campaign/render-batch', {
           method: 'POST',
@@ -61,9 +82,7 @@ export function StageVariants({ draftId, brainOutput, onSaveCampaign }: StageVar
         }
 
         const body = await res.json();
-        if (!cancelled) {
-          setVariants(body.variants ?? []);
-        }
+        if (!cancelled) setVariants(body.variants ?? []);
       } catch (err) {
         if (!cancelled) setError((err as Error).message);
       } finally {
@@ -83,8 +102,12 @@ export function StageVariants({ draftId, brainOutput, onSaveCampaign }: StageVar
         <div className="text-[11px] uppercase tracking-[0.18em] text-gold mb-2">
           {t('cb.variants.eyebrow')}
         </div>
-        <h1 className="font-display text-[34px] leading-tight">{t('cb.variants.title')}</h1>
-        <p className="text-[14px] text-fg-muted mt-2">{t('cb.variants.subtitle')}</p>
+        <h1 className="font-display text-[34px] leading-tight">
+          {t('cb.variants.title')}
+        </h1>
+        <p className="text-[14px] text-fg-muted mt-2">
+          {t('cb.variants.subtitle')}
+        </p>
       </div>
 
       {error && (
@@ -94,14 +117,16 @@ export function StageVariants({ draftId, brainOutput, onSaveCampaign }: StageVar
         </div>
       )}
 
-      {/* Loading state */}
       {loading && (
         <div className="space-y-4">
           <div className="flex items-center gap-3 text-fg-muted text-[13.5px]">
             <Loader2 className="h-4 w-4 animate-spin text-gold" />
             <span>{t('cb.variants.rendering')}</span>
+            <span className="text-fg-subtle">·</span>
+            <span className="text-fg-subtle text-[12px]">
+              {t('cb.variants.agentic_hint')}
+            </span>
           </div>
-
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {[0, 1, 2, 3].map((i) => (
               <div
@@ -113,7 +138,6 @@ export function StageVariants({ draftId, brainOutput, onSaveCampaign }: StageVar
         </div>
       )}
 
-      {/* Variants grid */}
       {!loading && variants.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {variants.map((v) => {
@@ -132,7 +156,6 @@ export function StageVariants({ draftId, brainOutput, onSaveCampaign }: StageVar
         </div>
       )}
 
-      {/* Sticky action bar */}
       {!loading && variants.length > 0 && (
         <div className="sticky bottom-0 bg-surface/80 backdrop-blur-md border-t border-border py-4 -mx-4 px-4 mt-8 flex gap-3">
           <button
@@ -149,7 +172,7 @@ export function StageVariants({ draftId, brainOutput, onSaveCampaign }: StageVar
 }
 
 // ────────────────────────────────────────────────────────────────
-// Variant card
+// Variant Card with critique
 // ────────────────────────────────────────────────────────────────
 
 interface VariantCardProps {
@@ -160,11 +183,20 @@ interface VariantCardProps {
   t: (k: string) => string;
 }
 
-function VariantCard({ variant, briefAngle, briefHeadline, briefPlatform, t }: VariantCardProps) {
+function VariantCard({
+  variant,
+  briefAngle,
+  briefHeadline,
+  briefPlatform,
+  t,
+}: VariantCardProps) {
+  const [expanded, setExpanded] = useState(false);
   const isError = !!variant.error || !variant.imageUrl;
+  const critique = variant.critique;
 
   return (
     <div className="rounded-lg border border-border bg-surface-2 overflow-hidden">
+      {/* Image area */}
       <div className="aspect-[4/5] bg-bg flex items-center justify-center relative overflow-hidden">
         {variant.imageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -176,31 +208,111 @@ function VariantCard({ variant, briefAngle, briefHeadline, briefPlatform, t }: V
         ) : (
           <div className="text-center p-6">
             <AlertTriangle className="h-8 w-8 mx-auto text-red-400 mb-2" />
-            <p className="text-[12.5px] text-fg-muted">{variant.error ?? 'Render failed'}</p>
+            <p className="text-[12.5px] text-fg-muted">
+              {variant.error ?? 'Render failed'}
+            </p>
           </div>
         )}
 
-        {/* Badge top-left: angle */}
+        {/* Top-left: angle */}
         {briefAngle && (
           <span className="absolute top-3 left-3 px-2 py-0.5 rounded bg-bg/80 backdrop-blur-sm text-[10.5px] uppercase tracking-[0.12em] text-gold border border-gold/30">
             {humanize(briefAngle)}
           </span>
         )}
 
-        {/* Badge top-right: platform */}
+        {/* Top-right: platform */}
         {briefPlatform && (
           <span className="absolute top-3 right-3 px-2 py-0.5 rounded bg-bg/80 backdrop-blur-sm text-[10.5px] uppercase tracking-[0.12em] text-fg-muted border border-border">
             {briefPlatform}
           </span>
+        )}
+
+        {/* Bottom-right: score badge */}
+        {critique && (
+          <ScoreBadge critique={critique} t={t} />
         )}
       </div>
 
       {/* Footer */}
       <div className="p-3 space-y-3">
         {briefHeadline && (
-          <p className="text-[13px] text-fg leading-snug line-clamp-2">{briefHeadline}</p>
+          <p className="text-[13px] text-fg leading-snug line-clamp-2">
+            {briefHeadline}
+          </p>
         )}
 
+        {/* Critique summary (collapsed) */}
+        {critique && !expanded && (
+          <button
+            type="button"
+            onClick={() => setExpanded(true)}
+            className="w-full text-left rounded-md border border-border bg-surface px-3 py-2 hover:border-fg-muted transition-all"
+          >
+            <div className="flex items-center gap-2 text-[11.5px]">
+              <Sparkles className="h-3 w-3 text-gold flex-shrink-0" />
+              <span className="text-fg-muted truncate flex-1">
+                {critique.summary || verdictLabel(critique.verdict, t)}
+              </span>
+              <ChevronDown className="h-3 w-3 text-fg-subtle flex-shrink-0" />
+            </div>
+          </button>
+        )}
+
+        {/* Critique expanded */}
+        {critique && expanded && (
+          <div className="rounded-md border border-border bg-surface px-3 py-3 space-y-3">
+            <button
+              type="button"
+              onClick={() => setExpanded(false)}
+              className="w-full text-left flex items-center gap-2 text-[11.5px]"
+            >
+              <Sparkles className="h-3 w-3 text-gold" />
+              <span className="text-fg flex-1 truncate">
+                {critique.summary}
+              </span>
+              <ChevronDown className="h-3 w-3 text-fg-subtle rotate-180" />
+            </button>
+
+            {critique.issues.length > 0 && (
+              <div>
+                <div className="text-[10.5px] uppercase tracking-[0.14em] text-fg-subtle mb-1">
+                  {t('cb.critique.issues')}
+                </div>
+                <ul className="space-y-0.5">
+                  {critique.issues.slice(0, 3).map((iss, i) => (
+                    <li
+                      key={i}
+                      className="text-[11.5px] text-fg-muted leading-snug"
+                    >
+                      · {iss}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {critique.suggestions.length > 0 && (
+              <div>
+                <div className="text-[10.5px] uppercase tracking-[0.14em] text-gold mb-1">
+                  {t('cb.critique.suggestions')}
+                </div>
+                <ul className="space-y-0.5">
+                  {critique.suggestions.slice(0, 3).map((sug, i) => (
+                    <li
+                      key={i}
+                      className="text-[11.5px] text-fg leading-snug"
+                    >
+                      · {sug}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Actions */}
         {!isError && (
           <div className="flex items-center gap-2">
             <a
@@ -214,7 +326,7 @@ function VariantCard({ variant, briefAngle, briefHeadline, briefPlatform, t }: V
             <button
               type="button"
               disabled
-              title="Coming in V3"
+              title="Coming next"
               className="flex-1 py-1.5 rounded-md border border-border bg-surface text-fg-subtle text-[12.5px] flex items-center justify-center gap-1.5 cursor-not-allowed"
             >
               <RotateCcw className="h-3.5 w-3.5" />
@@ -225,4 +337,51 @@ function VariantCard({ variant, briefAngle, briefHeadline, briefPlatform, t }: V
       </div>
     </div>
   );
+}
+
+// ────────────────────────────────────────────────────────────────
+// Score Badge
+// ────────────────────────────────────────────────────────────────
+
+function ScoreBadge({
+  critique,
+  t,
+}: {
+  critique: VariantCritique;
+  t: (k: string) => string;
+}) {
+  const color =
+    critique.verdict === 'pass'
+      ? 'bg-green-500/15 border-green-500/40 text-green-300'
+      : critique.verdict === 'iterate'
+      ? 'bg-amber-500/15 border-amber-500/40 text-amber-300'
+      : 'bg-red-500/15 border-red-500/40 text-red-300';
+
+  return (
+    <div
+      className={[
+        'absolute bottom-3 right-3 px-2.5 py-1 rounded-md border backdrop-blur-md',
+        'flex items-center gap-1.5 text-[11px] font-medium',
+        color,
+      ].join(' ')}
+      title={`${critique.summary} · ${critique.iterationsRun} ${t('cb.critique.iterations')}`}
+    >
+      {critique.verdict === 'pass' && (
+        <CheckCircle2 className="h-3 w-3" />
+      )}
+      <span className="font-semibold">{critique.score}</span>
+      <span className="opacity-60">/100</span>
+      {critique.iterationsRun > 1 && (
+        <span className="opacity-60 text-[10px]">
+          · {critique.iterationsRun}{t('cb.critique.iterations')}
+        </span>
+      )}
+    </div>
+  );
+}
+
+function verdictLabel(verdict: VariantCritique['verdict'], t: (k: string) => string): string {
+  if (verdict === 'pass') return t('cb.critique.verdict_pass');
+  if (verdict === 'iterate') return t('cb.critique.verdict_iterate');
+  return t('cb.critique.verdict_fail');
 }

@@ -451,6 +451,16 @@ const translations: Record<string, { en: string; es: string }> = {
   'cb.variants.download': { en: 'Download', es: 'Descargar' },
   'cb.variants.edit': { en: 'Edit', es: 'Editar' },
   'cb.variants.save_campaign': { en: 'Save campaign', es: 'Guardar campana' },
+  'cb.variants.agentic_hint': { en: 'AI is critiquing and refining each variant...', es: 'La IA esta criticando y refinando cada variante...' },
+
+  // Vision Critic
+  'cb.critique.score': { en: 'Score', es: 'Puntuacion' },
+  'cb.critique.iterations': { en: ' iter', es: ' iter' },
+  'cb.critique.verdict_pass': { en: 'Premium quality', es: 'Calidad premium' },
+  'cb.critique.verdict_iterate': { en: 'Acceptable', es: 'Aceptable' },
+  'cb.critique.verdict_fail': { en: 'Below threshold', es: 'Bajo el umbral' },
+  'cb.critique.issues': { en: 'Issues detected', es: 'Problemas detectados' },
+  'cb.critique.suggestions': { en: 'Improvements', es: 'Mejoras' },
 
   // Topbar titles
   'topbar.title.dashboard': { en: 'Dashboard', es: 'Panel' },
