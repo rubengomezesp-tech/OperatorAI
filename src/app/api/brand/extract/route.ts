@@ -9,7 +9,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { createSupabaseServiceClient } from '@/lib/supabase/service';
-import { resolveOrgContext } from '@/lib/auth';
+import { resolveOrgContext } from '@/features/chat/server/resolve-org-context';
 import { autoDetectBrand } from '@/lib/brand-os';
 
 export const runtime = 'nodejs';
@@ -24,21 +24,20 @@ interface ExtractRequest {
 
 export async function POST(request: NextRequest) {
   try {
-    // ── 1. Parse body ─────────────────────────────────────────────
     const body = (await request.json().catch(() => ({}))) as ExtractRequest;
 
     if (!body.url || typeof body.url !== 'string') {
       return NextResponse.json({ error: 'url is required' }, { status: 400 });
     }
 
-    // ── 2. Auth: validate user via SSR client ─────────────────────
+    // Auth: validate user via SSR
     const ssr = await createSupabaseServerClient();
     const { data: { user } } = await ssr.auth.getUser();
     if (!user) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
 
-    // ── 3. Resolve org context via service client ────────────────
+    // Resolve org via service client
     const svc = createSupabaseServiceClient();
     let orgId: string;
     try {
@@ -50,14 +49,14 @@ export async function POST(request: NextRequest) {
         );
       }
       orgId = ctx.orgId;
-    } catch (err) {
+    } catch {
       return NextResponse.json(
         { error: 'Failed to resolve organization context' },
         { status: 403 }
       );
     }
 
-    // ── 4. Run extraction pipeline ────────────────────────────────
+    // Run extraction pipeline
     const result = await autoDetectBrand({
       supabase: svc,
       orgId,
@@ -75,10 +74,7 @@ export async function POST(request: NextRequest) {
     });
   } catch (err) {
     return NextResponse.json(
-      {
-        error: 'Brand extraction failed',
-        details: (err as Error).message,
-      },
+      { error: 'Brand extraction failed', details: (err as Error).message },
       { status: 500 }
     );
   }
