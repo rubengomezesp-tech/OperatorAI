@@ -1,5 +1,3 @@
-// Research dossier (AG-1) — re-exported for convenience
-export type { ResearchDossier } from '../server/research-dossier';
 /**
  * Operator AI — Campaign Brain V2
  * Type definitions shared across the system.
@@ -307,7 +305,16 @@ export interface CampaignIntake {
 
 export interface BrainOutput {
   /** Optional research dossier (web search + visual refs) */
-  researchDossier?: import('../server/research-dossier').ResearchDossier | null;
+  researchDossier?: {
+    productFacts: string[];
+    competitorSignals: string[];
+    visualReferences: string[];
+    trendingTopics: string[];
+    sources: string[];
+    synthesis: string;
+    fromLiveSearch: boolean;
+    durationMs: number;
+  } | null;
 
   /** Brain's reasoning summary */
   reasoning: string;
