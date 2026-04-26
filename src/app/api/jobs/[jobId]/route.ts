@@ -4,23 +4,14 @@
  * Returns current status of a generation job.
  * Used by client polling.
  *
- * Response shape:
- *   {
- *     jobId, status, progress,
- *     resultUrl?, costCents?, modelUsed?,
- *     durationMs?, error?, createdAt, completedAt?
- *   }
- *
- * For real-time updates without polling, see:
- *   GET /api/jobs/[jobId]/stream  (Server-Sent Events, optional)
+ * Auth: requires authenticated user. The job must belong to user's org.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { createSupabaseServerClient } from '@/lib/supabase/server';
+import { createSupabaseServiceClient } from '@/lib/supabase/service';
+import { resolveOrgContext } from '@/lib/auth';
 import { getJobStatus, JobNotFoundError } from '@/lib/queue';
-
-// ⚠️ Replace with your real auth
-// import { createSupabaseServiceClient } from '@/lib/supabase';
-// import { resolveOrgContext } from '@/lib/auth';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -36,23 +27,51 @@ export async function GET(
       return NextResponse.json({ error: 'jobId is required' }, { status: 400 });
     }
 
-    // ── Auth ──────────────────────────────────────────────────────
-    // const supabase = createSupabaseServiceClient();
-    // const { user, orgId } = await resolveOrgContext(supabase, request);
-    // if (!user || !orgId) {
-    //   return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    // }
+    // ── 1. Auth ──────────────────────────────────────────────────
+    const ssr = await createSupabaseServerClient();
+    const { data: { user } } = await ssr.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
 
-    const supabase = null as any;
+    const svc = createSupabaseServiceClient();
+    let orgId: string;
+    try {
+      const ctx = await resolveOrgContext(svc, user.id);
+      if (!ctx.orgId) {
+        return NextResponse.json(
+          { error: 'No active organization' },
+          { status: 403 }
+        );
+      }
+      orgId = ctx.orgId;
+    } catch {
+      return NextResponse.json({ error: 'Failed to resolve org' }, { status: 403 });
+    }
 
-    // ── Fetch ─────────────────────────────────────────────────────
-    const status = await getJobStatus(supabase, jobId);
+    // ── 2. Fetch job status ──────────────────────────────────────
+    const status = await getJobStatus(svc, jobId);
 
-    // TODO: verify job belongs to user's org (RLS handles this if real client)
+    // ── 3. Verify ownership ──────────────────────────────────────
+    // The job must belong to the requesting user's org.
+    // Using service client we need to manually check this since RLS is bypassed.
+    const { data: job } = await svc
+      .from('generation_jobs')
+      .select('org_id, user_id')
+      .eq('id', jobId)
+      .maybeSingle();
+
+    if (!job) {
+      return NextResponse.json({ error: 'Job not found' }, { status: 404 });
+    }
+
+    if (job.org_id !== orgId) {
+      // Don't reveal that the job exists for another org
+      return NextResponse.json({ error: 'Job not found' }, { status: 404 });
+    }
 
     return NextResponse.json(status, {
       headers: {
-        // Cache nothing for in-flight jobs, short cache for completed
         'Cache-Control':
           status.status === 'completed' || status.status === 'failed'
             ? 'private, max-age=60'
