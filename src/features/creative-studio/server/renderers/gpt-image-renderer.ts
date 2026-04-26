@@ -15,30 +15,46 @@ import {
 } from '../../data/visual-styles';
 
 /**
- * GPT-IMAGE RENDERER
+ * GPT-IMAGE RENDERER (Premium-aware)
  *
- * - Uses OpenAI gpt-image-1
- * - Returns Supabase-hosted permanent URL (unlike Flux which uses
- *   replicate.delivery temporary URLs — that's handled by image-proxy)
- * - Scenario-driven prompt construction
- * - Natural language prose (GPT-Image responds better to sentences
- *   than comma-separated keyword stacks)
+ * - If variant.renderPrompt is set (Premium Prompt Orchestrator)
+ *   → use it DIRECTLY without rebuilding
+ * - Otherwise (legacy path) → build prompt from scenario + style
+ *
+ * Output is uploaded to Supabase Storage and returned as a public URL.
  */
 export async function renderGptImage(
   input: RenderInput & { direction?: CampaignDirection },
 ): Promise<RenderOutput> {
   const { variant } = input;
 
-  const styleId = variant.styleHint
-    ? normalizeVisualStyle(variant.styleHint)
-    : pickDefaultStyleForLayout(variant.layout, variant.intensity);
+  // ★ KEY CHANGE: respect renderPrompt if Brain provided it
+  let prompt: string;
+  if (variant.renderPrompt && variant.renderPrompt.length > 50) {
+    prompt = variant.renderPrompt;
+    console.log('[renderGptImage] using premium renderPrompt', {
+      variantId: variant.id,
+      promptLength: prompt.length,
+    });
+  } else {
+    // Legacy path: build prompt from scenario + style
+    const styleId = variant.styleHint
+      ? normalizeVisualStyle(variant.styleHint)
+      : pickDefaultStyleForLayout(variant.layout, variant.intensity);
 
-  const style = VISUAL_STYLES[styleId] ?? VISUAL_STYLES.clean_bright;
-  const prompt = buildGptImagePrompt(variant, style, input.direction);
+    const style = VISUAL_STYLES[styleId] ?? VISUAL_STYLES.clean_bright;
+    prompt = buildGptImagePrompt(variant, style, input.direction);
+    console.log('[renderGptImage] using legacy buildGptImagePrompt', {
+      variantId: variant.id,
+      style: styleId,
+    });
+  }
 
+  // Default to 'high' for premium quality
   const result = await generateWithGptImage({
     prompt,
     aspectRatio: variant.aspectRatio,
+    quality: 'high',
   });
 
   const svc = createSupabaseServiceClient();
@@ -60,9 +76,7 @@ export async function renderGptImage(
     );
   }
 
-  const { data: pub } = svc.storage
-    .from('image-outputs')
-    .getPublicUrl(path);
+  const { data: pub } = svc.storage.from('image-outputs').getPublicUrl(path);
 
   const imageUrl = pub.publicUrl;
 
@@ -72,19 +86,17 @@ export async function renderGptImage(
 
   console.log('[renderGptImage]', {
     variantId: variant.id,
-    style: styleId,
-    scenario: variant.scenario?.id,
     quality: result.qualityUsed,
     sizeBytes: result.buffer.length,
     cost: `$${result.estimatedCostUsd.toFixed(4)}`,
-    url: imageUrl.slice(0, 100),
+    promptType: variant.renderPrompt ? 'premium' : 'legacy',
   });
 
   return { imageUrl, engine: 'gpt-image' };
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// PROMPT BUILDER — natural language
+// LEGACY PROMPT BUILDER (kept as fallback)
 // ═══════════════════════════════════════════════════════════════════
 
 function buildGptImagePrompt(
