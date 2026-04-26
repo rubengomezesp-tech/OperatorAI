@@ -72,11 +72,18 @@ export function Sidebar({ isAdmin = false, onClose }: Props) {
       fallback: 'Create',
       items: [
         {
-          href: '/creative-studio',
-          labelKey: 'nav.create_campaigns',
-          fallback: 'Creative Studio',
+          href: '/campaigns/new',
+          labelKey: 'nav.create_campaign',
+          fallback: 'Create Campaign',
           icon: Sparkles,
           primary: true,
+          badge: 'Beta',
+        },
+        {
+          href: '/creative-studio',
+          labelKey: 'nav.legacy_studio',
+          fallback: 'Creative Studio',
+          icon: ImageIcon,
         },
         {
           href: '/chat',
