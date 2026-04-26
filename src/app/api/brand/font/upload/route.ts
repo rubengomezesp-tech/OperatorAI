@@ -5,20 +5,18 @@
  *
  * Form fields:
  *   - file: File (font binary)
- *   - role: 'primary' | 'display' (which slot in BrandKit.fonts)
+ *   - role: 'primary' | 'display'
  *   - family: string (optional override)
  *   - weight: number (optional override)
  *
- * Response:
- *   { publicUrl, storagePath, detectedFamily, detectedWeight, warnings }
+ * Auth: requires authenticated user with an active org.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { createSupabaseServerClient } from '@/lib/supabase/server';
+import { createSupabaseServiceClient } from '@/lib/supabase/service';
+import { resolveOrgContext } from '@/lib/auth';
 import { uploadFont } from '@/lib/brand-os';
-
-// ⚠️ Replace with your real auth helpers
-// import { createSupabaseServiceClient } from '@/lib/supabase';
-// import { resolveOrgContext } from '@/lib/auth';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -26,17 +24,29 @@ export const maxDuration = 30;
 
 export async function POST(request: NextRequest) {
   try {
-    // ── Auth ──────────────────────────────────────────────────────
-    // const supabase = createSupabaseServiceClient();
-    // const { user, orgId } = await resolveOrgContext(supabase, request);
-    // if (!user || !orgId) {
-    //   return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    // }
+    // ── 1. Auth ──────────────────────────────────────────────────
+    const ssr = await createSupabaseServerClient();
+    const { data: { user } } = await ssr.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
 
-    const supabase = null as any;
-    const orgId = 'placeholder-org';
+    const svc = createSupabaseServiceClient();
+    let orgId: string;
+    try {
+      const ctx = await resolveOrgContext(svc, user.id);
+      if (!ctx.orgId) {
+        return NextResponse.json(
+          { error: 'No active organization for user' },
+          { status: 403 }
+        );
+      }
+      orgId = ctx.orgId;
+    } catch {
+      return NextResponse.json({ error: 'Failed to resolve org' }, { status: 403 });
+    }
 
-    // ── Parse multipart ──────────────────────────────────────────
+    // ── 2. Parse form ────────────────────────────────────────────
     const formData = await request.formData();
     const file = formData.get('file') as File | null;
     const role = (formData.get('role') as string) ?? 'primary';
@@ -54,15 +64,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const weightOverride = weightOverrideRaw ? parseInt(weightOverrideRaw, 10) : undefined;
+    const weightOverride = weightOverrideRaw
+      ? parseInt(weightOverrideRaw, 10)
+      : undefined;
 
-    // ── Convert to Buffer ──────────────────────────────────────────
+    // ── 3. Convert to Buffer ─────────────────────────────────────
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(new Uint8Array(arrayBuffer));
 
-    // ── Upload ────────────────────────────────────────────────────
+    // ── 4. Upload via brand-os helper ────────────────────────────
     const result = await uploadFont({
-      supabase,
+      supabase: svc,
       orgId,
       source: buffer,
       contentType: file.type || 'application/octet-stream',
@@ -70,35 +82,43 @@ export async function POST(request: NextRequest) {
       weightOverride,
     });
 
-    // ── Update brand_profile.font_files JSONB ────────────────────
-    // const { data: existing } = await supabase
-    //   .from('brand_profile')
-    //   .select('font_files')
-    //   .eq('org_id', orgId)
-    //   .maybeSingle();
-    //
-    // const fontFiles = (existing?.font_files ?? {}) as Record<string, unknown>;
-    // fontFiles[role] = {
-    //   family: result.detectedFamily,
-    //   weight: result.detectedWeight,
-    //   woff2_url: result.publicUrl,
-    //   storage_path: result.storagePath,
-    // };
-    //
-    // await supabase
-    //   .from('brand_profile')
-    //   .upsert({ org_id: orgId, font_files: fontFiles }, { onConflict: 'org_id' });
+    // ── 5. Update brand_profile.font_files JSONB ─────────────────
+    const { data: existing } = await svc
+      .from('brand_profile')
+      .select('font_files')
+      .eq('org_id', orgId)
+      .maybeSingle();
 
-    return NextResponse.json({
-      ...result,
-      role,
-    });
+    const fontFiles = (existing?.font_files ?? {}) as Record<string, unknown>;
+    fontFiles[role] = {
+      family: result.detectedFamily,
+      weight: result.detectedWeight,
+      style: result.detectedStyle,
+      woff2_url: result.publicUrl,
+      storage_path: result.storagePath,
+    };
+
+    const { error: updateError } = await svc
+      .from('brand_profile')
+      .upsert(
+        {
+          org_id: orgId,
+          font_files: fontFiles,
+          updated_at: new Date().toISOString(),
+        } as never,
+        { onConflict: 'org_id' }
+      );
+
+    if (updateError) {
+      console.warn('[brand/font/upload] DB update failed but file is uploaded', {
+        error: updateError.message,
+      });
+    }
+
+    return NextResponse.json({ ...result, role });
   } catch (err) {
     return NextResponse.json(
-      {
-        error: 'Font upload failed',
-        details: (err as Error).message,
-      },
+      { error: 'Font upload failed', details: (err as Error).message },
       { status: 500 }
     );
   }
