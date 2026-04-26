@@ -2,15 +2,18 @@
  * GET /api/jobs/[jobId]
  *
  * Returns current status of a generation job.
- * Used by client polling.
  *
- * Auth: requires authenticated user. The job must belong to user's org.
+ * Auth: requires authenticated user. Job must belong to user's org.
+ *
+ * NOTE: This route reads from generation_jobs table.
+ * That table requires queue migration to be applied.
+ * Until applied, this route returns 404 for any job.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { createSupabaseServiceClient } from '@/lib/supabase/service';
-import { resolveOrgContext } from '@/lib/auth';
+import { resolveOrgContext } from '@/features/chat/server/resolve-org-context';
 import { getJobStatus, JobNotFoundError } from '@/lib/queue';
 
 export const runtime = 'nodejs';
@@ -27,7 +30,7 @@ export async function GET(
       return NextResponse.json({ error: 'jobId is required' }, { status: 400 });
     }
 
-    // ── 1. Auth ──────────────────────────────────────────────────
+    // Auth
     const ssr = await createSupabaseServerClient();
     const { data: { user } } = await ssr.auth.getUser();
     if (!user) {
@@ -49,26 +52,40 @@ export async function GET(
       return NextResponse.json({ error: 'Failed to resolve org' }, { status: 403 });
     }
 
-    // ── 2. Fetch job status ──────────────────────────────────────
-    const status = await getJobStatus(svc, jobId);
+    // Verify job ownership BEFORE returning status
+    // NOTE: generation_jobs table requires queue migration to be applied.
+    // We cast through `any` so the build passes without the migration.
+    let jobOrgId: string | null = null;
+    try {
+      const { data: job } = await (svc as any)
+        .from('generation_jobs')
+        .select('org_id, user_id')
+        .eq('id', jobId)
+        .maybeSingle();
 
-    // ── 3. Verify ownership ──────────────────────────────────────
-    // The job must belong to the requesting user's org.
-    // Using service client we need to manually check this since RLS is bypassed.
-    const { data: job } = await svc
-      .from('generation_jobs')
-      .select('org_id, user_id')
-      .eq('id', jobId)
-      .maybeSingle();
+      if (!job) {
+        return NextResponse.json({ error: 'Job not found' }, { status: 404 });
+      }
 
-    if (!job) {
-      return NextResponse.json({ error: 'Job not found' }, { status: 404 });
+      jobOrgId = job.org_id;
+    } catch (err) {
+      console.warn('[jobs/[jobId]] generation_jobs query failed', {
+        error: err instanceof Error ? err.message : String(err),
+        hint: 'Apply queue migration to enable job status tracking',
+      });
+      return NextResponse.json(
+        { error: 'Job tracking not yet enabled' },
+        { status: 503 }
+      );
     }
 
-    if (job.org_id !== orgId) {
+    if (jobOrgId !== orgId) {
       // Don't reveal that the job exists for another org
       return NextResponse.json({ error: 'Job not found' }, { status: 404 });
     }
+
+    // Fetch job status from queue
+    const status = await getJobStatus(svc, jobId);
 
     return NextResponse.json(status, {
       headers: {
