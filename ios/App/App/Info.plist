@@ -2,12 +2,15 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <key>CAPACITOR_DEBUG</key>
+	<!-- Capacitor required keys -->
+	<key>CAPACITOR_DEBUG</key>
 	<string>$(CAPACITOR_DEBUG)</string>
+
+	<!-- Bundle metadata -->
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
-        <string>Operator AI</string>
+	<string>Operator AI</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -22,21 +25,25 @@
 	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
+
+	<!-- iPhone-only app -->
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+
+	<!-- Storyboards -->
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
 	<string>Main</string>
-	<key>UIRequiredDeviceCapabilities</key>
-	<array>
-		<string>armv7</string>
-	</array>
+
+	<!-- Status bar -->
+	<key>UIViewControllerBasedStatusBarAppearance</key>
+	<true/>
+
+	<!-- Orientations -->
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
-		<string>UIInterfaceOrientationLandscapeLeft</string>
-		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 	<key>UISupportedInterfaceOrientations~ipad</key>
 	<array>
@@ -45,18 +52,50 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
-	<key>UIViewControllerBasedStatusBarAppearance</key>
-	<true/>
 
+	<!--
+		Permissions — only what we actually use in V1.
+		Each one MUST have a usage description that matches Apple's
+		guidelines: explain the user's benefit, not just the technical reason.
+	-->
+
+	<!-- Camera: for capturing images for AI analysis and brand creation -->
 	<key>NSCameraUsageDescription</key>
-	<string>Operator AI uses your camera to capture images for AI analysis and brand content creation.</string>
-	<key>NSMicrophoneUsageDescription</key>
-	<string>Operator AI uses your microphone for hands-free voice conversations with the AI agent.</string>
+	<string>Operator AI uses your camera so you can capture product photos and reference images for AI-powered brand and ad creation.</string>
+
+	<!-- Photo Library Read: for uploading reference images -->
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Operator AI accesses your photo library to upload reference images for AI-powered image generation and brand design.</string>
+	<string>Operator AI accesses your photo library so you can upload reference images for AI-powered image generation and brand design.</string>
+
+	<!-- Photo Library Add: for saving generated assets -->
 	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>Operator AI saves generated images and brand assets to your photo library.</string>
-	<key>NSSpeechRecognitionUsageDescription</key>
-	<string>Operator AI uses speech recognition for voice mode to convert your speech into text commands.</string>
+	<string>Operator AI saves your generated images and brand assets to your photo library so you can share and use them anywhere.</string>
+
+	<!-- Microphone: for voice mode in chat with AI agent -->
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Operator AI uses your microphone for hands-free voice conversations with the AI assistant.</string>
+
+	<!--
+		REMOVED for V1:
+		- NSSpeechRecognitionUsageDescription
+		  Reason: Speech recognition is server-side (Whisper API).
+		          We send audio buffer to backend; iOS Speech framework
+		          is NOT used. Including this key when you don't use
+		          the framework is a documented App Review red flag.
+	-->
+
+	<!-- App Transport Security -->
+	<!--
+		ATS is enabled by default (good).
+		We don't need NSAllowsArbitraryLoads since:
+		- Our app loads HTTPS only (operatoraiapp.com)
+		- All API endpoints use HTTPS
+		- No legacy HTTP services
+	-->
+
+	<!-- iTunes Connect / App Store -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+	<!-- We don't use proprietary encryption. HTTPS is exempt. -->
 </dict>
 </plist>
