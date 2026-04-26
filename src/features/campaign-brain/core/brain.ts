@@ -90,7 +90,7 @@ export async function runCampaignBrain(
   }
 
   // 5. Run Brain with Claude
-  const brainResult = await callBrainLLM(intake, vertical, campaignType, angles);
+  const brainResult = await callBrainLLM(intake, vertical, campaignType, angles, researchDossier);
 
   // 6. Generate variant briefs (one per angle × selected platforms)
   const platforms: Platform[] =
@@ -194,11 +194,21 @@ async function callBrainLLM(
   vertical: Vertical,
   campaignType: CampaignType,
   angles: Angle[],
+  researchDossier?: {
+    productFacts: string[];
+    competitorSignals: string[];
+    visualReferences: string[];
+    trendingTopics: string[];
+    sources: string[];
+    synthesis: string;
+    fromLiveSearch: boolean;
+    durationMs: number;
+  } | null,
 ): Promise<BrainLLMResult> {
   const Anthropic = (await import('@anthropic-ai/sdk')).default;
   const claude = new Anthropic({ apiKey: serverEnv.ANTHROPIC_API_KEY });
 
-  const systemPrompt = buildSystemPrompt(vertical, campaignType, angles);
+  const systemPrompt = buildSystemPrompt(vertical, campaignType, angles, researchDossier);
   const userPrompt = buildUserPrompt(intake, vertical, campaignType, angles);
 
   try {
@@ -229,6 +239,13 @@ function buildSystemPrompt(
   vertical: Vertical,
   campaignType: CampaignType,
   angles: Angle[],
+  dossier?: {
+    productFacts: string[];
+    competitorSignals: string[];
+    trendingTopics: string[];
+    synthesis: string;
+    fromLiveSearch: boolean;
+  } | null,
 ): string {
   return `You are a senior creative director at a top marketing agency. You think strategically before producing creative work — diagnostic first, strategy second, execution third.
 
@@ -244,6 +261,19 @@ Visual codes you respect for this vertical:
   • Aesthetic: ${vertical.visualCodes.defaultAesthetic}
   • Mood keywords: ${vertical.visualCodes.moodKeywords.join(', ')}
   • References: ${vertical.visualCodes.references.slice(0, 4).join(', ')}
+
+${dossier && dossier.fromLiveSearch ? `
+
+REAL-WORLD RESEARCH (use this, do NOT invent):
+${dossier.productFacts.length > 0 ? `Product facts:
+${dossier.productFacts.map((f) => `  • ${f}`).join('\n')}
+` : ''}${dossier.competitorSignals.length > 0 ? `Competitors discovered:
+${dossier.competitorSignals.map((c) => `  • ${c}`).join('\n')}
+` : ''}${dossier.trendingTopics.length > 0 ? `Current trends in this category:
+${dossier.trendingTopics.map((t) => `  • ${t}`).join('\n')}
+` : ''}
+Use these REAL facts in your strategic reasoning. Position the campaign vs the actual competitors named above. Do not invent competitor names.
+` : ''}
 
 You produce STRUCTURED JSON output ONLY. No prose outside the JSON.
 

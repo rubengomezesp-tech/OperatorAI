@@ -146,6 +146,12 @@ async function variantBriefToVariantAsync(
     vertical,
     brandKit,
     productPhotoUrls,
+    researchDossier: brainOutput.researchDossier
+      ? {
+          visualReferences: brainOutput.researchDossier.visualReferences,
+          productFacts: brainOutput.researchDossier.productFacts,
+        }
+      : null,
   });
 
   console.log('[brain-to-variant] premium prompt built', {
@@ -232,6 +238,12 @@ export function brainOutputToVariants(brainOutput: BrainOutput): Variant[] {
       vertical,
       brandKit: null,
       productPhotoUrls: undefined,
+      researchDossier: brainOutput.researchDossier
+        ? {
+            visualReferences: brainOutput.researchDossier.visualReferences,
+            productFacts: brainOutput.researchDossier.productFacts,
+          }
+        : null,
     });
 
     return {

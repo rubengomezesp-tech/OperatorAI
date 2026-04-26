@@ -109,6 +109,11 @@ export interface PremiumPromptInput {
   brandKit?: BrandKitForPrompt | null;
   /** Optional URLs of reference photos uploaded by user (Stage Assets) */
   productPhotoUrls?: string[];
+  /** Optional research dossier with visual references */
+  researchDossier?: {
+    visualReferences: string[];
+    productFacts: string[];
+  } | null;
 }
 
 export interface PremiumPromptResult {
@@ -125,13 +130,14 @@ export interface PremiumPromptResult {
     vertical: boolean;
     platform: boolean;
     productReference: boolean;
+    visualReferences: boolean;
   };
 }
 
 export function buildPremiumImagePrompt(
   input: PremiumPromptInput,
 ): PremiumPromptResult {
-  const { variantBrief, brainOutput, vertical, brandKit, productPhotoUrls } = input;
+  const { variantBrief, brainOutput, vertical, brandKit, productPhotoUrls, researchDossier } = input;
 
   const layers = {
     brand: false,
@@ -141,6 +147,7 @@ export function buildPremiumImagePrompt(
     vertical: false,
     platform: false,
     productReference: false,
+    visualReferences: false,
   };
 
   const parts: string[] = [];
@@ -213,6 +220,15 @@ export function buildPremiumImagePrompt(
   if (verticalCue) {
     parts.push(verticalCue);
     layers.vertical = true;
+  }
+
+  // ─── LAYER 5.5: VISUAL REFERENCES (from research dossier) ────
+  if (researchDossier?.visualReferences && researchDossier.visualReferences.length > 0) {
+    const refs = researchDossier.visualReferences.slice(0, 5);
+    parts.push(
+      `Aesthetic references — match the production quality and visual language of: ${refs.join('; ')}.`,
+    );
+    layers.visualReferences = true;
   }
 
   // ─── LAYER 6: BACKGROUND PROMPT (from Brain) ─────────────────
