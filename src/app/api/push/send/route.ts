@@ -1,38 +1,40 @@
-import { NextResponse, type NextRequest } from 'next/server';
-import { createSupabaseServiceClient } from '@/lib/supabase/service';
-import webpush from 'web-push';
+/**
+ * DEPRECATED ENDPOINT — /api/push/send
+ *
+ * This endpoint was previously used as a server-to-server call from
+ * src/lib/push.ts. It has been replaced by direct function calls to
+ * sendPushNotification() from '@/lib/push'.
+ *
+ * This stub remains to:
+ * 1. Reject any leftover external callers (security)
+ * 2. Allow safe future removal once we confirm nothing uses it
+ *
+ * Migration:
+ *   import { sendPushNotification } from '@/lib/push';
+ *   await sendPushNotification({ userId, title, body, url });
+ *
+ * TODO: Remove this file in a future cleanup once we verify no
+ * external code depends on the endpoint.
+ */
+
+import { NextRequest, NextResponse } from 'next/server';
 
 export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
-const VAPID_PUBLIC = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || '';
-const VAPID_PRIVATE = process.env.VAPID_PRIVATE_KEY || '';
+export async function POST(_request: NextRequest) {
+  return NextResponse.json(
+    {
+      error: 'This endpoint has been deprecated.',
+      migration: "Use sendPushNotification() from '@/lib/push' directly in server code.",
+    },
+    { status: 410 } // 410 Gone — endpoint deliberately removed
+  );
+}
 
-export async function POST(req: NextRequest) {
-  try {
-    const { userId, title, body, url } = await req.json();
-    if (!userId || !title) return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
-
-    if (!VAPID_PUBLIC || !VAPID_PRIVATE) {
-      return NextResponse.json({ error: 'VAPID keys not configured' }, { status: 500 });
-    }
-
-    webpush.setVapidDetails('mailto:rubengomezesp@gmail.com', VAPID_PUBLIC, VAPID_PRIVATE);
-
-    const svc = createSupabaseServiceClient();
-    const { data: sub } = await (svc as any)
-      .from('push_subscriptions')
-      .select('endpoint, keys')
-      .eq('user_id', userId)
-      .single();
-
-    if (!sub?.endpoint) return NextResponse.json({ error: 'No subscription' }, { status: 404 });
-
-    const pushSub = { endpoint: sub.endpoint, keys: sub.keys };
-    await webpush.sendNotification(pushSub, JSON.stringify({ title, body, url }));
-
-    return NextResponse.json({ ok: true });
-  } catch (e) {
-    console.error('[push-send]', e);
-    return NextResponse.json({ error: String(e) }, { status: 500 });
-  }
+export async function GET() {
+  return NextResponse.json(
+    { error: 'This endpoint has been deprecated.' },
+    { status: 410 }
+  );
 }
