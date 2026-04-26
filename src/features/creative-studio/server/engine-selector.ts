@@ -19,13 +19,27 @@ export function selectEngine(
   variant: Variant,
   category?: ProductCategory,
 ): RenderEngine {
-  // If gpt-image is available, ALWAYS use it (premium default)
+  // 1. If reference images are present and Gemini available → Nano Banana
+  //    (vision-aware: model sees the user's product/logo, preserves them)
+  const hasRefs =
+    Array.isArray((variant as unknown as { referenceImages?: unknown[] }).referenceImages) &&
+    ((variant as unknown as { referenceImages: unknown[] }).referenceImages?.length ?? 0) > 0;
+
+  if (hasRefs && isNanoBananaAvailable()) {
+    return 'nano-banana';
+  }
+
+  // 2. If gpt-image is available → premium default (text-to-image TIER S)
   if (isGptImageAvailable()) {
     return 'gpt-image';
   }
 
-  // Fallback: Flux (no API key for gpt-image)
+  // 3. Fallback: Flux
   return 'flux';
+}
+
+export function isNanoBananaAvailable(): boolean {
+  return !!process.env.GEMINI_API_KEY;
 }
 
 /**

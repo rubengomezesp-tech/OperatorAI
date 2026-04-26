@@ -8,6 +8,7 @@ import type {
 } from '../types';
 import { renderFlux } from './renderers/flux-renderer';
 import { renderGptImage } from './renderers/gpt-image-renderer';
+import { renderNanoBanana } from './renderers/nano-banana-renderer';
 import { selectEngine, explainEngineChoice } from './engine-selector';
 import { tryComposerV2 } from '@/lib/composer/pipeline';
 import { variantToCreativePlan, variantHasComposableContent } from './composer-bridge';
@@ -101,6 +102,22 @@ async function renderBackground(input: RenderInput): Promise<RenderOutput> {
       engine: explanation.engine,
       reason: explanation.reason,
     });
+  }
+
+  if (primary === 'nano-banana') {
+    try {
+      // Pass reference images from variant if present
+      const refs =
+        (input.variant as unknown as { referenceImages?: string[] })
+          .referenceImages ?? [];
+      return await renderNanoBanana({ ...input, referenceImages: refs });
+    } catch (err) {
+      console.error('[render-router] nano-banana failed (fallback to gpt-image)', {
+        variantId: input.variant.id,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      // Fall through to gpt-image
+    }
   }
 
   if (primary === 'gpt-image') {

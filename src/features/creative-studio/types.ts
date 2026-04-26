@@ -9,7 +9,7 @@ export type VariantLayout =
   | 'story_ad'
   | 'minimal_branding'
   | 'ui_focus';
-export type RenderEngine = 'canvas' | 'flux' | 'hybrid' | 'gpt-image';
+export type RenderEngine = 'canvas' | 'flux' | 'hybrid' | 'gpt-image' | 'nano-banana';
 export type AspectRatio = '9:16' | '1:1' | '4:5';
 export type ImageRole = 'logo' | 'hero' | 'feature' | 'support' | 'lifestyle';
 
