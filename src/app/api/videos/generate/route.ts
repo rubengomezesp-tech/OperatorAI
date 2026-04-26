@@ -204,7 +204,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Send push notification
-    sendPushNotification(user.id, 'Video ready', 'Your video has been generated and saved.', '/studio/video').catch(() => {});
+    sendPushNotification({ userId: user.id, title: 'Video ready', body: 'Your video has been generated and saved.', url: '/studio/video' }).catch(() => {});
 
     return NextResponse.json({ ok: true, video: { id: videoId, url: permanentUrl, latencyMs } });
   } catch (e) {
