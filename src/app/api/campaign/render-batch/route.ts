@@ -1,87 +1,52 @@
 /**
- * /api/campaign/render-batch (Premium)
+ * /api/campaign/render-batch (Agentic V1)
  *
- * Now uses async brain-to-variant bridge that:
- *   1. Loads Brand kit from Brand OS
- *   2. Builds premium prompt in 8 layers
- *   3. Passes orgId + product photos to bridge
- *
- * Always downloads external URLs and stores ourselves with 7-day signed URLs.
+ * Now uses Agentic Renderer (AG-4) which:
+ *   1. Renders variant
+ *   2. Critiques with Vision LLM
+ *   3. Iterates if score < 70 (max 2 iterations)
+ *   4. Returns best result with critique metadata
  */
 
 import { NextResponse, type NextRequest } from 'next/server';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { createSupabaseServiceClient } from '@/lib/supabase/service';
 import { resolveOrgContext } from '@/features/chat/server/resolve-org-context';
-import { renderVariant } from '@/features/creative-studio/server/render-router';
 import { brainOutputToVariantsAsync } from '@/features/campaign-brain/server/brain-to-variant';
+import { renderVariantAgentic } from '@/features/campaign-brain/server/agentic-renderer';
+import { loadBrandKitForPrompt } from '@/features/campaign-brain/server/premium-prompt-builder';
 import type { BrainOutput } from '@/features/campaign-brain/types';
+import type { VisionCritique } from '@/features/campaign-brain/server/vision-critic';
 
 export const runtime = 'nodejs';
 export const maxDuration = 300;
 export const dynamic = 'force-dynamic';
 
-const BUCKET = 'image-outputs';
-const SIGNED_URL_TTL_SECONDS = 60 * 60 * 24 * 7; // 7 days
-
 interface BatchResult {
   id: string;
   imageUrl: string | null;
   composedV2: boolean;
+  critique?: {
+    score: number;
+    verdict: 'pass' | 'iterate' | 'fail';
+    summary: string;
+    issues: string[];
+    suggestions: string[];
+    iterationsRun: number;
+  };
   error?: string;
 }
 
-// ────────────────────────────────────────────────────────────────
-// Helpers
-// ────────────────────────────────────────────────────────────────
-
-async function downloadImage(url: string): Promise<Buffer | null> {
-  try {
-    const res = await fetch(url, { signal: AbortSignal.timeout(30000) });
-    if (!res.ok) return null;
-    const ab = await res.arrayBuffer();
-    return Buffer.from(ab);
-  } catch {
-    return null;
-  }
-}
-
-async function uploadAndSign(
-  svc: ReturnType<typeof createSupabaseServiceClient>,
-  path: string,
-  buffer: Buffer,
-): Promise<string | null> {
-  const { error: upErr } = await svc.storage
-    .from(BUCKET)
-    .upload(path, buffer, {
-      contentType: 'image/png',
-      cacheControl: '604800',
-      upsert: true,
-    });
-
-  if (upErr) return null;
-
-  const { data: signed } = await svc.storage
-    .from(BUCKET)
-    .createSignedUrl(path, SIGNED_URL_TTL_SECONDS);
-
-  return signed?.signedUrl ?? null;
-}
-
-// ────────────────────────────────────────────────────────────────
-// MAIN
-// ────────────────────────────────────────────────────────────────
-
 export async function POST(req: NextRequest) {
   try {
+    // Auth
     const ssr = await createSupabaseServerClient();
-    const {
-      data: { user },
-    } = await ssr.auth.getUser();
+    const { data: { user } } = await ssr.auth.getUser();
     if (!user) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
 
+    // Body
     const body = (await req.json().catch(() => ({}))) as {
       draftId?: string;
       maxVariants?: number;
@@ -118,7 +83,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Resolve org context
+    // Resolve org
     let orgId: string | undefined;
     try {
       const ctx = await resolveOrgContext(svc, user.id);
@@ -134,7 +99,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // ★ Premium bridge: loads Brand kit + builds layered prompts
+    // Build variants with premium prompt
     const productPhotoUrls = draft.intake_data?.visualReferences ?? undefined;
     const allVariants = await brainOutputToVariantsAsync(draft.brain_output, {
       orgId,
@@ -152,7 +117,15 @@ export async function POST(req: NextRequest) {
       } as never)
       .eq('id' as never, draft.id as never);
 
-    // Render in parallel (max 2)
+    // Load brand kit (for critic context)
+    const brandKit = await loadBrandKitForPrompt(svc, orgId);
+
+    // Build map: variantId -> variantBrief (for critic)
+    const briefById = new Map(
+      draft.brain_output.variantBriefs.map((b) => [b.id, b]),
+    );
+
+    // Render with agentic loop (max 2 concurrent — heavy due to critique)
     const results: BatchResult[] = [];
     const concurrency = 2;
 
@@ -160,69 +133,63 @@ export async function POST(req: NextRequest) {
       const batch = variants.slice(i, i + concurrency);
       const batchResults = await Promise.all(
         batch.map(async (variant): Promise<BatchResult> => {
-          try {
-            const result = await renderVariant({
-              variant,
-              orgId,
-              brief: undefined,
-              direction: undefined,
-            });
-
-            const path = `${orgId}/campaigns/${draft.id}/${variant.id}.png`;
-            let buffer: Buffer | null = null;
-
-            if (result.composedBuffer) {
-              buffer = result.composedBuffer;
-            } else if (result.imageUrl) {
-              buffer = await downloadImage(result.imageUrl);
-            }
-
-            if (!buffer) {
-              return {
-                id: variant.id,
-                imageUrl: null,
-                composedV2: false,
-                error: 'No image buffer obtained',
-              };
-            }
-
-            const signedUrl = await uploadAndSign(svc, path, buffer);
-            if (!signedUrl) {
-              return {
-                id: variant.id,
-                imageUrl: null,
-                composedV2: !!result.composedV2,
-                error: 'Upload or signing failed',
-              };
-            }
-
-            return {
-              id: variant.id,
-              imageUrl: signedUrl,
-              composedV2: !!result.composedV2,
-            };
-          } catch (err) {
+          const brief = briefById.get(variant.id);
+          if (!brief) {
             return {
               id: variant.id,
               imageUrl: null,
               composedV2: false,
-              error: (err as Error).message ?? 'Render failed',
+              error: 'Brief missing for variant',
             };
           }
+
+          const result = await renderVariantAgentic(
+            {
+              variant,
+              variantBrief: brief,
+              brainOutput: draft.brain_output!,
+              orgId: orgId!,
+              draftId: draft.id,
+              brandTone: brandKit?.tone ?? null,
+              brandPalette: brandKit?.palette ?? [],
+            },
+            svc,
+          );
+
+          return {
+            id: variant.id,
+            imageUrl: result.imageUrl,
+            composedV2: result.composedV2,
+            critique: result.critique
+              ? {
+                  score: result.critique.score,
+                  verdict: result.critique.verdict,
+                  summary: result.critique.summary,
+                  issues: result.critique.issues,
+                  suggestions: result.critique.suggestions,
+                  iterationsRun: result.iterationsRun,
+                }
+              : undefined,
+            error: result.error,
+          };
         }),
       );
       results.push(...batchResults);
     }
 
-    // Save URLs
+    // Save URLs + critiques to campaign row
     const renderedMap: Record<string, string> = {};
+    const critiqueMap: Record<string, unknown> = {};
     for (const r of results) {
       if (r.imageUrl) renderedMap[r.id] = r.imageUrl;
+      if (r.critique) critiqueMap[r.id] = r.critique;
     }
+
     await svc
       .from('campaigns' as never)
       .update({
         rendered_images: renderedMap as never,
+        critiques: critiqueMap as never,
       } as never)
       .eq('id' as never, draft.id as never);
 
