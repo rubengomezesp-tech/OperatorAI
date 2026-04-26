@@ -1,19 +1,8 @@
 /**
  * /api/campaign/render-batch
  *
- * Renders all variant briefs from a Brain output in a single request.
- *
- * Flow:
- *   1. Auth + load draft (with brain_output)
- *   2. Convert variantBriefs -> Variant[] via brain-to-variant bridge
- *   3. Update campaign row with variants array (so /api/creative/render works)
- *   4. Resolve org context for Composer V2
- *   5. Call renderVariant() for each variant in parallel (capped concurrency)
- *   6. Upload composed buffers to Storage if applicable
- *   7. Update campaign.rendered_images with URLs
- *   8. Return { variants: [{ id, imageUrl, composedV2 }] }
- *
- * The frontend can then poll OR use SSE (V2). For V1 we wait for all.
+ * Renders all variant briefs and ensures every returned URL is a
+ * signed URL valid for 7 days. Works whether Composer V2 acted or not.
  */
 
 import { NextResponse, type NextRequest } from 'next/server';
@@ -23,13 +12,13 @@ import { resolveOrgContext } from '@/features/chat/server/resolve-org-context';
 import { renderVariant } from '@/features/creative-studio/server/render-router';
 import { brainOutputToVariants } from '@/features/campaign-brain/server/brain-to-variant';
 import type { BrainOutput } from '@/features/campaign-brain/types';
-import type { Variant } from '@/features/creative-studio/types';
 
 export const runtime = 'nodejs';
 export const maxDuration = 300;
 export const dynamic = 'force-dynamic';
 
 const BUCKET = 'image-outputs';
+const SIGNED_URL_TTL_SECONDS = 60 * 60 * 24 * 7; // 7 days
 
 interface BatchResult {
   id: string;
@@ -37,6 +26,74 @@ interface BatchResult {
   composedV2: boolean;
   error?: string;
 }
+
+// ────────────────────────────────────────────────────────────────
+// Helpers
+// ────────────────────────────────────────────────────────────────
+
+/**
+ * Extract storage path from a Supabase URL (signed or public).
+ * Returns null if not a Supabase Storage URL.
+ *
+ * Examples:
+ *   https://xxx.supabase.co/storage/v1/object/sign/image-outputs/path.png?token=...
+ *   https://xxx.supabase.co/storage/v1/object/public/image-outputs/path.png
+ *   https://xxx.supabase.co/storage/v1/object/image-outputs/path.png
+ */
+function extractStoragePath(url: string, bucket: string): string | null {
+  try {
+    const u = new URL(url);
+    if (!u.hostname.includes('supabase')) return null;
+
+    const path = u.pathname;
+    // Match patterns: /storage/v1/object/{sign,public,}/{bucket}/{rest}
+    const patterns = [
+      new RegExp(`/storage/v1/object/sign/${bucket}/(.+)$`),
+      new RegExp(`/storage/v1/object/public/${bucket}/(.+)$`),
+      new RegExp(`/storage/v1/object/${bucket}/(.+)$`),
+    ];
+
+    for (const re of patterns) {
+      const match = path.match(re);
+      if (match && match[1]) {
+        return decodeURIComponent(match[1]);
+      }
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Given any image URL, return a fresh signed URL valid for 7 days.
+ * If we can't (e.g. URL is external), returns the original.
+ */
+async function ensureSignedUrl(
+  svc: ReturnType<typeof createSupabaseServiceClient>,
+  imageUrl: string,
+): Promise<string> {
+  const path = extractStoragePath(imageUrl, BUCKET);
+  if (!path) {
+    // External URL or can't parse — return as-is
+    return imageUrl;
+  }
+
+  const { data, error } = await svc.storage
+    .from(BUCKET)
+    .createSignedUrl(path, SIGNED_URL_TTL_SECONDS);
+
+  if (error || !data?.signedUrl) {
+    // Fallback to original
+    return imageUrl;
+  }
+
+  return data.signedUrl;
+}
+
+// ────────────────────────────────────────────────────────────────
+// MAIN HANDLER
+// ────────────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
   try {
@@ -49,7 +106,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
 
-    // 2. Parse body
+    // 2. Body
     const body = (await req.json().catch(() => ({}))) as {
       draftId?: string;
       maxVariants?: number;
@@ -60,7 +117,7 @@ export async function POST(req: NextRequest) {
 
     const svc = createSupabaseServiceClient();
 
-    // 3. Load draft + brain_output
+    // 3. Load draft
     const { data: draftRaw, error: loadErr } = await svc
       .from('campaigns' as never)
       .select('*')
@@ -90,8 +147,7 @@ export async function POST(req: NextRequest) {
     const maxVariants = Math.min(body.maxVariants ?? 4, allVariants.length);
     const variants = allVariants.slice(0, maxVariants);
 
-    // 5. Update campaign row with variants (so legacy /api/creative/render
-    //    could also work if needed) AND mark as rendering
+    // 5. Update campaign row
     await svc
       .from('campaigns' as never)
       .update({
@@ -100,7 +156,7 @@ export async function POST(req: NextRequest) {
       } as never)
       .eq('id' as never, draft.id as never);
 
-    // 6. Resolve org context for Composer V2 brand kit fetch
+    // 6. Resolve org for Composer V2
     let orgId: string | undefined;
     try {
       const ctx = await resolveOrgContext(svc, user.id);
@@ -109,9 +165,10 @@ export async function POST(req: NextRequest) {
       orgId = draft.org_id ?? undefined;
     }
 
-    // 7. Render each variant (parallel, max 2 at a time to avoid OOM)
+    // 7. Render in parallel (max 2 concurrent)
     const results: BatchResult[] = [];
     const concurrency = 2;
+
     for (let i = 0; i < variants.length; i += concurrency) {
       const batch = variants.slice(i, i + concurrency);
       const batchResults = await Promise.all(
@@ -124,8 +181,9 @@ export async function POST(req: NextRequest) {
               direction: undefined,
             });
 
-            // If composedBuffer present, upload to Storage
             let finalUrl = result.imageUrl;
+
+            // Path A: Composer V2 produced a buffer — upload it
             if (result.composedBuffer && orgId) {
               const path = `${orgId}/campaigns/${draft.id}/${variant.id}.png`;
               const { error: upErr } = await svc.storage
@@ -134,12 +192,19 @@ export async function POST(req: NextRequest) {
                   contentType: 'image/png',
                   upsert: true,
                 });
+
               if (!upErr) {
                 const { data: signed } = await svc.storage
                   .from(BUCKET)
-                  .createSignedUrl(path, 60 * 60 * 24 * 7); // 7 days
-                if (signed?.signedUrl) finalUrl = signed.signedUrl;
+                  .createSignedUrl(path, SIGNED_URL_TTL_SECONDS);
+                if (signed?.signedUrl) {
+                  finalUrl = signed.signedUrl;
+                }
               }
+            } else if (finalUrl) {
+              // Path B: No buffer — re-sign whatever URL renderVariant returned
+              // (handles cases where renderer returned a short-lived signed URL)
+              finalUrl = await ensureSignedUrl(svc, finalUrl);
             }
 
             return {
@@ -160,7 +225,7 @@ export async function POST(req: NextRequest) {
       results.push(...batchResults);
     }
 
-    // 8. Save rendered URLs to campaign row
+    // 8. Save URLs to campaign row
     const renderedMap: Record<string, string> = {};
     for (const r of results) {
       if (r.imageUrl) renderedMap[r.id] = r.imageUrl;
