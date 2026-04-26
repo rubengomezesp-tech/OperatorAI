@@ -289,7 +289,7 @@ export async function loadBrandKitForPrompt(
     if (!composerKit) return null;
 
     // composerKit shape varies — we pick what we need defensively
-    const k = composerKit as Record<string, unknown>;
+    const k = composerKit as unknown as Record<string, unknown>;
     return {
       name: (k.brandName as string | undefined) ?? (k.name as string | undefined) ?? null,
       slogan: (k.slogan as string | undefined) ?? null,
