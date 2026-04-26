@@ -3,6 +3,7 @@ import { AppFooter } from '@/components/layout/app-footer';
 import { CommandPaletteProvider } from '@/features/command-palette/components/command-palette-provider';
 import { redirect } from 'next/navigation';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
+import { createSupabaseServiceClient } from '@/lib/supabase/service';
 import { resolveCurrentOrg } from '@/features/organizations/server/resolve';
 import { AppShell } from '@/components/layout/app-shell';
 import { OrgProvider } from '@/features/organizations/context/org-provider';
@@ -12,18 +13,38 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const { data: { user } } = await db.auth.getUser();
   if (!user) redirect('/login');
 
-  const { data: meRaw } = await db.from('users').select('full_name, email').eq('id', user.id).single();
+  const { data: meRaw } = await db
+    .from('users')
+    .select('full_name, email')
+    .eq('id', user.id)
+    .single();
   const me = meRaw as { full_name: string | null; email: string } | null;
 
+  // Check onboarding state — force /welcome if not completed
+  const svc = createSupabaseServiceClient();
+  const { data: onboardingRaw } = await svc
+    .from('onboarding_state')
+    .select('completed')
+    .eq('user_id', user.id)
+    .maybeSingle();
+  const onboarding = onboardingRaw as { completed: boolean } | null;
+
+  // If onboarding not completed (or no row exists), send to welcome wizard
+  if (!onboarding || !onboarding.completed) {
+    redirect('/welcome');
+  }
+
   const { currentOrg, orgs } = await resolveCurrentOrg(user.id);
-  if (!currentOrg) redirect('/create-organization');
+  if (!currentOrg) redirect('/welcome');
 
   return (
     <OrgProvider initialOrg={currentOrg} initialOrgs={orgs}>
       <AppShell email={me?.email ?? user.email ?? ''} fullName={me?.full_name ?? null}>
-        <CommandPaletteProvider>{children}
-        <PushNotificationPrompt />
-            <AppFooter /></CommandPaletteProvider>
+        <CommandPaletteProvider>
+          {children}
+          <PushNotificationPrompt />
+          <AppFooter />
+        </CommandPaletteProvider>
       </AppShell>
     </OrgProvider>
   );
