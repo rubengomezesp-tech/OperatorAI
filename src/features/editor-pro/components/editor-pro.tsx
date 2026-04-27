@@ -40,16 +40,21 @@ import {
 } from 'lucide-react';
 import type Konva from 'konva';
 import { EditorCanvas } from './editor-canvas';
+import { AiRewriteModal } from './ai-rewrite-modal';
+import { ColorPicker } from './color-picker';
 import { buildAutoLayout } from '../lib/auto-layout';
+import { useKeyboardShortcuts } from '../lib/use-keyboard-shortcuts';
 import type {
   Layer,
   TextLayer,
+  ShapeLayer,
   EditorProject,
   AspectRatio,
   AutoLayoutInput,
 } from '../types';
 import { ASPECT_DIMENSIONS } from '../types';
 import type { VerticalSlug } from '@/features/campaign-brain/types';
+import { Square, Wand2 } from 'lucide-react';
 
 interface EditorProProps {
   draftId: string;
@@ -128,6 +133,7 @@ export function EditorPro({
   const [aiBusy, setAiBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
+  const [rewriteOpen, setRewriteOpen] = useState(false);
   const stageContainerRef = useRef<HTMLDivElement | null>(null);
 
   // Compute display scale so canvas fits its container
@@ -226,6 +232,44 @@ export function EditorPro({
     };
     commitHistory([...project.layers, newText]);
     setSelectedLayerId(newText.id);
+  }
+
+  function handleAddShape() {
+    const newShape: ShapeLayer = {
+      id: nanoid(),
+      kind: 'shape',
+      shapeType: 'rect',
+      fill: brandPrimary || '#D4AF37',
+      cornerRadius: 8,
+      x: dimensions.width / 2 - 100,
+      y: dimensions.height / 2 - 30,
+      width: 200,
+      height: 60,
+      rotation: 0,
+      opacity: 0.95,
+      visible: true,
+      locked: false,
+    };
+    commitHistory([...project.layers, newShape]);
+    setSelectedLayerId(newShape.id);
+  }
+
+  function handleDuplicate() {
+    if (!selectedLayer || selectedLayer.kind === 'image') return;
+    const dup: Layer = {
+      ...selectedLayer,
+      id: nanoid(),
+      x: selectedLayer.x + 30,
+      y: selectedLayer.y + 30,
+    } as Layer;
+    commitHistory([...project.layers, dup]);
+    setSelectedLayerId(dup.id);
+  }
+
+  function handleApplyRewrite(newText: string) {
+    if (!selectedLayer || selectedLayer.kind !== 'text') return;
+    handleUpdateLayer(selectedLayer.id, { text: newText });
+    setRewriteOpen(false);
   }
 
   function handleDeleteLayer(id: string) {
@@ -409,10 +453,21 @@ export function EditorPro({
             </div>
             <button
               onClick={handleAddText}
-              className="w-full px-3 py-2 rounded bg-surface-3 hover:bg-surface-3/70 text-[13px] text-fg flex items-center gap-2"
+              className="w-full px-3 py-2 rounded bg-surface-3 hover:bg-surface-3/70 text-[13px] text-fg flex items-center gap-2 mb-1"
+              title="Add text (T)"
             >
               <Type className="h-3.5 w-3.5" />
               Text
+              <span className="ml-auto text-[10px] text-fg-subtle">T</span>
+            </button>
+            <button
+              onClick={handleAddShape}
+              className="w-full px-3 py-2 rounded bg-surface-3 hover:bg-surface-3/70 text-[13px] text-fg flex items-center gap-2"
+              title="Add shape (S)"
+            >
+              <Square className="h-3.5 w-3.5" />
+              Shape
+              <span className="ml-auto text-[10px] text-fg-subtle">S</span>
             </button>
           </div>
 
@@ -537,14 +592,19 @@ export function EditorPro({
               <div className="text-[10px] uppercase tracking-wider text-fg-subtle mt-3 mb-2">
                 Color
               </div>
-              <input
-                type="color"
+              <ColorPicker
                 value={(selectedLayer as TextLayer).fill}
-                onChange={(e) =>
-                  handleUpdateLayer(selectedLayer.id, { fill: e.target.value })
-                }
-                className="w-full h-9 rounded cursor-pointer"
+                onChange={(c) => handleUpdateLayer(selectedLayer.id, { fill: c })}
+                brandColors={brandPrimary ? [brandPrimary] : undefined}
               />
+
+              <button
+                onClick={() => setRewriteOpen(true)}
+                className="mt-3 w-full px-3 py-2 rounded bg-gold/10 text-gold hover:bg-gold/20 text-[12px] flex items-center justify-center gap-1.5 border border-gold/30"
+              >
+                <Wand2 className="h-3 w-3" />
+                Rewrite with AI
+              </button>
 
               {!selectedLayer.locked && (
                 <button
