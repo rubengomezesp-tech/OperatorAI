@@ -457,6 +457,13 @@ const translations: Record<string, { en: string; es: string }> = {
   'cb.editor.send': { en: 'Apply edit', es: 'Aplicar edicion' },
   'cb.editor.input_placeholder': { en: 'Change background to a sunset beach, more cinematic, warmer tones...', es: 'Cambia el fondo a una playa al atardecer, mas cinematografico, tonos calidos...' },
 
+  // Stage Variants — success / empty states
+  'cb.variants.empty_title': { en: 'No variants yet', es: 'A\u00fan no hay variantes' },
+  'cb.variants.empty_subtitle': { en: 'Run a Strategy Brief first.', es: 'Ejecuta primero un Brief Estrategico.' },
+  'cb.variants.all_premium': { en: 'All variants passed premium quality threshold', es: 'Todas las variantes pasaron el umbral de calidad premium' },
+  'cb.variants.partial_premium': { en: 'variants passed premium · others can be edited or regenerated', es: 'variantes pasaron premium - las dem\u00e1s pueden editarse o regenerarse' },
+  'cb.variants.click_edit_hint': { en: 'Click Edit on any variant to refine with AI', es: 'Haz click en Editar en cualquier variante para refinarla con IA' },
+
   'cb.variants.eyebrow': { en: 'Step 4 of 4', es: 'Paso 4 de 4' },
   'cb.variants.title': { en: 'Your variants', es: 'Tus variantes' },
   'cb.variants.subtitle': { en: 'AI-generated, on-brand. Edit or download below.', es: 'Generadas por IA, fieles a tu marca. Edita o descarga abajo.' },

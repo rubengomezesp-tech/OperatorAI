@@ -146,6 +146,32 @@ export function StageVariants({
         </div>
       )}
 
+      {!loading && variants.length > 0 && (() => {
+        const passed = variants.filter((v) => v.critique && v.critique.verdict === 'pass').length;
+        const total = variants.filter((v) => v.imageUrl).length;
+        if (total === 0) return null;
+        return (
+          <div className={[
+            'rounded-md border px-4 py-3 text-[12.5px] flex items-center gap-2',
+            passed === total
+              ? 'border-green-500/30 bg-green-500/5 text-green-300'
+              : 'border-gold/30 bg-gold/5 text-gold',
+          ].join(' ')}>
+            {passed === total ? (
+              <>
+                <span>✓</span>
+                <span>{t('cb.variants.all_premium')}</span>
+              </>
+            ) : (
+              <>
+                <span>★</span>
+                <span>{passed}/{total} {t('cb.variants.partial_premium')}</span>
+              </>
+            )}
+          </div>
+        );
+      })()}
+
       {!loading && variants.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {variants.map((v) => {
@@ -162,6 +188,17 @@ export function StageVariants({
               />
             );
           })}
+        </div>
+      )}
+
+      {!loading && variants.length === 0 && !error && (
+        <div className="text-center py-16">
+          <div className="text-[11px] uppercase tracking-[0.18em] text-fg-subtle mb-2">
+            {t('cb.variants.empty_title')}
+          </div>
+          <p className="text-[14px] text-fg-muted">
+            {t('cb.variants.empty_subtitle')}
+          </p>
         </div>
       )}
 
