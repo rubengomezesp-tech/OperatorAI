@@ -20,42 +20,8 @@ export function MessageList({ messages, onRegenerate, regenDisabled }: Props) {
   }, [messages.length, messages[messages.length - 1]?.content]);
 
   if (messages.length === 0) {
-    return (
-      <div className="flex-1 flex items-center justify-center px-6">
-        <div className="max-w-[520px] text-center">
-          <div className="text-[11px] uppercase tracking-[0.18em] text-gold mb-3">{t('chat.kicker')}</div>
-          <h2 className="font-display text-[36px] leading-[1.1] mb-4">
-            {t('chat.empty_title_1')}<span className="text-gold-grad">{t('chat.empty_title_2')}</span>{t('chat.empty_title_3')}
-          </h2>
-          <p className="text-[14px] text-fg-muted">
-            {t('chat.empty_desc')}
-          </p>
-          <div className="flex flex-wrap justify-center gap-2 mt-8">
-            {[
-              { key: 'chat.quick_image', emoji: '🎨' },
-              { key: 'chat.quick_campaign', emoji: '🚀' },
-              { key: 'chat.quick_copy', emoji: '✍️' },
-              { key: 'chat.quick_strategy', emoji: '🎯' },
-              { key: 'chat.quick_analyze', emoji: '📊' },
-              { key: 'chat.quick_video', emoji: '🎬' },
-            ].map((chip) => (
-              <button
-                key={chip.key}
-                type="button"
-                onClick={() => {
-                  const input = document.querySelector('textarea');
-                  if (input) { input.value = t(chip.key); input.focus(); input.dispatchEvent(new Event('input', { bubbles: true })); }
-                }}
-                className="inline-flex items-center gap-1.5 h-8 px-3 rounded-full border border-border bg-surface-2 text-[12px] text-fg-muted hover:text-gold hover:border-gold/40 hover:bg-gold/5 transition-all"
-              >
-                <span>{chip.emoji}</span>
-                <span>{t(chip.key)}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
+    // Empty state handled by ChatView's EmptyState component (Sprint 3.1)
+    return null;
   }
 
   const lastAssistantIdx = (() => {

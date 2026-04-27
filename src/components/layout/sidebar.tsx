@@ -92,6 +92,7 @@ export function Sidebar({ isAdmin = false, onClose }: Props) {
           labelKey: 'nav.creative_agent',
           fallback: 'Chat',
           icon: MessageSquare,
+          primary: true,
         },
         {
           href: '/studio/video',

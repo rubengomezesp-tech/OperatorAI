@@ -1,6 +1,7 @@
 import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { slugify } from '@/lib/utils';
+import { CREATIVE_AGENT_SYSTEM_PROMPT } from '@/lib/agents/creative-agent-prompt';
 
 /**
  * Ensures the org has at least one assistant. Returns its id.
@@ -20,7 +21,15 @@ export async function ensureDefaultAssistant(
     .limit(1)
     .maybeSingle();
 
-  if (existing) return (existing as { id: string }).id;
+  if (existing) {
+    // Keep system prompt fresh on every login (low cost, ensures upgrades propagate)
+    const existingId = (existing as { id: string }).id;
+    await svc
+      .from('assistants')
+      .update({ system_prompt: CREATIVE_AGENT_SYSTEM_PROMPT })
+      .eq('id', existingId);
+    return existingId;
+  }
 
   const insert = {
     org_id: orgId,
@@ -30,6 +39,7 @@ export async function ensureDefaultAssistant(
     languages: ['en', 'es'],
     is_default: true,
     is_active: true,
+    system_prompt: CREATIVE_AGENT_SYSTEM_PROMPT,
   } as never;
 
   const { data: created, error } = await svc
