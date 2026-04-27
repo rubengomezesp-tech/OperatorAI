@@ -252,6 +252,9 @@ export function StageVariants({
             briefAngle={brief?.angle ? humanize(brief.angle) : undefined}
             briefPlatform={brief?.platform}
             onClose={() => setEditingVariantId(null)}
+              vertical={brainOutput.detectedVertical}
+              briefCta={brainOutput.ctas?.[0]}
+              initialAspectRatio={(brainOutput.variantBriefs.find(b => b.id === editingVariantId)?.aspectRatio ?? '4:5') as any}
             onSave={(newUrl) => handleEditSave(editingVariantId, newUrl)}
           />
         );
