@@ -1,162 +1,183 @@
 'use client';
+
+/**
+ * Mobile Menu V3 — Synced with sidebar (Chat / Campaigns / Brand / Settings)
+ */
+
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
+import {
+  MessageSquare,
+  Sparkles,
+  Palette,
+  Settings,
+  Shield,
+  X,
+  Menu,
+  type LucideIcon,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useI18n } from '@/lib/i18n';
-import {LayoutDashboard, MessageSquare, FolderOpen, ImageIcon, Video,
-  Mic, FileSpreadsheet, FileText, Brain, Sparkles, Plug,
-  CreditCard, X, Menu,
-   Target, Rocket, Palette, LogOut, HelpCircle, Zap, Shirt} from 'lucide-react';
-
-import type { LucideIcon } from 'lucide-react';
 
 interface NavItem {
   href: string;
-  labelKey: string;
+  labelEn: string;
+  labelEs: string;
   icon: LucideIcon;
-  badge?: string;
+  primary?: boolean;
 }
 
-interface NavSection {
-  groupKey: string;
-  items: NavItem[];
-}
-
-const nav: NavSection[] = [
-  { groupKey: 'nav.workspace', items: [
-    { href: '/missions', labelKey: 'nav.missions', icon: Rocket, badge: 'NEW' },
-    { href: '/dashboard', labelKey: 'nav.overview', icon: LayoutDashboard },
-    { href: '/projects', labelKey: 'nav.projects', icon: FolderOpen },
-    { href: '/chat', labelKey: 'nav.creative_agent', icon: MessageSquare, badge: 'AI' },
-          { href: '/campaigns/new', labelKey: 'nav.create_campaign', icon: Zap, badge: 'BETA' },
-    { href: '/campaigns', labelKey: 'nav.my_campaigns', icon: Zap },
-  ]},
-  { groupKey: 'nav.studio', items: [
-    { href: '/studio/image', labelKey: 'nav.image_studio', icon: ImageIcon },
-    { href: '/studio/video', labelKey: 'nav.video_studio', icon: Video },
-    
-    { href: '/voice', labelKey: 'nav.voice_mode', icon: Mic },
-    { href: '/ai-mockup', labelKey: 'nav.mockup_studio', icon: Shirt, badge: 'NEW' },
-  ]},
-  { groupKey: 'nav.automate', items: [
-    
-    { href: '/files', labelKey: 'nav.files', icon: FileSpreadsheet },
-  ]},
-  { groupKey: 'nav.intelligence', items: [
-    { href: '/knowledge', labelKey: 'nav.knowledge', icon: FileText },
-  ]},
-  { groupKey: 'nav.manage', items: [
-    { href: '/brand-os', labelKey: 'Brand OS', icon: Palette },
-    { href: '/assistants', labelKey: 'nav.assistants', icon: Sparkles },
-    { href: '/settings/integrations', labelKey: 'nav.integrations', icon: Plug },
-    { href: '/settings/memory', labelKey: 'nav.memory', icon: Brain },
-    { href: '/settings/billing', labelKey: 'nav.billing', icon: CreditCard },
-  ]},
+const NAV_ITEMS: NavItem[] = [
+  {
+    href: '/chat',
+    labelEn: 'Chat',
+    labelEs: 'Chat',
+    icon: MessageSquare,
+    primary: true,
+  },
+  {
+    href: '/campaigns',
+    labelEn: 'Campaigns',
+    labelEs: 'Campañas',
+    icon: Sparkles,
+  },
+  {
+    href: '/brand-os',
+    labelEn: 'Brand',
+    labelEs: 'Marca',
+    icon: Palette,
+  },
+  {
+    href: '/settings',
+    labelEn: 'Settings',
+    labelEs: 'Configuración',
+    icon: Settings,
+  },
 ];
 
-export function MobileMenuButton({ onClick }: { onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="lg:hidden flex items-center gap-2 group"
-      aria-label="Open menu"
-    >
-      <img src="/logo.png" alt="Operator AI" className="h-7 w-7 rounded-md" />
-      <span className="text-[11px] uppercase tracking-[0.18em] text-fg-muted group-hover:text-gold transition-colors">
-        Operator
-      </span>
-      <Menu className="h-3.5 w-3.5 text-fg-subtle group-hover:text-gold transition-colors" />
-    </button>
-  );
+interface MobileMenuProps {
+  open: boolean;
+  onClose: () => void;
+  isAdmin?: boolean;
 }
 
-export function MobileMenu({ open, onClose }: { open: boolean; onClose: () => void }) {
+export function MobileMenu({ open, onClose, isAdmin = false }: MobileMenuProps) {
   const pathname = usePathname();
-  const { t } = useI18n();
+  const { locale } = useI18n();
+  const isEs = locale === 'es';
 
+  // Lock body scroll when open
   useEffect(() => {
     if (open) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = '';
     }
-    return () => { document.body.style.overflow = ''; };
+    return () => {
+      document.body.style.overflow = '';
+    };
   }, [open]);
-
-  useEffect(() => {
-    onClose();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pathname]);
 
   if (!open) return null;
 
-  return (
-    <div className="lg:hidden fixed inset-0 z-50 flex">
-      <button
-        type="button"
-        onClick={onClose}
-        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
-        aria-label="Close menu"
-      />
+  const items = isAdmin
+    ? [
+        ...NAV_ITEMS,
+        {
+          href: '/admin',
+          labelEn: 'Admin',
+          labelEs: 'Admin',
+          icon: Shield,
+        },
+      ]
+    : NAV_ITEMS;
 
-      <div className="relative w-[85%] max-w-[320px] h-full bg-bg border-r border-border shadow-2xl overflow-y-auto flex flex-col animate-slideInLeft">
-        <div className="px-5 py-5 border-b border-border flex items-center justify-between">
-          <Link href="/chat" className="flex items-center gap-2.5" onClick={onClose}>
-            <img src="/logo.png" alt="Operator" className="h-8 w-8 rounded-md" />
-            <span className="flex flex-col leading-none">
-              <span className="font-display text-[17px] tracking-tight">Operator</span>
-              <span className="text-[10.5px] uppercase tracking-[0.2em] text-fg-muted mt-1">AI</span>
-            </span>
+  return (
+    <div
+      className="fixed inset-0 z-50 lg:hidden"
+      onClick={onClose}
+    >
+      {/* Backdrop */}
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+
+      {/* Drawer */}
+      <div
+        className="absolute left-0 top-0 bottom-0 w-[280px] bg-surface border-r border-border flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="h-14 px-4 flex items-center justify-between border-b border-border">
+          <Link
+            href="/chat"
+            className="flex items-center gap-2 text-fg hover:opacity-80 transition-opacity"
+            onClick={onClose}
+          >
+            <div className="h-7 w-7 rounded-md gold-grad flex items-center justify-center">
+              <Sparkles className="h-3.5 w-3.5 text-bg" />
+            </div>
+            <span className="font-display text-[15px] tracking-tight">Operator</span>
           </Link>
           <button
-            type="button"
             onClick={onClose}
-            className="h-8 w-8 rounded-md flex items-center justify-center text-fg-muted hover:text-gold hover:bg-surface-2 transition-colors"
+            className="p-2 -mr-2 text-fg-muted hover:text-fg"
           >
-            <X className="h-4 w-4" />
+            <X className="h-5 w-5" />
           </button>
         </div>
 
-        <nav className="flex-1 px-3 py-4 space-y-5">
-          {nav.map((section) => (
-            <div key={section.groupKey}>
-              <div className="px-3 mb-1.5 text-[10.5px] uppercase tracking-[0.18em] text-fg-subtle">
-                {t(section.groupKey as any)}
-              </div>
-              <ul className="space-y-0.5">
-                {section.items.map((item) => {
-                  const active = pathname === item.href ||
-                    (item.href !== '/dashboard' && pathname.startsWith(item.href));
-                  const Icon = item.icon;
-                  return (
-                    <li key={item.href}>
-                      <Link
-                        href={item.href}
-                        onClick={onClose}
-                        className={cn(
-                          'relative flex items-center gap-3 px-3 h-10 rounded-md text-[14px] transition-colors',
-                          active ? 'bg-surface-2 text-fg' : 'text-fg-muted hover:bg-surface-2/60 hover:text-fg',
-                        )}
-                      >
-                        {active && <span className="absolute left-0 top-1.5 bottom-1.5 w-[2px] rounded-full gold-grad" />}
-                        <Icon className={cn('h-4 w-4 shrink-0', active && 'text-gold')} aria-hidden />
-                        <span className="flex-1 truncate">{t(item.labelKey as any)}</span>
-                        {item.badge && (
-                          <span className="px-1.5 h-4 text-[9.5px] tracking-[0.12em] uppercase rounded bg-gold/15 text-gold flex items-center">
-                            {item.badge}
-                          </span>
-                        )}
-                      </Link>
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-          ))}
+        {/* Nav items */}
+        <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
+          {items.map((item) => {
+            const Icon = item.icon;
+            const active =
+              pathname === item.href || pathname?.startsWith(item.href + '/');
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={onClose}
+                className={cn(
+                  'flex items-center gap-3 px-3 py-3 rounded-md text-[14.5px] transition-colors',
+                  active
+                    ? 'bg-gold/10 text-gold border border-gold/20'
+                    : 'text-fg-soft hover:bg-surface-2 hover:text-fg border border-transparent',
+                  item.primary && !active && 'text-fg',
+                )}
+              >
+                <Icon className="h-4.5 w-4.5 shrink-0" />
+                <span className="flex-1">{isEs ? item.labelEs : item.labelEn}</span>
+              </Link>
+            );
+          })}
         </nav>
+
+        {/* Footer hint */}
+        <div className="p-4 border-t border-border">
+          <p className="text-[11.5px] text-fg-subtle leading-relaxed">
+            {isEs
+              ? 'Operator es tu agencia AI dentro de tu bolsillo.'
+              : 'Operator is your AI agency in your pocket.'}
+          </p>
+        </div>
       </div>
     </div>
+  );
+}
+
+// MobileMenuButton — the hamburger trigger
+interface MobileMenuButtonProps {
+  onClick: () => void;
+}
+
+export function MobileMenuButton({ onClick }: MobileMenuButtonProps) {
+  return (
+    <button
+      onClick={onClick}
+      className="lg:hidden p-2 -ml-2 text-fg-muted hover:text-fg transition-colors"
+      aria-label="Menu"
+    >
+      <Menu className="h-5 w-5" />
+    </button>
   );
 }

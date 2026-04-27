@@ -15,10 +15,68 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: { default: 'Operator AI', template: '%s - Operator AI' },
-  description: 'The AI operating layer for businesses.',
-  metadataBase: new URL('https://operatorai.app'),
-  openGraph: { type: 'website', siteName: 'Operator AI' },
+  title: {
+    default: 'Operator AI - Your AI Marketing Operator',
+    template: '%s | Operator AI',
+  },
+  description:
+    'Your AI creative director, strategist, and designer in one conversation. Generate full marketing campaigns with strategy, copy, and visuals in 5 minutes. 17 industries with real visual DNA.',
+  keywords: [
+    'AI marketing',
+    'campaign generator',
+    'AI advertising',
+    'marketing AI',
+    'creative AI',
+    'brand AI',
+    'AI ads',
+    'ad generator',
+    'social media AI',
+    'AI copywriter',
+  ],
+  authors: [{ name: 'Operator AI' }],
+  metadataBase: new URL('https://operatoraiapp.com'),
+  alternates: {
+    canonical: '/',
+    languages: {
+      en: '/',
+      es: '/',
+    },
+  },
+  openGraph: {
+    type: 'website',
+    siteName: 'Operator AI',
+    title: 'Operator AI - Your AI Marketing Operator',
+    description:
+      'Stop creating campaigns. Start launching them. AI agency in your pocket — strategy, copy, and visuals in 5 minutes.',
+    url: 'https://operatoraiapp.com',
+    locale: 'en_US',
+    images: [
+      {
+        url: '/og-image.png',
+        width: 1200,
+        height: 630,
+        alt: 'Operator AI - Your AI Marketing Operator',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Operator AI - Your AI Marketing Operator',
+    description:
+      'Stop creating campaigns. Start launching them. AI agency in your pocket.',
+    images: ['/og-image.png'],
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
