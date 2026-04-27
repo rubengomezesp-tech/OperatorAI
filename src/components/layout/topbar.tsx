@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { Sparkles } from 'lucide-react';
 import { UserMenu } from './user-menu';
+import { BrandPill } from './brand-pill';
 import { LanguageToggle, useI18n } from '@/lib/i18n';
 import { MobileMenu, MobileMenuButton } from './mobile-menu';
 
@@ -60,6 +61,7 @@ export function Topbar({ email, fullName }: { email: string; fullName: string | 
 
           <div className="flex items-center gap-2 shrink-0">
             <LanguageToggle />
+            <BrandPill />
             <UserMenu email={email} fullName={fullName} />
           </div>
         </div>

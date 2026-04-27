@@ -2,11 +2,14 @@
 import { ModelSelector } from './model-selector';
 import { ShareButton } from './share-button';
 import { useI18n } from '@/lib/i18n';
+import { BrandPill } from '@/components/layout/brand-pill';
 
 export function ChatTopbar({ title, conversationId }: { title?: string | null; conversationId?: string | null }) {
   const { locale } = useI18n();
   return (
     <div className="flex items-center justify-between px-4 py-2.5 flex-1 min-w-0">
+      
+      <BrandPill />
       <div className="min-w-0 flex-1">
         <div className="font-display text-[15px] truncate">
           {title || (locale === 'es' ? 'Nueva conversacion' : 'New conversation')}
