@@ -80,6 +80,12 @@ export function Sidebar({ isAdmin = false, onClose }: Props) {
           primary: true,
           badge: 'Beta',
         },
+        {
+          href: '/campaigns',
+          labelKey: 'nav.my_campaigns',
+          fallback: 'My Campaigns',
+          icon: Sparkles,
+        },
 
         {
           href: '/chat',

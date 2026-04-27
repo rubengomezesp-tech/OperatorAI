@@ -84,7 +84,7 @@ export default function NewCampaignPage() {
 
   function handleSaveCampaign() {
     // Navigate to dashboard / campaigns list — keeping it simple
-    router.push('/dashboard');
+    router.push('/campaigns');
   }
 
   // ── Render ────────────────────────────────────────────────────

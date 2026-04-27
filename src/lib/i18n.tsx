@@ -464,6 +464,22 @@ const translations: Record<string, { en: string; es: string }> = {
   'cb.variants.partial_premium': { en: 'variants passed premium · others can be edited or regenerated', es: 'variantes pasaron premium - las dem\u00e1s pueden editarse o regenerarse' },
   'cb.variants.click_edit_hint': { en: 'Click Edit on any variant to refine with AI', es: 'Haz click en Editar en cualquier variante para refinarla con IA' },
 
+  // Campaigns list page
+  'campaigns.list.eyebrow': { en: 'Library', es: 'Biblioteca' },
+  'campaigns.list.title': { en: 'My Campaigns', es: 'Mis Campa\u00f1as' },
+  'campaigns.list.subtitle': { en: 'All your saved campaigns. Click any to re-edit.', es: 'Todas tus campa\u00f1as guardadas. Click en cualquiera para reeditar.' },
+  'campaigns.list.cta_new': { en: 'New campaign', es: 'Nueva campa\u00f1a' },
+  'campaigns.list.empty_eyebrow': { en: 'No campaigns yet', es: 'Sin campa\u00f1as a\u00fan' },
+  'campaigns.list.empty_title': { en: 'Your first campaign awaits', es: 'Tu primera campa\u00f1a te espera' },
+  'campaigns.list.empty_subtitle': { en: 'Create a campaign with the agentic brief flow. The agent will research, plan, generate and critique automatically.', es: 'Crea una campa\u00f1a con el flujo agentico. El agente investiga, planifica, genera y critica autom\u00e1ticamente.' },
+  'campaigns.list.variants': { en: 'variants', es: 'variantes' },
+
+  // Campaign detail page
+  'campaigns.detail.back': { en: 'Back to campaigns', es: 'Volver a campa\u00f1as' },
+
+  // Nav
+  'nav.my_campaigns': { en: 'My Campaigns', es: 'Mis Campa\u00f1as' },
+
   'cb.variants.eyebrow': { en: 'Step 4 of 4', es: 'Paso 4 de 4' },
   'cb.variants.title': { en: 'Your variants', es: 'Tus variantes' },
   'cb.variants.subtitle': { en: 'AI-generated, on-brand. Edit or download below.', es: 'Generadas por IA, fieles a tu marca. Edita o descarga abajo.' },
