@@ -44,7 +44,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <CommandPaletteProvider>
           <div className="relative min-h-full bg-mesh">
             {/* Subtle global aurora — visible but never intrusive */}
-            <Aurora intensity="subtle" className="fixed inset-0 -z-10" />
+            <Aurora intensity="medium" className="fixed inset-0 -z-10 pointer-events-none" />
             <div className="relative z-10">
               {children}
             </div>

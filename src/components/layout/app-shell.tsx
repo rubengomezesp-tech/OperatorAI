@@ -32,7 +32,7 @@ export function AppShell({
 
       <div className="flex-1 min-w-0 flex flex-col">
         <Topbar email={email} fullName={fullName} />
-        <main className="flex-1 min-w-0 overflow-x-hidden">{children}</main>
+        <main className="flex-1 min-w-0 overflow-x-hidden relative">{children}</main>
       </div>
     </div>
   );
