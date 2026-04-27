@@ -13,12 +13,14 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useI18n } from '@/lib/i18n';
 import { CampaignIntakeForm } from '@/features/campaign-brain/components/campaign-intake-form';
 import { StrategyBriefView } from '@/features/campaign-brain/components/strategy-brief-view';
 import { StageAssets } from '@/features/campaign-brain/components/stage-assets';
 import { StageVariants } from '@/features/campaign-brain/components/stage-variants';
 import type { BrainOutput } from '@/features/campaign-brain/types';
+import { fadeUp } from '@/lib/motion';
 
 type Stage = 'intake' | 'strategizing' | 'brief' | 'assets' | 'variants';
 

@@ -9,6 +9,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useI18n } from '@/lib/i18n';
 import { Plus, Loader2, ImageOff } from 'lucide-react';
+import { StaggerList, StaggerItem } from '@/components/ui/page-transition';
 
 interface CampaignSummary {
   id: string;
@@ -77,7 +78,7 @@ export default function CampaignsListPage() {
   }, []);
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8 space-y-8">
+    <div className="max-w-6xl mx-auto px-4 py-8 space-y-8 min-h-screen">
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
@@ -145,17 +146,18 @@ export default function CampaignsListPage() {
 
       {/* Grid */}
       {!loading && campaigns.length > 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <StaggerList className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {campaigns.map((c) => (
-            <CampaignCard
-              key={c.id}
-              campaign={c}
-              locale={locale}
-              t={t}
-              humanizeFn={humanize}
-            />
+            <StaggerItem key={c.id}>
+              <CampaignCard
+                campaign={c}
+                locale={locale}
+                t={t}
+                humanizeFn={humanize}
+              />
+            </StaggerItem>
           ))}
-        </div>
+        </StaggerList>
       )}
     </div>
   );
@@ -179,7 +181,7 @@ function CampaignCard({
   return (
     <Link
       href={`/campaigns/${campaign.id}`}
-      className="block rounded-lg border border-border bg-surface-2 hover:border-gold/40 transition-all overflow-hidden group"
+      className="block rounded-lg border border-border bg-surface-2 hover:border-gold/40 transition-all overflow-hidden group border-light magnetic-hover"
     >
       <div className="aspect-[4/5] bg-bg flex items-center justify-center relative overflow-hidden">
         {campaign.thumbnail ? (

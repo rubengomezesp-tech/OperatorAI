@@ -2,7 +2,12 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { ArrowRight, Rocket, Target, Zap, Check, Sparkles } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { useI18n, LanguageToggle } from '@/lib/i18n';
+import { Aurora } from '@/components/ui/aurora';
+import { Magnetic } from '@/components/ui/magnetic';
+import { AnimatedText } from '@/components/ui/animated-text';
+import { fadeUp, staggerContainer, scaleIn } from '@/lib/motion';
 
 const t_landing: Record<string, Record<string, string>> = {
   badge: { en: 'Brand execution engine', es: 'Motor de ejecucion de marca' },
