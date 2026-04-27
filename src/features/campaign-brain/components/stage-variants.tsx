@@ -213,6 +213,23 @@ export function StageVariants({
           </button>
         </div>
       )}
+      {editingVariantId && (() => {
+        const variant = variants.find((v) => v.id === editingVariantId);
+        const brief = briefById.get(editingVariantId);
+        if (!variant || !variant.imageUrl) return null;
+        return (
+          <VariantEditor
+            draftId={draftId}
+            variantId={editingVariantId}
+            initialImageUrl={variant.imageUrl}
+            briefHeadline={brief?.headline}
+            briefAngle={brief?.angle ? humanize(brief.angle) : undefined}
+            briefPlatform={brief?.platform}
+            onClose={() => setEditingVariantId(null)}
+            onSave={(newUrl) => handleEditSave(editingVariantId, newUrl)}
+          />
+        );
+      })()}
     </div>
   );
 }
