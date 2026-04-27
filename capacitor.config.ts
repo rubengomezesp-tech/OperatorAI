@@ -69,6 +69,14 @@ const config: CapacitorConfig = {
       backgroundColor: '#0A0A0B',
       overlaysWebView: false,
     },
+    Keyboard: {
+      resize: 'native',
+      style: 'DARK',
+      resizeOnFullScreen: true,
+    },
+    CapacitorHttp: {
+      enabled: true,
+    },
   },
 };
 
