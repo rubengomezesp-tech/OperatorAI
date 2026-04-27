@@ -8,6 +8,9 @@ import { Composer } from './composer';
 import { ChatTopbar } from './chat-topbar';
 import { ChatDrawer } from './chat-drawer';
 import { useSendMessage } from '../hooks/use-send-message';
+import { EmptyState } from './empty-state';
+import { ActionCard } from './action-card';
+import { detectsCampaignGenerationIntent } from '@/lib/agents/action-detector';
 import { useChatStore, MODEL_OPTIONS } from '../stores/chat-store';
 import type { UiMessage } from '@/lib/chat/types';
 import type { ToolPart } from './tool-result';
@@ -160,7 +163,18 @@ export function ChatView({ initialConversationId, initialMessages = [], initialT
           <ChatDrawer currentId={conversationId} onSelect={handleChatSelect} />
           <ChatTopbar title={initialTitle} conversationId={conversationId} />
         </div>
-        <MessageList messages={messages} onRegenerate={handleRegenerate} regenDisabled={loading} />
+        {messages.length === 0 ? (
+          <EmptyState onSuggestion={(prompt) => {
+            const composer = document.querySelector('textarea[data-composer]') as HTMLTextAreaElement | null;
+            if (composer) {
+              composer.value = prompt;
+              composer.focus();
+              composer.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+          }} />
+        ) : (
+          <MessageList messages={messages} onRegenerate={handleRegenerate} regenDisabled={loading} />
+        )}
         <Composer onSend={handleSend} onCancel={cancel} loading={loading} />
       </div>
     </div>

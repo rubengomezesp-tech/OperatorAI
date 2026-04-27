@@ -16,6 +16,8 @@ import { fingerprintToPromptSnippet } from '@/features/memory/server/learn-voice
 import { findAgent } from '@/features/agents/data/catalog';
 import { webSearch, formatWebContext, shouldSearch } from '@/features/web-browse/server/web-search';
 import type { ChatMessage } from '@/lib/providers';
+import { buildCreativeAgentPrompt } from '@/lib/agents/creative-agent-prompt';
+import { detectsCampaignGenerationIntent, detectLocale } from '@/lib/agents/action-detector';
 
 export const runtime = 'nodejs';
 export const maxDuration = 300;
