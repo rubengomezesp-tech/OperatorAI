@@ -5,7 +5,7 @@ export default function OnboardingLayout({ children }: { children: React.ReactNo
     <div className="min-h-screen flex flex-col">
       <header className="border-b border-border">
         <div className="max-w-[1200px] mx-auto px-6 h-16 flex items-center">
-          <Link href="/dashboard" className="flex items-center gap-2.5">
+          <Link href="/chat" className="flex items-center gap-2.5">
             <span className="h-7 w-7 rounded-md gold-grad flex items-center justify-center">
               <span className="font-display text-[15px] text-bg leading-none">O</span>
             </span>

@@ -24,7 +24,7 @@ export default function BillingSuccessPage() {
 
       <div className="flex justify-center gap-3 flex-wrap">
         <Link
-          href="/dashboard"
+          href="/chat"
           className="h-10 px-5 rounded-md gold-grad text-bg text-[13.5px] font-medium flex items-center hover:brightness-110 transition"
         >
           Go to dashboard / Ir al dashboard

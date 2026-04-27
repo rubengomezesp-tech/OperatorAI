@@ -103,7 +103,7 @@ export function MobileMenu({ open, onClose }: { open: boolean; onClose: () => vo
 
       <div className="relative w-[85%] max-w-[320px] h-full bg-bg border-r border-border shadow-2xl overflow-y-auto flex flex-col animate-slideInLeft">
         <div className="px-5 py-5 border-b border-border flex items-center justify-between">
-          <Link href="/dashboard" className="flex items-center gap-2.5" onClick={onClose}>
+          <Link href="/chat" className="flex items-center gap-2.5" onClick={onClose}>
             <img src="/logo.png" alt="Operator" className="h-8 w-8 rounded-md" />
             <span className="flex flex-col leading-none">
               <span className="font-display text-[17px] tracking-tight">Operator</span>

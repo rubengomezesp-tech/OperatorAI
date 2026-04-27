@@ -9,18 +9,8 @@ import { LanguageToggle, useI18n } from '@/lib/i18n';
 import { MobileMenu, MobileMenuButton } from './mobile-menu';
 
 const TITLES: Record<string, string> = {
-  '/dashboard': 'Studio',
   '/chat': 'Creative Agent',
-  '/creative-studio': 'Creative Studio',
-  '/studio/image': 'Image Studio',
-  '/studio/video': 'Video Studio',
-  '/voice': 'Voice Mode',
-  '/files': 'Files & Analysis',
-  '/projects': 'Projects',
-  '/knowledge': 'Knowledge',
   '/memory': 'Memory',
-  '/assistants': 'Assistants',
-  '/ai-mockup': 'Mockup Studio',
   '/campaigns/new': 'Create Campaign',
   '/settings': 'Settings',
   '/settings/profile': 'Profile',
