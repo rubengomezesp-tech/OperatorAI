@@ -62,9 +62,10 @@ export async function renderNanoBanana(
     prompt = variant.intent ?? 'Premium commercial photography';
   }
 
-  // Add aspect-ratio hint (Nano Banana respects this)
+  // Aspect ratio at TOP (primary instruction) AND bottom (reinforcement).
+  // Models obey instructions placed at extremities better than middle.
   const aspectHint = aspectToHint(variant.aspectRatio);
-  prompt = `${prompt}\n\n${aspectHint}`;
+  prompt = `${aspectHint}\n\n${prompt}\n\n${aspectHint}`;
 
   // 2. Download reference images and convert to base64 inline parts
   const refImages = input.referenceImages ?? [];
@@ -212,11 +213,11 @@ function extractImageFromResponse(response: unknown): Buffer | null {
 function aspectToHint(aspect: Variant['aspectRatio']): string {
   switch (aspect) {
     case '9:16':
-      return 'Generate a portrait image with 9:16 aspect ratio (vertical Stories/Reels format).';
+      return 'CRITICAL OUTPUT FORMAT — VERTICAL 9:16 (1024x1820 pixels). This is for Instagram Stories / Reels / TikTok. The image MUST be tall and narrow. DO NOT generate landscape, square, or 16:9. Vertical orientation is mandatory.';
     case '4:5':
-      return 'Generate a portrait image with 4:5 aspect ratio (Instagram feed portrait).';
+      return 'CRITICAL OUTPUT FORMAT — VERTICAL 4:5 PORTRAIT (1024x1280 pixels). This is for Instagram feed portrait posts. Tall not wide. DO NOT generate square or landscape.';
     case '1:1':
     default:
-      return 'Generate a square image with 1:1 aspect ratio (Instagram feed square).';
+      return 'CRITICAL OUTPUT FORMAT — PERFECT SQUARE 1:1 (1024x1024 pixels). Equal width and height. DO NOT generate portrait or landscape.';
   }
 }

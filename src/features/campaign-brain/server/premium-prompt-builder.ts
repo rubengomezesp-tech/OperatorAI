@@ -161,6 +161,23 @@ export function buildPremiumImagePrompt(
 
   const parts: string[] = [];
 
+  // ─── LAYER 0: ASPECT RATIO MANDATE (always first) ────────────
+  // Models follow first-line constraints far better than buried mid-prompt
+  const aspect = variantBrief.aspectRatio;
+  if (aspect === '9:16') {
+    parts.push(
+      'MANDATORY OUTPUT FORMAT: vertical 9:16 portrait (1024x1820 pixels) for Instagram Stories / Reels / TikTok. The image MUST be tall and narrow. Do NOT generate landscape, square, or 16:9 horizontal output.',
+    );
+  } else if (aspect === '4:5') {
+    parts.push(
+      'MANDATORY OUTPUT FORMAT: vertical 4:5 portrait (1024x1280 pixels) for Instagram feed portrait. Taller than wide. Do NOT generate square or landscape.',
+    );
+  } else {
+    parts.push(
+      'MANDATORY OUTPUT FORMAT: perfect square 1:1 (1024x1024 pixels). Equal width and height. Do NOT generate portrait or landscape.',
+    );
+  }
+
   // ─── LAYER 1: BRAND CONTEXT ──────────────────────────────────
   if (brandKit && brandKit.hasBrandData) {
     const brandParts: string[] = [];
