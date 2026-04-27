@@ -119,6 +119,13 @@ export interface BridgeContext {
   orgId: string;
   /** Optional uploaded product photos */
   productPhotoUrls?: string[];
+  /** Optional Gemini Vision analyses of the uploaded photos */
+  productAnalyses?: Array<{
+    productType: string;
+    generationDescription: string;
+    colors: string[];
+    materials: string[];
+  }>;
 }
 
 /**
@@ -139,6 +146,12 @@ async function variantBriefToVariantAsync(
   vertical: VerticalSlug,
   brandKit: BrandKitForPrompt | null,
   productPhotoUrls: string[] | undefined,
+  productAnalyses: Array<{
+    productType: string;
+    generationDescription: string;
+    colors: string[];
+    materials: string[];
+  }> | undefined,
 ): Promise<Variant> {
   const premium = buildPremiumImagePrompt({
     variantBrief: brief,
@@ -146,6 +159,7 @@ async function variantBriefToVariantAsync(
     vertical,
     brandKit,
     productPhotoUrls,
+    productAnalyses,
     researchDossier: brainOutput.researchDossier
       ? {
           visualReferences: brainOutput.researchDossier.visualReferences,
@@ -165,7 +179,9 @@ async function variantBriefToVariantAsync(
     layout: pickLayout(brief.angle),
     angle: mapAngle(brief.angle),
     intent: brief.headline,
-    engine: 'gpt-image' as RenderEngine, // Premium default
+    // referenceImages — picked up by engine-selector to switch to nano-banana
+    referenceImages: productPhotoUrls ?? [],
+    engine: 'gpt-image' as RenderEngine, // Premium default (overridden by selector when refs present)
     copy: {
       headline: brief.headline,
       subheadline: '',
@@ -218,6 +234,7 @@ export async function brainOutputToVariantsAsync(
         vertical,
         brandKit,
         context.productPhotoUrls,
+        context.productAnalyses,
       ),
     ),
   );

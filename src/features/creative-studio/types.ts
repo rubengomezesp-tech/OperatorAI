@@ -230,6 +230,8 @@ export interface Variant {
   styleHint: VisualStyle;
   scenario?: AdScenario;
   productCategory?: ProductCategory;
+  /** Reference images for vision-aware models like Nano Banana */
+  referenceImages?: string[];
 }
 
 export interface CampaignMemory {

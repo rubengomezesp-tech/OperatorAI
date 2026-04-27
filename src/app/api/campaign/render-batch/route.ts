@@ -73,7 +73,15 @@ export async function POST(req: NextRequest) {
       id: string;
       brain_output?: BrainOutput | null;
       org_id?: string | null;
-      intake_data?: { visualReferences?: string[] } | null;
+      intake_data?: {
+        visualReferences?: string[];
+        productAnalyses?: Array<{
+          productType: string;
+          generationDescription: string;
+          colors: string[];
+          materials: string[];
+        }>;
+      } | null;
     };
 
     if (!draft.brain_output) {
@@ -99,11 +107,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Build variants with premium prompt
+    // Build variants with premium prompt + Gemini Vision analyses
     const productPhotoUrls = draft.intake_data?.visualReferences ?? undefined;
+    const productAnalyses = draft.intake_data?.productAnalyses ?? undefined;
     const allVariants = await brainOutputToVariantsAsync(draft.brain_output, {
       orgId,
       productPhotoUrls,
+      productAnalyses,
     });
     const maxVariants = Math.min(body.maxVariants ?? 4, allVariants.length);
     const variants = allVariants.slice(0, maxVariants);

@@ -442,6 +442,7 @@ const translations: Record<string, { en: string; es: string }> = {
   'cb.assets.upload': { en: 'Upload images', es: 'Subir imagenes' },
   'cb.assets.continue': { en: 'Continue to render →', es: 'Continuar a renderizar →' },
   'cb.assets.skip': { en: 'Skip — generate without photos', es: 'Saltar — generar sin fotos' },
+  'cb.assets.analyzing': { en: 'Gemini is analyzing...', es: 'Gemini esta analizando...' },
 
   'cb.variants.eyebrow': { en: 'Step 4 of 4', es: 'Paso 4 de 4' },
   'cb.variants.title': { en: 'Your variants', es: 'Tus variantes' },

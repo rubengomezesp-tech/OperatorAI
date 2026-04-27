@@ -114,6 +114,13 @@ export interface PremiumPromptInput {
     visualReferences: string[];
     productFacts: string[];
   } | null;
+  /** Optional Gemini Vision analyses of uploaded product photos */
+  productAnalyses?: Array<{
+    productType: string;
+    generationDescription: string;
+    colors: string[];
+    materials: string[];
+  }>;
 }
 
 export interface PremiumPromptResult {
@@ -131,13 +138,14 @@ export interface PremiumPromptResult {
     platform: boolean;
     productReference: boolean;
     visualReferences: boolean;
+    productVision: boolean;
   };
 }
 
 export function buildPremiumImagePrompt(
   input: PremiumPromptInput,
 ): PremiumPromptResult {
-  const { variantBrief, brainOutput, vertical, brandKit, productPhotoUrls, researchDossier } = input;
+  const { variantBrief, brainOutput, vertical, brandKit, productPhotoUrls, researchDossier, productAnalyses } = input;
 
   const layers = {
     brand: false,
@@ -148,6 +156,7 @@ export function buildPremiumImagePrompt(
     platform: false,
     productReference: false,
     visualReferences: false,
+    productVision: false,
   };
 
   const parts: string[] = [];
@@ -243,6 +252,27 @@ export function buildPremiumImagePrompt(
       `Reference: maintain visual consistency with the supplied product photos. The hero subject should match the product's identity, colors, and proportions.`,
     );
     layers.productReference = true;
+  }
+
+  // ─── LAYER 7.5: PRODUCT VISION (from Gemini analysis) ────────
+  if (productAnalyses && productAnalyses.length > 0) {
+    const primary = productAnalyses[0];
+    if (primary.generationDescription) {
+      parts.push(
+        `Product fidelity (CRITICAL): ${primary.generationDescription}`,
+      );
+      if (primary.colors.length > 0) {
+        parts.push(
+          `Preserve exact product colors: ${primary.colors.slice(0, 4).join(', ')}.`,
+        );
+      }
+      if (primary.materials.length > 0) {
+        parts.push(
+          `Preserve materials: ${primary.materials.slice(0, 3).join(', ')}.`,
+        );
+      }
+      layers.productVision = true;
+    }
   }
 
   // ─── LAYER 8: PLATFORM SPEC ──────────────────────────────────
