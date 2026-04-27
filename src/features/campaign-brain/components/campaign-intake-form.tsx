@@ -6,7 +6,7 @@
  * All user-visible strings go through useI18n.
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useI18n } from '@/lib/i18n';
 import { useCampaignDraft } from '@/features/campaign-brain/hooks/use-campaign-draft';
 import type { Platform, VerticalSlug, CampaignTypeSlug } from '@/features/campaign-brain/types';
@@ -44,11 +44,20 @@ const TYPE_OPTIONS: Array<{ value: CampaignTypeSlug; labelEn: string; labelEs: s
 
 interface CampaignIntakeFormProps {
   onStrategize: (draftId: string) => void;
+  /** Optional context from agent conversation to pre-fill */
+  initialBrief?: string;
 }
 
-export function CampaignIntakeForm({ onStrategize }: CampaignIntakeFormProps) {
+export function CampaignIntakeForm({ onStrategize, initialBrief }: CampaignIntakeFormProps) {
   const { t, locale } = useI18n();
   const { draft, intake, status, error, updateIntake, saveNow } = useCampaignDraft();
+
+  // Pre-fill from agent context (when user came from chat)
+  useEffect(() => {
+    if (initialBrief && intake && !intake.productDescription?.trim()) {
+      updateIntake({ productDescription: initialBrief });
+    }
+  }, [initialBrief, intake, updateIntake]);
   const [strategizing, setStrategizing] = useState(false);
 
   const canStrategize =

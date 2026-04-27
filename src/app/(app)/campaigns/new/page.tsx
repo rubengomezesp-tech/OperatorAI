@@ -11,7 +11,7 @@
  * No more jumping to /creative-studio. Everything in one place.
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useI18n } from '@/lib/i18n';
@@ -31,6 +31,20 @@ export default function NewCampaignPage() {
   const [brainOutput, setBrainOutput] = useState<BrainOutput | null>(null);
   const [draftId, setDraftId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [agentContext, setAgentContext] = useState<string | null>(null);
+
+  // Read context from chat (when user came from agent's ActionCard)
+  useEffect(() => {
+    try {
+      const ctx = sessionStorage.getItem('agentCampaignContext');
+      if (ctx) {
+        setAgentContext(ctx);
+        sessionStorage.removeItem('agentCampaignContext');
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
 
   // ── Handlers ──────────────────────────────────────────────────
 
@@ -160,7 +174,10 @@ export default function NewCampaignPage() {
           </div>
         </div>
       )}
-      <CampaignIntakeForm onStrategize={handleStrategize} />
+      <CampaignIntakeForm
+          onStrategize={handleStrategize}
+          initialBrief={agentContext ?? undefined}
+        />
     </>
   );
 }

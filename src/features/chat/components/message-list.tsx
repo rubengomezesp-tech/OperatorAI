@@ -41,6 +41,7 @@ export function MessageList({ messages, onRegenerate, regenDisabled }: Props) {
             isLastAssistant={i === lastAssistantIdx}
             onRegenerate={onRegenerate}
             regenDisabled={regenDisabled}
+            previousUserContent={i > 0 && messages[i - 1].role === "user" ? messages[i - 1].content : undefined}
           />
         ))}
         <div ref={endRef} />

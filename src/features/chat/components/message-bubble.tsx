@@ -5,10 +5,32 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Download, X, ChevronLeft, ChevronRight, ZoomIn, Image as ImageIcon } from 'lucide-react';
 import { MessageActions } from './message-actions';
+import { ActionCard } from './action-card';
 import { cn } from '@/lib/utils';
 
 const IMAGE_URL_REGEX = /https?:\/\/[^\s)]+\.(?:png|jpe?g|gif|webp|avif)(?:\?[^\s)]*)?/gi;
 const REPLICATE_URL_REGEX = /https?:\/\/(?:replicate\.delivery|pbxt\.replicate\.com|[^\s)]+\.supabase\.co\/storage\/v1\/object\/public)[^\s)]+/gi;
+
+
+const PROPOSAL_TRIGGERS = [
+  'campaña completa',
+  'puedo construir la campaña',
+  'puedo generar la campaña',
+  'puedo construir todo',
+  'puedo armar todo',
+  '~5 minutos',
+  '~5 min',
+  'full campaign',
+  'i can build the full campaign',
+  'i can generate',
+  '~5 minutes',
+];
+
+function agentProposesCampaign(text: string): boolean {
+  if (!text) return false;
+  const lower = text.toLowerCase();
+  return PROPOSAL_TRIGGERS.some((trig) => lower.includes(trig));
+}
 
 interface Message {
   id: string;
@@ -21,6 +43,7 @@ interface Props {
   isLastAssistant?: boolean;
   onRegenerate?: () => void;
   regenDisabled?: boolean;
+  previousUserContent?: string;
 }
 
 function extractImageUrls(text: string): string[] {
@@ -43,7 +66,7 @@ function stripImageUrls(text: string): string {
   return cleaned;
 }
 
-export function MessageBubble({ message, isLastAssistant, onRegenerate, regenDisabled }: Props) {
+export function MessageBubble({ message, isLastAssistant, onRegenerate, regenDisabled, previousUserContent }: Props) {
   const isUser = message.role === 'user';
   const imageUrls = useMemo(() => extractImageUrls(message.content), [message.content]);
   const cleanContent = useMemo(() => imageUrls.length > 0 ? stripImageUrls(message.content) : message.content, [message.content, imageUrls]);
@@ -63,6 +86,11 @@ export function MessageBubble({ message, isLastAssistant, onRegenerate, regenDis
               <ReactMarkdown remarkPlugins={[remarkGfm]}>{cleanContent}</ReactMarkdown>
             </div>
           </div>
+        )}
+
+        {/* Premium Campaign CTA */}
+        {!isUser && cleanContent && agentProposesCampaign(cleanContent) && (
+          <ActionCard contextPrompt={previousUserContent} />
         )}
 
         {/* Image gallery */}
