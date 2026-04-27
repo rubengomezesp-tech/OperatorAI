@@ -21,6 +21,7 @@ import type {
   VariantBrief,
   VerticalSlug,
 } from '../types';
+import { buildVerticalCue } from './vertical-knowledge';
 
 // ────────────────────────────────────────────────────────────────
 // Brand kit shape (mirrors what Composer V2 returns from brand-adapter)
@@ -264,15 +265,6 @@ export function buildPremiumImagePrompt(
       parts.push(visualBits.join('. ') + '.');
       layers.visualDirection = true;
     }
-  }
-
-  // ─── LAYER 4: HOOK TRANSLATION ───────────────────────────────
-  // Translate the headline into VISUAL concept (not literal text)
-  if (variantBrief.headline) {
-    parts.push(
-      `Visual concept (express through image, not text): "${variantBrief.headline}"`,
-    );
-    layers.hookTranslation = true;
   }
 
   // ─── LAYER 5: VERTICAL KNOWLEDGE ─────────────────────────────
