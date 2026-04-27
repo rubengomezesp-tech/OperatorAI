@@ -22,6 +22,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import type { BrainOutput } from '@/features/campaign-brain/types';
+import { VariantEditor } from './variant-editor';
 
 interface VariantCritique {
   score: number;
@@ -62,6 +63,13 @@ export function StageVariants({
   const [variants, setVariants] = useState<BatchVariantResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [editingVariantId, setEditingVariantId] = useState<string | null>(null);
+
+  function handleEditSave(variantId: string, newUrl: string) {
+    setVariants((prev) =>
+      prev.map((v) => (v.id === variantId ? { ...v, imageUrl: newUrl } : v)),
+    );
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -150,6 +158,7 @@ export function StageVariants({
                 briefHeadline={brief?.headline}
                 briefPlatform={brief?.platform}
                 t={t}
+                onEdit={() => setEditingVariantId(v.id)}
               />
             );
           })}
@@ -181,6 +190,7 @@ interface VariantCardProps {
   briefHeadline?: string;
   briefPlatform?: string;
   t: (k: string) => string;
+  onEdit?: () => void;
 }
 
 function VariantCard({
@@ -189,6 +199,7 @@ function VariantCard({
   briefHeadline,
   briefPlatform,
   t,
+  onEdit,
 }: VariantCardProps) {
   const [expanded, setExpanded] = useState(false);
   const isError = !!variant.error || !variant.imageUrl;
@@ -325,12 +336,11 @@ function VariantCard({
             </a>
             <button
               type="button"
-              disabled
-              title="Coming next"
-              className="flex-1 py-1.5 rounded-md border border-border bg-surface text-fg-subtle text-[12.5px] flex items-center justify-center gap-1.5 cursor-not-allowed"
+              onClick={onEdit}
+              className="flex-1 py-1.5 rounded-md border border-border bg-surface text-fg-muted hover:text-fg hover:border-fg-muted text-[12.5px] flex items-center justify-center gap-1.5 transition-all"
             >
               <RotateCcw className="h-3.5 w-3.5" />
-              {t('cb.variants.regenerate')}
+              {t('cb.variants.edit')}
             </button>
           </div>
         )}

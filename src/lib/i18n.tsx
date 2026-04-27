@@ -444,6 +444,19 @@ const translations: Record<string, { en: string; es: string }> = {
   'cb.assets.skip': { en: 'Skip — generate without photos', es: 'Saltar — generar sin fotos' },
   'cb.assets.analyzing': { en: 'Gemini is analyzing...', es: 'Gemini esta analizando...' },
 
+  // Variant editor (EN-4)
+  'cb.editor.title': { en: 'Edit variant', es: 'Editar variante' },
+  'cb.editor.save': { en: 'Save', es: 'Guardar' },
+  'cb.editor.no_image': { en: 'No image', es: 'Sin imagen' },
+  'cb.editor.editing': { en: 'Editing with AI...', es: 'Editando con IA...' },
+  'cb.editor.ai_panel': { en: 'AI Editor', es: 'Editor IA' },
+  'cb.editor.ai_subtitle': { en: 'Describe what to change. Product and logo are preserved.', es: 'Describe que cambiar. Producto y logo se preservan.' },
+  'cb.editor.suggestions': { en: 'Quick edits', es: 'Ediciones rapidas' },
+  'cb.editor.history': { en: 'Recent edits', es: 'Ediciones recientes' },
+  'cb.editor.versions': { en: 'Versions', es: 'Versiones' },
+  'cb.editor.send': { en: 'Apply edit', es: 'Aplicar edicion' },
+  'cb.editor.input_placeholder': { en: 'Change background to a sunset beach, more cinematic, warmer tones...', es: 'Cambia el fondo a una playa al atardecer, mas cinematografico, tonos calidos...' },
+
   'cb.variants.eyebrow': { en: 'Step 4 of 4', es: 'Paso 4 de 4' },
   'cb.variants.title': { en: 'Your variants', es: 'Tus variantes' },
   'cb.variants.subtitle': { en: 'AI-generated, on-brand. Edit or download below.', es: 'Generadas por IA, fieles a tu marca. Edita o descarga abajo.' },
