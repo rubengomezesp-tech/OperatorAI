@@ -1,485 +1,538 @@
 'use client';
+
+/**
+ * Landing V3 — Premium hero + cinematic sections
+ *
+ * Inspired by: Anthropic, Linear, Vercel, Lovable, Cursor
+ *
+ * Key principles:
+ *   - Aurora intense as background (sets premium tone)
+ *   - Display font for impact (Instrument Serif)
+ *   - Magnetic CTAs (subtle but felt)
+ *   - Scroll-triggered reveals
+ *   - Animated chat mockup (the hero of the page)
+ *   - Mobile-perfect
+ */
+
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { ArrowRight, Rocket, Target, Zap, Check, Sparkles } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion, useScroll, useTransform } from 'framer-motion';
+import {
+  ArrowRight,
+  Sparkles,
+  Zap,
+  Target,
+  Palette,
+  Check,
+  Star,
+  MessageSquare,
+} from 'lucide-react';
 import { useI18n, LanguageToggle } from '@/lib/i18n';
 import { Aurora } from '@/components/ui/aurora';
 import { Magnetic } from '@/components/ui/magnetic';
-import { AnimatedText } from '@/components/ui/animated-text';
 import { fadeUp, staggerContainer, scaleIn } from '@/lib/motion';
 
-const t_landing: Record<string, Record<string, string>> = {
-  badge: { en: 'Brand execution engine', es: 'Motor de ejecucion de marca' },
-  h1_1: { en: 'Your brand.', es: 'Tu marca.' },
-  h1_2: { en: 'Your campaigns. Done.', es: 'Tus campañas. Listas.' },
-  hero_p: {
-    en: 'Upload your assets. The system composes, generates copy, creates video, and delivers publish-ready campaigns. No design skills. No prompts.',
-    es: 'Sube tus assets. El sistema compone, genera copy, crea video y entrega campañas listas para publicar. Sin disenar. Sin prompts.',
-  },
-  cta_trial: { en: 'Start 7-day free trial', es: 'Prueba gratis 7 días' },
-  cta_pricing: { en: 'View pricing', es: 'Ver precios' },
-  cta_login: { en: 'Log in', es: 'Iniciar sesion' },
-  no_card: { en: 'No card required', es: 'Sin tarjeta' },
-  from: { en: 'Starter from $29/mo', es: 'Starter desde 29 $/mes' },
+// ─────────────────────────────────────────────────────────────────
+// i18n
+// ─────────────────────────────────────────────────────────────────
 
-  // === HERO KEYS (mockup + efectos) ===
-  hero_announcement: { en: 'Now with Brand OS v2', es: 'Ahora con Brand OS v2' },
-  hero_check_1: { en: 'Free 7-day trial', es: 'Prueba 7 días gratis' },
-  hero_check_2: { en: 'No card required', es: 'Sin tarjeta' },
-  hero_check_3: { en: 'Cancel anytime', es: 'Cancela cuando quieras' },
-  mockup_mission_label: { en: 'Mission', es: 'Misión' },
-  mockup_mission_name: { en: 'Launch Summer Collection', es: 'Lanzar Colección Verano' },
-  mockup_generating: { en: 'Generating', es: 'Generando' },
-  mockup_nav_home: { en: 'Home', es: 'Inicio' },
-  mockup_nav_missions: { en: 'Missions', es: 'Misiones' },
-  mockup_nav_campaigns: { en: 'Campaigns', es: 'Campañas' },
-  mockup_nav_library: { en: 'Library', es: 'Librería' },
-  mockup_nav_brand: { en: 'Brand OS', es: 'Brand OS' },
-  mockup_asset_1: { en: 'Instagram Ad', es: 'Anuncio Instagram' },
-  mockup_asset_2: { en: 'Email Campaign', es: 'Campaña Email' },
-  mockup_asset_3: { en: 'TikTok Video', es: 'Video TikTok' },
-  mockup_check_1: { en: 'Brand colors applied', es: 'Colores aplicados' },
-  mockup_check_2: { en: 'Tone of voice matched', es: 'Tono ajustado' },
-  mockup_check_3: { en: 'Publish-ready', es: 'Listo para publicar' },
-  mockup_progress_label: { en: 'Generating assets', es: 'Generando assets' },
-
-  shift: { en: 'The shift', es: 'El cambio' },
-  shift_h2_1: { en: 'From prompts to ', es: 'De prompts a ' },
-  shift_h2_2: { en: 'operations', es: 'operaciones' },
-  old_way: { en: 'The old way', es: 'La forma antigua' },
-  old_title: { en: 'Write prompt. Copy. Edit. Repeat.', es: 'Escribe prompt. Copia. Edita. Repite.' },
-  old_1: { en: 'Open 5 AI tools', es: 'Abrir 5 herramientas IA' },
-  old_2: { en: 'Craft prompts for each', es: 'Escribir prompts para cada una' },
-  old_3: { en: 'Manually copy outputs', es: 'Copiar resultados manualmente' },
-  old_4: { en: 'Check every output for brand consistency', es: 'Revisar cada salida por consistencia de marca' },
-  old_5: { en: 'No memory of what worked', es: 'Sin memoria de lo que funcionó' },
-  new_way: { en: 'With Operator', es: 'Con Operator' },
-  new_title: { en: 'Deploy mission. Review outcomes.', es: 'Despliega misión. Revisa resultados.' },
-  new_1: { en: 'One objective, one click', es: 'Un objetivo, un click' },
-  new_2: { en: 'Agents orchestrate automatically', es: 'Los agentes orquestan automáticamente' },
-  new_3: { en: 'Brand OS enforces every output', es: 'Brand OS controla cada salida' },
-  new_4: { en: 'Outcomes tracked, learning applied', es: 'Resultados medidos, aprendizaje aplicado' },
-  new_5: { en: 'You approve. It executes.', es: 'Tú apruebas. Él ejecuta.' },
-  pillars: { en: 'Three pillars', es: 'Tres pilares' },
-  pillars_h2_1: { en: 'Everything runs on ', es: 'Todo funciona sobre ' },
-  pillars_h2_2: { en: 'your brand', es: 'tu marca' },
-  p_missions: { en: 'Missions', es: 'Misiones' },
-  p_missions_d: { en: 'Deploy autonomous objectives. Agents generate, execute, and track for you.', es: 'Despliega objetivos autónomos. Los agentes generan, ejecutan y miden por ti.' },
-  p_brand: { en: 'Brand OS', es: 'Brand OS' },
-  p_brand_d: { en: 'Your colors, words, tone — enforced on every output. On-brand by default.', es: 'Tus colores, palabras, tono — aplicados en cada salida. Fiel a tu marca.' },
-  p_workflows: { en: 'Workflows', es: 'Flujos' },
-  p_workflows_d: { en: 'Multi-step automations with real integrations. Schedule, trigger, chain.', es: 'Automatizaciones multi-paso con integraciones reales. Programa, dispara, encadena.' },
-  ready: { en: 'Ready when you are', es: 'Listo cuando tú lo estés' },
-  ready_h2_1: { en: 'Run your brand like a ', es: 'Gestiona tu marca como un ' },
-  ready_h2_2: { en: 'studio', es: 'estudio' },
-  ready_p: { en: 'Start free for 7 days. No card required. Cancel anytime. Plans from $29/month.', es: 'Empieza gratis 7 días. Sin tarjeta. Cancela cuando quieras. Desde 29 $/mes.' },
-  cta_free: { en: 'Start free trial', es: 'Prueba gratis' },
-  cta_plans: { en: 'See plans', es: 'Ver planes' },
+const tx: Record<string, Record<string, string>> = {
+  // Nav
   nav_pricing: { en: 'Pricing', es: 'Precios' },
-  nav_changelog: { en: 'Changelog', es: 'Cambios' },
   nav_login: { en: 'Log in', es: 'Entrar' },
-  privacy: { en: 'Privacy', es: 'Privacidad' },
-  terms: { en: 'Terms', es: 'Términos' },
-  support: { en: 'Support', es: 'Soporte' },
+  nav_signup: { en: 'Get started', es: 'Empezar' },
+
+  // Badge
+  hero_badge: { en: 'New · AI Operator for marketing', es: 'Nuevo · AI Operator para marketing' },
+
+  // Hero
+  hero_h1_a: { en: 'Stop creating campaigns.', es: 'Deja de crear campañas.' },
+  hero_h1_b: { en: 'Start launching them.', es: 'Empieza a lanzarlas.' },
+  hero_p: {
+    en: 'Operator is your creative director, strategist, and designer — in one conversation. From idea to publish-ready in 5 minutes.',
+    es: 'Operator es tu director creativo, estratega y diseñador — en una sola conversación. De idea a publicar en 5 minutos.',
+  },
+  hero_cta_primary: { en: 'Start free trial', es: 'Empezar gratis' },
+  hero_cta_secondary: { en: 'See it in action', es: 'Ver demo' },
+  hero_no_card: { en: 'No card required · 7-day trial', es: 'Sin tarjeta · 7 días gratis' },
+
+  // Mockup chat
+  mockup_user_msg: { en: 'I want to launch a fitness campaign for my new program', es: 'Quiero lanzar una campaña fitness para mi nuevo programa' },
+  mockup_agent_typing: { en: 'Operator is thinking...', es: 'Operator está pensando...' },
+  mockup_agent_msg: { en: 'Got it. Authority-led angle works best for fitness — show real transformation. I can build the full campaign with strategy + 4 visuals in ~5 min.', es: 'Entendido. El ángulo de autoridad funciona mejor en fitness — muestra transformación real. Puedo construir la campaña completa con estrategia + 4 visuales en ~5 min.' },
+  mockup_action_card: { en: 'Generate full campaign · ~5 min', es: 'Generar campaña completa · ~5 min' },
+
+  // Power section
+  power_kicker: { en: 'Why Operator', es: 'Por qué Operator' },
+  power_h2_a: { en: 'A creative team that ', es: 'Un equipo creativo que ' },
+  power_h2_b: { en: 'never sleeps', es: 'nunca duerme' },
+  power_1_t: { en: '5 minutes vs 5 days', es: '5 minutos vs 5 días' },
+  power_1_d: { en: 'From brief to publish-ready assets in the time it takes to make coffee.', es: 'De brief a assets listos en lo que tardas en hacerte un café.' },
+  power_2_t: { en: '17 industries · real DNA', es: '17 industrias · DNA real' },
+  power_2_d: { en: 'Hotel campaigns look like hotels. Jewelry like jewelry. Fitness like fitness. Real visual language per industry.', es: 'Campañas de hotel parecen hoteles. Joyería como joyería. Fitness como fitness. Lenguaje visual real por industria.' },
+  power_3_t: { en: 'Agency quality, instant', es: 'Calidad agencia, instante' },
+  power_3_d: { en: 'AI vision critic iterates until quality passes. No more uncanny outputs.', es: 'AI vision critic itera hasta pasar calidad. Sin outputs raros.' },
+
+  // How
+  how_kicker: { en: 'How it works', es: 'Cómo funciona' },
+  how_h2_a: { en: 'Three steps. ', es: 'Tres pasos. ' },
+  how_h2_b: { en: 'No design skills.', es: 'Sin habilidades de diseño.' },
+  how_1_t: { en: 'Chat naturally', es: 'Habla normal' },
+  how_1_d: { en: 'Tell Operator what you need — like talking to your CMO.', es: 'Cuéntale qué necesitas — como hablar con tu CMO.' },
+  how_2_t: { en: 'Approve direction', es: 'Aprueba dirección' },
+  how_2_d: { en: 'Operator proposes strategy. You confirm. It executes.', es: 'Operator propone estrategia. Confirmas. Ejecuta.' },
+  how_3_t: { en: 'Refine & launch', es: 'Refina & lanza' },
+  how_3_d: { en: 'Edit details in our pro editor. Export ready for any platform.', es: 'Edita detalles en el editor pro. Exporta listo para cualquier plataforma.' },
+
+  // Verticals
+  verticals_kicker: { en: 'Built for your industry', es: 'Hecho para tu industria' },
+  verticals_h2_a: { en: 'Real visual DNA per ', es: 'DNA visual real por ' },
+  verticals_h2_b: { en: 'vertical', es: 'vertical' },
+
+  // Final CTA
+  final_h2_a: { en: 'Ready to ', es: '¿Listo para tener tu ' },
+  final_h2_b: { en: 'have your AI agency inside?', es: 'agencia AI dentro?' },
+  final_p: { en: 'Start free for 7 days. Plans from $29/month. Cancel anytime.', es: 'Empieza gratis 7 días. Planes desde 29 $/mes. Cancela cuando quieras.' },
+  final_cta: { en: 'Start free trial', es: 'Empezar gratis' },
+  final_pricing: { en: 'See pricing', es: 'Ver precios' },
+
+  // Footer
+  footer_privacy: { en: 'Privacy', es: 'Privacidad' },
+  footer_terms: { en: 'Terms', es: 'Términos' },
+  footer_support: { en: 'Support', es: 'Soporte' },
+  footer_made: { en: 'Made with intention.', es: 'Hecho con intención.' },
 };
+
+// ─────────────────────────────────────────────────────────────────
+// Page
+// ─────────────────────────────────────────────────────────────────
 
 export default function LandingPage() {
   const { locale } = useI18n();
-  const l = (key: string) => t_landing[key]?.[locale] ?? t_landing[key]?.en ?? key;
-
-  // === MICRO-INTERACTIONS del mockup ===
-  const [step, setStep] = useState(0);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setStep((s) => (s + 1) % 5);
-    }, 1400);
-    return () => clearInterval(interval);
-  }, []);
-
-  const assetVisible = (idx: number) => step > idx && step < 5;
-  const progressWidth = step === 0 ? '0%' : step >= 4 ? '100%' : `${(step / 3) * 100}%`;
-  const progressPercent = step === 0 ? 0 : step >= 4 ? 100 : Math.round((step / 3) * 100);
+  const t = (key: string) => tx[key]?.[locale] ?? tx[key]?.en ?? key;
 
   return (
-    <div className="min-h-screen bg-bg text-fg">
-      {/* Nav */}
-      <header className="sticky top-0 z-30 glass border-b border-border">
-        <div className="max-w-[1100px] mx-auto flex items-center justify-between h-14 px-5 lg:px-8">
-          <Link href="/" className="flex items-center gap-2.5">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logo.png" alt="Operator AI" className="h-7 w-7 rounded-md" />
-            <div className="flex items-center gap-2">
-              <span className="font-display text-[16px] tracking-tight">Operator</span>
-              <span className="text-[10px] uppercase tracking-[0.2em] text-gold px-1.5 py-0.5 rounded bg-gold/10 border border-gold/20">AI</span>
-            </div>
+    <main className="relative overflow-hidden bg-bg">
+      {/* Aurora as fixed background — stays as you scroll */}
+      <div className="fixed inset-0 -z-10 pointer-events-none">
+        <Aurora intensity="medium" />
+      </div>
+
+      {/* Top nav */}
+      <nav className="relative z-20 max-w-7xl mx-auto px-6 sm:px-8 py-5 flex items-center justify-between">
+        <Link href="/" className="flex items-center gap-2 text-fg hover:opacity-80 transition-opacity">
+          <div className="h-8 w-8 rounded-md gold-grad flex items-center justify-center">
+            <Sparkles className="h-4 w-4 text-bg" />
+          </div>
+          <span className="font-display text-[18px] tracking-tight">Operator</span>
+        </Link>
+
+        <div className="flex items-center gap-2 sm:gap-4">
+          <LanguageToggle />
+          <Link
+            href="/pricing"
+            className="hidden sm:inline-flex text-[13.5px] text-fg-muted hover:text-fg transition-colors px-3 py-1.5"
+          >
+            {t('nav_pricing')}
           </Link>
-          <nav className="hidden md:flex items-center gap-6 text-[13px] text-fg-muted">
-            <Link href="/pricing" className="hover:text-gold transition-colors">{l('nav_pricing')}</Link>
-            <LanguageToggle />
-          </nav>
-          <div className="flex md:hidden items-center gap-2">
-            <LanguageToggle />
-            <Link
-              href="/signup"
-              className="inline-flex items-center gap-1.5 h-8 px-3.5 rounded-md gold-grad text-bg text-[12px] font-medium hover:brightness-110 transition"
-            >
-              <span>{l('cta_trial')}</span>
-            </Link>
-          </div>
+          <Link
+            href="/login"
+            className="text-[13.5px] text-fg-muted hover:text-fg transition-colors px-3 py-1.5"
+          >
+            {t('nav_login')}
+          </Link>
+          <Link
+            href="/signup"
+            className="text-[13.5px] gold-grad text-bg px-3.5 py-1.5 rounded-md font-medium hover:brightness-110 transition-all shadow-[0_4px_20px_-4px_rgb(201_168_99_/_0.4)]"
+          >
+            {t('nav_signup')}
+          </Link>
         </div>
-      </header>
+      </nav>
 
-      {/* Hero */}
-      <section className="relative px-5 lg:px-8 pt-20 lg:pt-28 pb-12 overflow-hidden">
-        {/* Background: Grid pattern */}
-        <div
-          className="absolute inset-0 opacity-[0.04] pointer-events-none"
-          style={{
-            backgroundImage: `linear-gradient(rgba(255,255,255,1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,1) 1px, transparent 1px)`,
-            backgroundSize: '60px 60px',
-            maskImage: 'radial-gradient(ellipse at center top, black 20%, transparent 70%)',
-            WebkitMaskImage: 'radial-gradient(ellipse at center top, black 20%, transparent 70%)',
-          }}
-        />
+      {/* HERO */}
+      <section className="relative z-10 max-w-6xl mx-auto px-6 sm:px-8 pt-12 sm:pt-20 pb-24 sm:pb-32">
+        <motion.div
+          initial="hidden"
+          animate="visible"
+          variants={staggerContainer}
+          className="text-center max-w-4xl mx-auto"
+        >
+          {/* Badge */}
+          <motion.div variants={fadeUp} className="mb-6">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-2/80 border border-border text-[11.5px] text-fg-muted backdrop-blur-sm">
+              <span className="h-1.5 w-1.5 rounded-full bg-gold animate-pulse-dot" />
+              {t('hero_badge')}
+            </span>
+          </motion.div>
 
-        {/* Background: Glow dorado grande */}
-        <div className="absolute -top-32 left-1/2 -translate-x-1/2 h-96 w-[900px] rounded-full gold-grad opacity-[0.08] blur-3xl pointer-events-none" />
+          {/* H1 */}
+          <motion.h1
+            variants={fadeUp}
+            className="font-display text-[44px] sm:text-[64px] lg:text-[80px] leading-[0.95] tracking-tight text-fg mb-5"
+          >
+            {t('hero_h1_a')}
+            <br />
+            <span className="text-gold-grad">{t('hero_h1_b')}</span>
+          </motion.h1>
 
-        <div className="relative max-w-[920px] mx-auto text-center">
-          {/* Announcement pill */}
-          <div className="inline-flex items-center gap-2 rounded-full border border-gold/20 bg-gold/5 px-3.5 py-1.5 text-[11px] uppercase tracking-[0.14em] text-gold mb-6 hover:border-gold/40 transition-colors">
-            <Sparkles className="h-3 w-3" />
-            <span>{l('hero_announcement')}</span>
-            <span className="text-gold/50">·</span>
-            <span className="text-gold/70 normal-case tracking-normal text-[11px]">{l('badge')}</span>
-          </div>
+          {/* Subhead */}
+          <motion.p
+            variants={fadeUp}
+            className="text-[15px] sm:text-[17px] text-fg-muted max-w-2xl mx-auto leading-relaxed mb-9"
+          >
+            {t('hero_p')}
+          </motion.p>
 
-          {/* Título */}
-          <h1 className="font-display text-[52px] lg:text-[80px] leading-[0.98] mb-6">
-            {l('h1_1')}<br />
-            <span className="text-gold-grad">{l('h1_2')}</span>
-          </h1>
-
-          {/* Subtítulo */}
-          <p className="text-[16px] lg:text-[18px] text-fg-muted max-w-[620px] mx-auto leading-relaxed mb-10">
-            {l('hero_p')}
-          </p>
-
-          {/* CTA buttons */}
-          <div className="flex items-center justify-center gap-3 mb-6">
+          {/* CTAs */}
+          <motion.div
+            variants={fadeUp}
+            className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-5"
+          >
+            <Magnetic strength={0.25}>
+              <Link
+                href="/signup"
+                className="group flex items-center gap-2 h-12 px-6 rounded-md gold-grad text-bg font-medium text-[14.5px] hover:brightness-110 transition-all shadow-[0_8px_32px_-8px_rgb(201_168_99_/_0.5)]"
+              >
+                {t('hero_cta_primary')}
+                <ArrowRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
+              </Link>
+            </Magnetic>
             <Link
-              href="/signup"
-              className="inline-flex items-center gap-2 h-12 px-6 rounded-md gold-grad text-bg text-[14px] font-medium hover:brightness-110 transition shadow-[0_0_40px_rgba(201,168,99,0.2)]"
+              href="#how"
+              className="flex items-center gap-2 h-12 px-5 text-[14px] text-fg-soft hover:text-fg transition-colors"
             >
-              <span>{l('cta_trial')}</span>
-              <ArrowRight className="h-4 w-4" />
+              <span className="border-b border-fg-soft/30 hover:border-fg/50 pb-0.5">
+                {t('hero_cta_secondary')}
+              </span>
             </Link>
+          </motion.div>
+
+          {/* No card */}
+          <motion.p
+            variants={fadeUp}
+            className="text-[12.5px] text-fg-subtle"
+          >
+            {t('hero_no_card')}
+          </motion.p>
+        </motion.div>
+
+        {/* Animated chat mockup */}
+        <motion.div
+          initial={{ opacity: 0, y: 40, scale: 0.96 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ duration: 0.9, delay: 0.5, ease: [0.16, 1, 0.3, 1] }}
+          className="mt-16 sm:mt-20 max-w-3xl mx-auto"
+        >
+          <ChatMockup t={t} />
+        </motion.div>
+      </section>
+
+      {/* POWER SECTION */}
+      <section className="relative z-10 max-w-6xl mx-auto px-6 sm:px-8 py-24 sm:py-32 border-t border-border">
+        <motion.div
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: '-80px' }}
+          variants={staggerContainer}
+          className="text-center max-w-3xl mx-auto mb-14"
+        >
+          <motion.div variants={fadeUp} className="text-[11px] uppercase tracking-[0.18em] text-gold mb-3">
+            {t('power_kicker')}
+          </motion.div>
+          <motion.h2 variants={fadeUp} className="font-display text-[36px] sm:text-[48px] leading-[1.05] tracking-tight">
+            {t('power_h2_a')}
+            <span className="text-gold-grad">{t('power_h2_b')}</span>
+          </motion.h2>
+        </motion.div>
+
+        <motion.div
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: '-80px' }}
+          variants={staggerContainer}
+          className="grid grid-cols-1 md:grid-cols-3 gap-4"
+        >
+          <PowerCard variants={fadeUp} icon={Zap} title={t('power_1_t')} desc={t('power_1_d')} />
+          <PowerCard variants={fadeUp} icon={Target} title={t('power_2_t')} desc={t('power_2_d')} />
+          <PowerCard variants={fadeUp} icon={Sparkles} title={t('power_3_t')} desc={t('power_3_d')} />
+        </motion.div>
+      </section>
+
+      {/* HOW IT WORKS */}
+      <section id="how" className="relative z-10 max-w-6xl mx-auto px-6 sm:px-8 py-24 sm:py-32 border-t border-border">
+        <motion.div
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: '-80px' }}
+          variants={staggerContainer}
+          className="text-center max-w-3xl mx-auto mb-16"
+        >
+          <motion.div variants={fadeUp} className="text-[11px] uppercase tracking-[0.18em] text-gold mb-3">
+            {t('how_kicker')}
+          </motion.div>
+          <motion.h2 variants={fadeUp} className="font-display text-[36px] sm:text-[48px] leading-[1.05] tracking-tight">
+            {t('how_h2_a')}
+            <br />
+            <span className="text-gold-grad">{t('how_h2_b')}</span>
+          </motion.h2>
+        </motion.div>
+
+        <motion.div
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: '-80px' }}
+          variants={staggerContainer}
+          className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6"
+        >
+          <HowStep variants={fadeUp} num="01" title={t('how_1_t')} desc={t('how_1_d')} icon={MessageSquare} />
+          <HowStep variants={fadeUp} num="02" title={t('how_2_t')} desc={t('how_2_d')} icon={Sparkles} />
+          <HowStep variants={fadeUp} num="03" title={t('how_3_t')} desc={t('how_3_d')} icon={Palette} />
+        </motion.div>
+      </section>
+
+      {/* VERTICALS */}
+      <section className="relative z-10 max-w-6xl mx-auto px-6 sm:px-8 py-24 sm:py-32 border-t border-border">
+        <motion.div
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: '-80px' }}
+          variants={staggerContainer}
+          className="text-center max-w-3xl mx-auto mb-14"
+        >
+          <motion.div variants={fadeUp} className="text-[11px] uppercase tracking-[0.18em] text-gold mb-3">
+            {t('verticals_kicker')}
+          </motion.div>
+          <motion.h2 variants={fadeUp} className="font-display text-[36px] sm:text-[48px] leading-[1.05] tracking-tight">
+            {t('verticals_h2_a')}
+            <span className="text-gold-grad">{t('verticals_h2_b')}</span>
+          </motion.h2>
+        </motion.div>
+
+        <motion.div
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: '-80px' }}
+          variants={staggerContainer}
+          className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5"
+        >
+          {[
+            { en: 'Hotels & Travel', es: 'Hoteles y Viajes', emoji: '🏨' },
+            { en: 'Jewelry & Luxury', es: 'Joyería y Lujo', emoji: '💎' },
+            { en: 'Restaurants', es: 'Restaurantes', emoji: '🍽️' },
+            { en: 'Fitness', es: 'Fitness', emoji: '💪' },
+            { en: 'Beauty', es: 'Beauty', emoji: '✨' },
+            { en: 'Fashion', es: 'Moda', emoji: '👗' },
+            { en: 'Tech & SaaS', es: 'Tech y SaaS', emoji: '⚡' },
+            { en: 'Real Estate', es: 'Inmobiliaria', emoji: '🏛️' },
+            { en: 'Home Decor', es: 'Decoración', emoji: '🛋️' },
+            { en: 'Health', es: 'Salud', emoji: '🩺' },
+            { en: 'Education', es: 'Educación', emoji: '📚' },
+            { en: 'Automotive', es: 'Automoción', emoji: '🚗' },
+          ].map((v, i) => (
+            <motion.div
+              key={i}
+              variants={fadeUp}
+              className="px-4 py-3 rounded-md bg-surface-2 border border-border text-[13px] text-fg-soft hover:border-gold/40 transition-colors flex items-center gap-2"
+            >
+              <span className="text-lg">{v.emoji}</span>
+              <span className="truncate">{locale === 'es' ? v.es : v.en}</span>
+            </motion.div>
+          ))}
+        </motion.div>
+      </section>
+
+      {/* FINAL CTA */}
+      <section className="relative z-10 max-w-4xl mx-auto px-6 sm:px-8 py-24 sm:py-32 border-t border-border">
+        <motion.div
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: '-80px' }}
+          variants={staggerContainer}
+          className="text-center"
+        >
+          <motion.h2 variants={fadeUp} className="font-display text-[36px] sm:text-[56px] leading-[1.05] tracking-tight mb-6">
+            {t('final_h2_a')}
+            <span className="text-gold-grad">{t('final_h2_b')}</span>
+          </motion.h2>
+          <motion.p variants={fadeUp} className="text-fg-muted max-w-xl mx-auto mb-10 text-[15px]">
+            {t('final_p')}
+          </motion.p>
+          <motion.div variants={fadeUp} className="flex flex-col sm:flex-row gap-3 justify-center">
+            <Magnetic strength={0.25}>
+              <Link
+                href="/signup"
+                className="flex items-center justify-center gap-2 h-12 px-7 rounded-md gold-grad text-bg font-medium text-[14.5px] hover:brightness-110 transition-all shadow-[0_8px_32px_-8px_rgb(201_168_99_/_0.5)]"
+              >
+                {t('final_cta')}
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            </Magnetic>
             <Link
               href="/pricing"
-              className="inline-flex items-center gap-2 h-12 px-5 rounded-md border border-border bg-surface-2 text-fg text-[14px] hover:border-gold/40 transition"
+              className="flex items-center justify-center gap-2 h-12 px-6 rounded-md bg-transparent text-fg border border-border-strong hover:border-gold transition-colors text-[14px]"
             >
-              {l('cta_pricing')}
+              {t('final_pricing')}
             </Link>
-          </div>
-
-          {/* Checks con iconos */}
-          <div className="flex items-center justify-center gap-5 flex-wrap text-[11.5px] text-fg-subtle">
-            <span className="inline-flex items-center gap-1.5">
-              <Check className="h-3 w-3 text-gold" />
-              {l('hero_check_1')}
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <Check className="h-3 w-3 text-gold" />
-              {l('hero_check_2')}
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <Check className="h-3 w-3 text-gold" />
-              {l('hero_check_3')}
-            </span>
-          </div>
-
-          {/* Log in link */}
-          <div className="mt-4">
-            <Link href="/login" className="text-[13px] text-gold hover:text-gold/80 underline underline-offset-4 transition-colors">{l('cta_login')}</Link>
-          </div>
-        </div>
-
-        {/* === MOCKUP DEL PRODUCTO con micro-interactions === */}
-        <div className="relative max-w-[980px] mx-auto mt-16 lg:mt-20 group">
-          {/* Sparkles dorados flotantes alrededor del mockup */}
-          <div
-            className="absolute top-[5%] -left-2 h-1.5 w-1.5 rounded-full bg-gold animate-ping pointer-events-none"
-            style={{ animationDuration: '3s', animationDelay: '0s' }}
-          />
-          <div
-            className="absolute top-[25%] -right-3 h-1 w-1 rounded-full bg-gold animate-ping pointer-events-none"
-            style={{ animationDuration: '2.5s', animationDelay: '1s' }}
-          />
-          <div
-            className="absolute bottom-[20%] -left-3 h-1 w-1 rounded-full bg-gold animate-ping pointer-events-none"
-            style={{ animationDuration: '3.5s', animationDelay: '2s' }}
-          />
-          <div
-            className="absolute bottom-[10%] right-[15%] h-1.5 w-1.5 rounded-full bg-gold animate-ping pointer-events-none"
-            style={{ animationDuration: '2.8s', animationDelay: '1.5s' }}
-          />
-          <div
-            className="absolute top-[40%] -right-2 h-1 w-1 rounded-full bg-gold animate-pulse pointer-events-none"
-            style={{ animationDuration: '2s', animationDelay: '0.5s' }}
-          />
-
-          {/* Glow detrás del mockup */}
-          <div className="absolute inset-0 -top-10 -bottom-10 blur-3xl opacity-30 pointer-events-none transition-opacity duration-500 group-hover:opacity-50">
-            <div className="absolute inset-0 gold-grad rounded-[40px]" />
-          </div>
-
-          {/* Container del mockup con hover lift */}
-          <div className="relative rounded-2xl border border-border bg-surface overflow-hidden shadow-[0_20px_80px_rgba(0,0,0,0.5)] transition-transform duration-500 group-hover:-translate-y-1">
-            {/* Browser chrome */}
-            <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-surface-2">
-              <div className="flex gap-1.5">
-                <div className="h-2.5 w-2.5 rounded-full bg-red-500/40" />
-                <div className="h-2.5 w-2.5 rounded-full bg-yellow-500/40" />
-                <div className="h-2.5 w-2.5 rounded-full bg-green-500/40" />
-              </div>
-              <div className="flex-1 text-center text-[11px] text-fg-subtle font-mono">
-                app.operatoraiapp.com
-              </div>
-            </div>
-
-            {/* App layout: sidebar + main */}
-            <div className="grid grid-cols-[200px_1fr] min-h-[360px]">
-              {/* Sidebar */}
-              <div className="border-r border-border bg-bg p-3 flex flex-col gap-1">
-                {[
-                  { label: l('mockup_nav_home'), active: false },
-                  { label: l('mockup_nav_missions'), active: true },
-                  { label: l('mockup_nav_campaigns'), active: false },
-                  { label: l('mockup_nav_library'), active: false },
-                  { label: l('mockup_nav_brand'), active: false },
-                ].map((item, i) => (
-                  <div
-                    key={i}
-                    className={`px-3 py-2 rounded-md text-[12px] font-medium transition-colors ${
-                      item.active
-                        ? 'bg-gold/10 text-gold border border-gold/20'
-                        : 'text-fg-muted'
-                    }`}
-                  >
-                    {item.label}
-                  </div>
-                ))}
-              </div>
-
-              {/* Main content */}
-              <div className="p-6">
-                {/* Mission header */}
-                <div className="flex items-center justify-between mb-4">
-                  <div>
-                    <div className="text-[10px] uppercase tracking-[0.14em] text-fg-subtle mb-1">
-                      {l('mockup_mission_label')}
-                    </div>
-                    <div className="font-display text-[18px] text-fg">
-                      {l('mockup_mission_name')}
-                    </div>
-                  </div>
-                  <div className="inline-flex items-center gap-1.5 text-[11px] text-gold">
-                    <span className="relative flex h-2 w-2">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-gold opacity-75" />
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-gold" />
-                    </span>
-                    {l('mockup_generating')}
-                  </div>
-                </div>
-
-                {/* Progress bar animado */}
-                <div className="mb-5">
-                  <div className="flex items-center justify-between text-[10px] text-fg-subtle mb-1.5">
-                    <span>{l('mockup_progress_label')}</span>
-                    <span className="font-mono text-gold">{progressPercent}%</span>
-                  </div>
-                  <div className="h-1 w-full bg-border rounded-full overflow-hidden">
-                    <div
-                      className="h-full gold-grad transition-all duration-700 ease-out"
-                      style={{ width: progressWidth }}
-                    />
-                  </div>
-                </div>
-
-                {/* Asset grid con animación en loop */}
-                <div className="grid grid-cols-3 gap-3 mb-5">
-                  {[
-                    { label: l('mockup_asset_1'), color: 'from-pink-500/20 to-purple-500/10' },
-                    { label: l('mockup_asset_2'), color: 'from-blue-500/20 to-cyan-500/10' },
-                    { label: l('mockup_asset_3'), color: 'from-orange-500/20 to-red-500/10' },
-                  ].map((asset, i) => {
-                    const visible = assetVisible(i);
-                    return (
-                      <div
-                        key={i}
-                        className={`aspect-[4/5] rounded-lg border bg-gradient-to-br ${asset.color} p-3 flex flex-col justify-end relative overflow-hidden transition-all duration-700 ease-out ${
-                          visible
-                            ? 'opacity-100 translate-y-0 border-gold/30 scale-100'
-                            : 'opacity-30 translate-y-2 border-border scale-[0.98]'
-                        }`}
-                      >
-                        {/* Check solo cuando visible */}
-                        <div
-                          className={`absolute top-2 right-2 transition-all duration-500 ${
-                            visible ? 'opacity-100 scale-100' : 'opacity-0 scale-50'
-                          }`}
-                        >
-                          <div className="h-4 w-4 rounded-full bg-gold/20 border border-gold/40 flex items-center justify-center">
-                            <Check className="h-2.5 w-2.5 text-gold" />
-                          </div>
-                        </div>
-
-                        <div className="text-[11px] text-fg font-medium relative">{asset.label}</div>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Checks */}
-                <div className="flex items-center gap-4 flex-wrap text-[11px] text-fg-muted">
-                  <span className="inline-flex items-center gap-1.5">
-                    <Check className="h-3 w-3 text-gold" />
-                    {l('mockup_check_1')}
-                  </span>
-                  <span className="inline-flex items-center gap-1.5">
-                    <Check className="h-3 w-3 text-gold" />
-                    {l('mockup_check_2')}
-                  </span>
-                  <span className="inline-flex items-center gap-1.5">
-                    <Check className="h-3 w-3 text-gold" />
-                    {l('mockup_check_3')}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
       </section>
-
-      {/* Compare */}
-      <section className="px-5 lg:px-8 pb-20 pt-12">
-        <div className="max-w-[920px] mx-auto">
-          <div className="text-center mb-12">
-            <div className="text-[11px] uppercase tracking-[0.18em] text-gold mb-2">{l('shift')}</div>
-            <h2 className="font-display text-[32px] lg:text-[40px] leading-tight">
-              {l('shift_h2_1')}<span className="text-gold-grad">{l('shift_h2_2')}</span>.
-            </h2>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="rounded-xl border border-border bg-surface p-6 opacity-80">
-              <div className="text-[10.5px] uppercase tracking-[0.18em] text-fg-subtle mb-3">{l('old_way')}</div>
-              <div className="text-[16px] font-display mb-4">{l('old_title')}</div>
-              <ul className="space-y-2 text-[13px] text-fg-muted">
-                <li>&bull; {l('old_1')}</li>
-                <li>&bull; {l('old_2')}</li>
-                <li>&bull; {l('old_3')}</li>
-                <li>&bull; {l('old_4')}</li>
-                <li>&bull; {l('old_5')}</li>
-              </ul>
-            </div>
-            <div className="rounded-xl border border-gold/30 bg-gradient-to-br from-surface to-surface-2 p-6 relative overflow-hidden">
-              <div className="absolute -top-12 -right-12 h-40 w-40 rounded-full gold-grad opacity-[0.12] blur-3xl pointer-events-none" />
-              <div className="relative">
-                <div className="text-[10.5px] uppercase tracking-[0.18em] text-gold mb-3">{l('new_way')}</div>
-                <div className="text-[16px] font-display mb-4">{l('new_title')}</div>
-                <ul className="space-y-2 text-[13px] text-fg">
-                  <li>&bull; {l('new_1')}</li>
-                  <li>&bull; {l('new_2')}</li>
-                  <li>&bull; {l('new_3')}</li>
-                  <li>&bull; {l('new_4')}</li>
-                  <li>&bull; {l('new_5')}</li>
-                </ul>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Core pillars */}
-      <section className="px-5 lg:px-8 pb-24">
-        <div className="max-w-[1020px] mx-auto">
-          <div className="text-center mb-14">
-            <div className="text-[11px] uppercase tracking-[0.18em] text-gold mb-2">{l('pillars')}</div>
-            <h2 className="font-display text-[32px] lg:text-[44px] leading-tight">
-              {l('pillars_h2_1')}<span className="text-gold-grad">{l('pillars_h2_2')}</span>.
-            </h2>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Pillar icon={Rocket} title={l('p_missions')} description={l('p_missions_d')} />
-            <Pillar icon={Target} title={l('p_brand')} description={l('p_brand_d')} />
-            <Pillar icon={Zap} title={l('p_workflows')} description={l('p_workflows_d')} />
-          </div>
-        </div>
-      </section>
-
-      {/* Pricing CTA */}
-      <section className="relative px-5 lg:px-8 py-24 border-t border-border">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-72 w-[500px] rounded-full gold-grad opacity-[0.05] blur-3xl pointer-events-none" />
-        <div className="relative max-w-[720px] mx-auto text-center">
-          <div className="text-[11px] uppercase tracking-[0.18em] text-gold mb-3">{l('ready')}</div>
-          <h2 className="font-display text-[40px] lg:text-[56px] leading-tight mb-5">
-            {l('ready_h2_1')}<span className="text-gold-grad">{l('ready_h2_2')}</span>.
-          </h2>
-          <p className="text-[15px] text-fg-muted max-w-[500px] mx-auto mb-8">{l('ready_p')}</p>
-          <div className="flex items-center justify-center gap-3">
-            <Link
-              href="/signup"
-              className="inline-flex items-center gap-2 h-12 px-6 rounded-md gold-grad text-bg text-[14px] font-medium hover:brightness-110 transition"
-            >
-              <span>{l('cta_free')}</span>
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-            <Link
-              href="/pricing"
-              className="inline-flex items-center gap-2 h-12 px-5 rounded-md border border-border bg-surface-2 text-fg text-[14px] hover:border-gold/40 transition"
-            >
-              {l('cta_plans')}
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* Footer */}
-      <footer className="border-t border-border py-10 px-5">
-        <div className="max-w-[1020px] mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2.5">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logo.png" alt="Operator AI" className="h-6 w-6 rounded" />
-            <span className="text-[12px] text-fg-muted">&copy; {new Date().getFullYear()} Operator AI</span>
-          </div>
-          <div className="flex items-center gap-5 text-[12px] text-fg-muted">
-            <Link href="/pricing" className="hover:text-gold">{l('nav_pricing')}</Link>
-            <Link href="/privacy" className="hover:text-gold">{l('privacy')}</Link>
-            <Link href="/terms" className="hover:text-gold">{l('terms')}</Link>
-            <Link href="/support" className="hover:text-gold">{l('support')}</Link>
-          </div>
-        </div>
-      </footer>
-    </div>
+    </main>
   );
 }
 
-function Pillar({
-  icon: Icon, title, description,
+// ─────────────────────────────────────────────────────────────────
+// Reusable parts
+// ─────────────────────────────────────────────────────────────────
+
+function PowerCard({
+  icon: Icon,
+  title,
+  desc,
+  variants,
 }: {
-  icon: React.ComponentType<{ className?: string }>;
+  icon: typeof Zap;
   title: string;
-  description: string;
+  desc: string;
+  variants: any;
 }) {
   return (
-    <div className="rounded-xl border border-border bg-surface p-6 hover:border-gold/40 transition-all">
-      <div className="h-11 w-11 rounded-lg bg-gold/10 border border-gold/20 flex items-center justify-center mb-4">
-        <Icon className="h-5 w-5 text-gold" />
+    <motion.div
+      variants={variants}
+      className="group relative p-6 rounded-lg bg-surface-2/60 backdrop-blur-sm border border-border hover:border-gold/40 transition-all"
+    >
+      <div className="h-10 w-10 rounded-md bg-gold/10 border border-gold/20 flex items-center justify-center mb-4">
+        <Icon className="h-4.5 w-4.5 text-gold" />
       </div>
-      <h3 className="font-display text-[20px] mb-2">{title}</h3>
-      <p className="text-[13.5px] text-fg-muted leading-relaxed">{description}</p>
+      <h3 className="text-[15.5px] font-medium text-fg mb-1.5 leading-tight">{title}</h3>
+      <p className="text-[13.5px] text-fg-muted leading-relaxed">{desc}</p>
+    </motion.div>
+  );
+}
+
+function HowStep({
+  num,
+  title,
+  desc,
+  icon: Icon,
+  variants,
+}: {
+  num: string;
+  title: string;
+  desc: string;
+  icon: typeof Zap;
+  variants: any;
+}) {
+  return (
+    <motion.div
+      variants={variants}
+      className="relative p-6 rounded-lg bg-surface-2/40 backdrop-blur-sm border border-border"
+    >
+      <div className="flex items-start justify-between mb-5">
+        <div className="text-[11px] uppercase tracking-[0.18em] text-gold font-mono">{num}</div>
+        <Icon className="h-4 w-4 text-fg-muted" />
+      </div>
+      <h3 className="text-[16px] font-medium text-fg mb-2 leading-tight">{title}</h3>
+      <p className="text-[13.5px] text-fg-muted leading-relaxed">{desc}</p>
+    </motion.div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Animated chat mockup
+// ─────────────────────────────────────────────────────────────────
+
+function ChatMockup({ t }: { t: (k: string) => string }) {
+  const [step, setStep] = useState(0);
+
+  useEffect(() => {
+    const timers = [
+      setTimeout(() => setStep(1), 1500),
+      setTimeout(() => setStep(2), 3500),
+      setTimeout(() => setStep(3), 6500),
+    ];
+    return () => timers.forEach(clearTimeout);
+  }, []);
+
+  return (
+    <div className="rounded-2xl bg-surface-2/80 backdrop-blur-md border border-border shadow-2xl overflow-hidden">
+      {/* Mock header */}
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-surface/50">
+        <div className="flex gap-1.5">
+          <div className="h-2.5 w-2.5 rounded-full bg-red-500/70" />
+          <div className="h-2.5 w-2.5 rounded-full bg-yellow-500/70" />
+          <div className="h-2.5 w-2.5 rounded-full bg-green-500/70" />
+        </div>
+        <div className="ml-3 text-[11.5px] text-fg-muted">Operator · Creative Agent</div>
+      </div>
+
+      {/* Mock conversation */}
+      <div className="px-5 sm:px-7 py-7 space-y-4 min-h-[280px]">
+        {/* User message */}
+        {step >= 1 && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4 }}
+            className="flex justify-end"
+          >
+            <div className="max-w-[85%] rounded-xl px-4 py-2.5 bg-gold/15 border border-gold/20 text-[13.5px] text-fg">
+              {t('mockup_user_msg')}
+            </div>
+          </motion.div>
+        )}
+
+        {/* Agent typing */}
+        {step >= 2 && step < 3 && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="flex items-center gap-2 text-[12px] text-fg-muted"
+          >
+            <div className="flex gap-1">
+              <span className="h-1.5 w-1.5 rounded-full bg-gold animate-pulse-dot" />
+              <span className="h-1.5 w-1.5 rounded-full bg-gold animate-pulse-dot" style={{ animationDelay: '0.2s' }} />
+              <span className="h-1.5 w-1.5 rounded-full bg-gold animate-pulse-dot" style={{ animationDelay: '0.4s' }} />
+            </div>
+            <span>{t('mockup_agent_typing')}</span>
+          </motion.div>
+        )}
+
+        {/* Agent message + action card */}
+        {step >= 3 && (
+          <>
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4 }}
+              className="flex justify-start"
+            >
+              <div className="max-w-[88%] rounded-xl px-4 py-3 bg-surface border border-border text-[13.5px] text-fg leading-relaxed">
+                {t('mockup_agent_msg')}
+              </div>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: 0.4 }}
+              className="flex"
+            >
+              <button className="flex items-center gap-3 p-3 rounded-lg bg-gradient-to-br from-gold/15 via-surface-2 to-surface-2 border border-gold/40 hover:border-gold/60 transition-colors">
+                <div className="h-8 w-8 rounded-md bg-gold/20 flex items-center justify-center">
+                  <Sparkles className="h-4 w-4 text-gold" />
+                </div>
+                <div className="text-left">
+                  <div className="text-[13px] font-medium text-fg">
+                    {t('mockup_action_card')}
+                  </div>
+                </div>
+                <ArrowRight className="h-3.5 w-3.5 text-fg-muted" />
+              </button>
+            </motion.div>
+          </>
+        )}
+      </div>
     </div>
   );
 }
