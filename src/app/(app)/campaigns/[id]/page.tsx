@@ -18,6 +18,8 @@ interface LoadedCampaign {
   id: string;
   brain_output: BrainOutput;
   intake_data: Record<string, unknown>;
+  renderedImages: Record<string, string>;
+  critiques: Record<string, unknown>;
 }
 
 export default function CampaignDetailPage() {
@@ -34,7 +36,7 @@ export default function CampaignDetailPage() {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch(`/api/campaigns/draft?id=${encodeURIComponent(params.id)}`, {
+        const res = await fetch(`/api/campaigns/${encodeURIComponent(params.id)}`, {
           credentials: 'include',
         });
         if (!res.ok) {
@@ -42,18 +44,22 @@ export default function CampaignDetailPage() {
           throw new Error(body?.error ?? `Failed: ${res.status}`);
         }
         const body = await res.json();
-        const draft = body.draft;
-        if (!draft) {
+        const camp = body.campaign;
+        if (!camp) {
           throw new Error('Campaign not found');
         }
-        if (!draft.brain_output) {
+        // brain_output may live under different shapes — normalise
+        const brainOutput = camp.brain_output || camp.brainOutput || null;
+        if (!brainOutput) {
           throw new Error('This campaign has no Strategy Brief yet');
         }
         if (!cancelled) {
           setCampaign({
-            id: draft.id,
-            brain_output: draft.brain_output,
-            intake_data: draft.intake ?? {},
+            id: camp.id,
+            brain_output: brainOutput,
+            intake_data: camp.intake_data || camp.intake || {},
+            renderedImages: camp.rendered_images || camp.renderedImages || {},
+            critiques: camp.critiques || {},
           });
         }
       } catch (err) {
@@ -114,6 +120,8 @@ export default function CampaignDetailPage() {
         draftId={campaign.id}
         brainOutput={campaign.brain_output}
         onSaveCampaign={handleSaveCampaign}
+        preRenderedImages={campaign.renderedImages}
+        preRenderedCritiques={campaign.critiques as Record<string, unknown>}
       />
     </>
   );

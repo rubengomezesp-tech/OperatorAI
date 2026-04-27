@@ -42,6 +42,9 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
     return NextResponse.json({
       ok: true,
       campaign: {
+        // Spread full row first to keep all DB fields available
+        ...row,
+        // Explicit fields (override with consistent naming)
         id: row.id,
         orgId: row.org_id,
         userId: row.user_id,

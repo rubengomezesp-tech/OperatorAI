@@ -218,6 +218,40 @@ export function buildPremiumImagePrompt(
     layers.brainDiagnostic = true;
   }
 
+  // ─── LAYER 2.5: STRATEGIC ANGLE EXECUTION ───────────────────
+  // The strategic angle determines visual mood and emphasis.
+  // Inject the explicit instruction so the model executes that angle.
+  const angle = (variantBrief.angle ?? '').toString();
+  const angleInstructions: Record<string, string> = {
+    'pain-point': 'Convey pre-relief tension. Subject visibly carries the burden the audience knows.',
+    'desire': 'Show the post-state outcome. Subject confidently embodies the goal achieved.',
+    'authority': 'Editorial portrait framing. Subject in element, expert posture, confident gaze.',
+    'luxury': 'Cinematic depth-of-field, premium materials, restrained palette, considered shadows.',
+    'viral': 'Scroll-stopping unexpected composition or color contrast. Pattern interrupt.',
+    'conversion': 'Crystal-clear product utility. Single focal point. Before-after reading clear.',
+    'curiosity': 'Mystery framing. Partially revealed subject. Intriguing angle that demands a second look.',
+    'urgency': 'Kinetic motion. Action mid-stride. Time-pressured framing.',
+    'social-proof': 'Group dynamic energy. Multiple subjects in shared moment of validation.',
+  };
+  if (angleInstructions[angle]) {
+    parts.push(
+      `Strategic angle "${angle}" must be executed visually: ${angleInstructions[angle]}`,
+    );
+  }
+
+  // ─── LAYER 2.6: HOOK TRANSLATION (concrete copy → image cue) ─
+  // Inject the actual hook copy + framework so visuals reinforce it
+  if (brainOutput.hooks && brainOutput.hooks.length > 0) {
+    const primaryHook = brainOutput.hooks.find(
+      (h) => h.targetAngle === angle,
+    ) ?? brainOutput.hooks[0];
+    if (primaryHook?.text) {
+      parts.push(
+        `Headline this image must support: "${primaryHook.text}"${primaryHook.framework ? ` (${primaryHook.framework} framework)` : ''}.`,
+      );
+    }
+  }
+
   // ─── LAYER 3: VISUAL DIRECTION (Brain) ───────────────────────
   if (brainOutput.visualDirection) {
     const vd = brainOutput.visualDirection;

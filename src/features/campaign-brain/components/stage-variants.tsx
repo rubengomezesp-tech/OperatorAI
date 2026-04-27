@@ -45,6 +45,9 @@ interface StageVariantsProps {
   draftId: string;
   brainOutput: BrainOutput;
   onSaveCampaign: () => void;
+  /** If provided, skip auto-render and use these images (saved campaign) */
+  preRenderedImages?: Record<string, string>;
+  preRenderedCritiques?: Record<string, unknown>;
 }
 
 function humanize(s: string): string {
@@ -58,6 +61,8 @@ export function StageVariants({
   draftId,
   brainOutput,
   onSaveCampaign,
+  preRenderedImages,
+  preRenderedCritiques,
 }: StageVariantsProps) {
   const { t } = useI18n();
   const [variants, setVariants] = useState<BatchVariantResult[]>([]);
@@ -73,6 +78,27 @@ export function StageVariants({
 
   useEffect(() => {
     let cancelled = false;
+
+    // If we have pre-rendered images (saved campaign view) — use them directly
+    if (preRenderedImages && Object.keys(preRenderedImages).length > 0) {
+      const reconstructed: BatchVariantResult[] = brainOutput.variantBriefs
+        .filter((b) => !!preRenderedImages[b.id])
+        .map((b) => {
+          const crit = preRenderedCritiques?.[b.id] as
+            | VariantCritique
+            | undefined;
+          return {
+            id: b.id,
+            imageUrl: preRenderedImages[b.id],
+            composedV2: false,
+            critique: crit,
+          } satisfies BatchVariantResult;
+        });
+      setVariants(reconstructed);
+      setLoading(false);
+      return () => {};
+    }
+
     (async () => {
       setLoading(true);
       setError(null);
@@ -100,7 +126,7 @@ export function StageVariants({
     return () => {
       cancelled = true;
     };
-  }, [draftId]);
+  }, [draftId, preRenderedImages, preRenderedCritiques, brainOutput]);
 
   const briefById = new Map(brainOutput.variantBriefs.map((b) => [b.id, b]));
 
