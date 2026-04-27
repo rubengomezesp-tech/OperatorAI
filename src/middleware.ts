@@ -30,6 +30,14 @@ export async function middleware(req: NextRequest) {
     await supabase.auth.getUser();
   } catch {}
 
+  // V3: Redirect bare / to /chat for authenticated users (Creative Agent is HOME)
+  if (req.nextUrl.pathname === '/') {
+    const hasSession = req.cookies.getAll().some((c) => c.name.startsWith('sb-'));
+    if (hasSession) {
+      return NextResponse.redirect(new URL('/chat', req.url));
+    }
+  }
+
   // CORS — only for API routes
   if (req.nextUrl.pathname.startsWith('/api/')) {
     const origin = req.headers.get('origin') ?? '';
