@@ -7,6 +7,7 @@ import { createSupabaseServiceClient } from '@/lib/supabase/service';
 import { resolveCurrentOrg } from '@/features/organizations/server/resolve';
 import { AppShell } from '@/components/layout/app-shell';
 import { OrgProvider } from '@/features/organizations/context/org-provider';
+import { Aurora } from '@/components/ui/aurora';
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const db = await createSupabaseServerClient();
@@ -41,7 +42,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <OrgProvider initialOrg={currentOrg} initialOrgs={orgs}>
       <AppShell email={me?.email ?? user.email ?? ''} fullName={me?.full_name ?? null}>
         <CommandPaletteProvider>
-          {children}
+          <div className="relative min-h-full bg-mesh">
+            {/* Subtle global aurora — visible but never intrusive */}
+            <Aurora intensity="subtle" className="fixed inset-0 -z-10" />
+            <div className="relative z-10">
+              {children}
+            </div>
+          </div>
           <PushNotificationPrompt />
           <AppFooter />
         </CommandPaletteProvider>
