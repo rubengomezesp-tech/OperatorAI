@@ -77,12 +77,12 @@ export function MessageBubble({ message, isLastAssistant, onRegenerate, regenDis
         {/* Text content */}
         {cleanContent && (
           <div className={cn(
-            'rounded-xl px-4 py-3',
+            'rounded-xl px-4 py-3.5',
             isUser
               ? 'bg-gold/15 border border-gold/20 text-fg'
               : 'bg-surface-2 border border-border text-fg',
           )}>
-            <div className="prose prose-sm prose-invert max-w-none text-[14px] leading-relaxed">
+            <div className="prose prose-sm prose-invert max-w-none text-[15.5px] leading-[1.7]">
               <ReactMarkdown remarkPlugins={[remarkGfm]}>{cleanContent}</ReactMarkdown>
             </div>
           </div>

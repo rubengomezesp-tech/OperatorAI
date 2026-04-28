@@ -109,6 +109,12 @@ const tx: Record<string, Record<string, string>> = {
 
 export default function LandingPage() {
   const { locale } = useI18n();
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  useEffect(() => {
+    const hasSession = document.cookie.split(';').some(c => c.trim().startsWith('sb-'));
+    setIsAuthenticated(hasSession);
+  }, []);
   const t = (key: string) => tx[key]?.[locale] ?? tx[key]?.en ?? key;
 
   return (
@@ -142,10 +148,10 @@ export default function LandingPage() {
             {t('nav_login')}
           </Link>
           <Link
-            href="/signup"
+            href={isAuthenticated ? "/chat" : "/signup"}
             className="text-[13.5px] gold-grad text-bg px-3.5 py-1.5 rounded-md font-medium hover:brightness-110 transition-all shadow-[0_4px_20px_-4px_rgb(201_168_99_/_0.4)]"
           >
-            {t('nav_signup')}
+            {isAuthenticated ? (locale === 'es' ? 'Abrir app' : 'Open app') : t('nav_signup')}
           </Link>
         </div>
       </nav>
