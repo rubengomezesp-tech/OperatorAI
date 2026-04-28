@@ -1,11 +1,14 @@
-// Operator AI Service Worker v4 — Push + Background + Cache
-const CACHE_NAME = 'operator-v4';
+// Operator AI Service Worker v5 — Push + Background + Cache
+const CACHE_NAME = 'operator-v5';
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => cache.addAll([
-      '/dashboard', '/manifest.json', '/logo.png',
-      '/icons/icon-192x192.png', '/icons/icon-512x512.png',
+      '/',
+      '/manifest.json',
+      '/logo.png',
+      '/icons/icon-192x192.png',
+      '/icons/icon-512x512.png',
     ]))
   );
   self.skipWaiting();
@@ -20,9 +23,9 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Push notification received
 self.addEventListener('push', (event) => {
-  let data = { title: 'Operator AI', body: 'Your task is ready', url: '/dashboard' };
+  let data = { title: 'Operator AI', body: 'Your task is ready', url: '/' };
+
   try {
     if (event.data) data = { ...data, ...event.data.json() };
   } catch {}
@@ -32,7 +35,7 @@ self.addEventListener('push', (event) => {
       body: data.body,
       icon: '/icons/icon-192x192.png',
       badge: '/icons/icon-72x72.png',
-      data: { url: data.url || '/dashboard' },
+      data: { url: data.url || '/' },
       vibrate: [100, 50, 100],
       actions: [
         { action: 'open', title: 'Open' },
@@ -42,10 +45,10 @@ self.addEventListener('push', (event) => {
   );
 });
 
-// Notification click
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const url = event.notification.data?.url || '/dashboard';
+  const url = event.notification.data?.url || '/';
+
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
       for (const client of clients) {
@@ -59,9 +62,9 @@ self.addEventListener('notificationclick', (event) => {
   );
 });
 
-// Background fetch (keep-alive)
 self.addEventListener('fetch', (event) => {
   if (event.request.url.includes('/api/')) return;
+
   event.respondWith(
     caches.match(event.request).then((cached) => cached || fetch(event.request))
   );
