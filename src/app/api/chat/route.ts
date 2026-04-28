@@ -307,8 +307,15 @@ export async function POST(req: NextRequest) {
         if (selectedProvider === 'google') {
           try {
             const { GoogleGenerativeAI } = await import('@google/generative-ai');
-            const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY || '');
-            const gemModel = genAI.getGenerativeModel({ model: body.model || 'gemini-2.5-flash-preview' });
+            const apiKey = process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY || '';
+            if (!apiKey) {
+              throw new Error('GOOGLE_API_KEY or GEMINI_API_KEY not configured');
+            }
+            const genAI = new GoogleGenerativeAI(apiKey);
+            const requestedModel = body.model || 'gemini-2.5-flash';
+            // Strip any -preview/-experimental suffixes that might 404
+            const cleanModel = requestedModel.replace(/-preview$|-experimental$/, '');
+            const gemModel = genAI.getGenerativeModel({ model: cleanModel });
             const sysMsg = messages.filter(m => m.role === 'system').map(m => typeof m.content === 'string' ? m.content : '').join('\n');
             const chatMsgs = messages.filter(m => m.role !== 'system').map(m => ({
               role: m.role === 'assistant' ? 'model' as const : 'user' as const,
