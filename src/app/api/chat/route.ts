@@ -279,11 +279,31 @@ export async function POST(req: NextRequest) {
             const OpenAI = (await import('openai')).default;
             const oai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
             
-            // Convert messages
-            const oaiMsgs: Array<{role: 'system'|'user'|'assistant', content: string}> = messages.map(m => ({
+            // Convert messages with multimodal support
+            type OAIContent = string | Array<
+              | { type: 'text'; text: string }
+              | { type: 'image_url'; image_url: { url: string } }
+            >;
+            const oaiMsgs: Array<{role: 'system'|'user'|'assistant'; content: OAIContent}> = messages.map(m => ({
               role: m.role as 'system' | 'user' | 'assistant',
               content: typeof m.content === 'string' ? m.content : JSON.stringify(m.content),
             }));
+            
+            // If user attached an image, inject into last user message
+            if (body.imageBase64 && body.imageMimeType) {
+              for (let i = oaiMsgs.length - 1; i >= 0; i--) {
+                if (oaiMsgs[i].role === 'user') {
+                  const txt = typeof oaiMsgs[i].content === 'string' 
+                    ? oaiMsgs[i].content as string 
+                    : '';
+                  oaiMsgs[i].content = [
+                    { type: 'text', text: txt || 'Analiza esta imagen' },
+                    { type: 'image_url', image_url: { url: `data:${body.imageMimeType};base64,${body.imageBase64}` } },
+                  ];
+                  break;
+                }
+              }
+            }
             
             // Define OpenAI function calling tools (mirror of Anthropic tools)
             const oaiTools = [
@@ -308,7 +328,7 @@ export async function POST(req: NextRequest) {
             // First call — let model decide if it needs the tool
             const firstCall = await oai.chat.completions.create({
               model: body.model || 'gpt-4o',
-              messages: oaiMsgs,
+              messages: oaiMsgs as never,
               tools: oaiTools,
               tool_choice: 'auto',
               max_tokens: 4096,
@@ -321,7 +341,7 @@ export async function POST(req: NextRequest) {
             if (toolCalls.length === 0) {
               const stream = await oai.chat.completions.create({
                 model: body.model || 'gpt-4o',
-                messages: oaiMsgs,
+                messages: oaiMsgs as never,
                 stream: true,
                 max_tokens: 4096,
               });
@@ -425,13 +445,24 @@ export async function POST(req: NextRequest) {
               ? sysMsgRaw.slice(0, SYS_MAX)
               : sysMsgRaw;
             
-            const chatMsgs = messages
+            type GemPart = { text: string } | { inlineData: { mimeType: string; data: string } };
+            const chatMsgs: Array<{ role: 'user' | 'model'; parts: GemPart[] }> = messages
               .filter(m => m.role !== 'system')
               .map(m => ({
                 role: m.role === 'assistant' ? 'model' as const : 'user' as const,
                 parts: [{ text: typeof m.content === 'string' ? m.content : JSON.stringify(m.content) }],
               }));
             const lastMsg = chatMsgs.pop();
+            
+            // If user attached an image, append it to last message parts
+            if (lastMsg && body.imageBase64 && body.imageMimeType && lastMsg.role === 'user') {
+              lastMsg.parts.push({
+                inlineData: {
+                  mimeType: body.imageMimeType,
+                  data: body.imageBase64,
+                },
+              });
+            }
             
             // Use Content object format (not bare string) for systemInstruction
             const systemInstructionConfig = sysMsg
@@ -442,7 +473,7 @@ export async function POST(req: NextRequest) {
               history: chatMsgs,
               systemInstruction: systemInstructionConfig,
             });
-            const gemStream = await chat.sendMessageStream(lastMsg?.parts[0]?.text || '');
+            const gemStream = await chat.sendMessageStream(lastMsg?.parts as never || [{ text: '' }]);
             let gemText = '';
             for await (const chunk of gemStream.stream) {
               const d = chunk.text();
