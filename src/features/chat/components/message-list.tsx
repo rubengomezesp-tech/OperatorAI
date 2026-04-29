@@ -33,7 +33,7 @@ export function MessageList({ messages, onRegenerate, regenDisabled }: Props) {
 
   return (
     <div className="flex-1 overflow-y-auto">
-      <div className="max-w-[760px] mx-auto px-6 py-10 space-y-8">
+      <div className="w-full px-4 sm:px-6 lg:px-8 py-8 space-y-6">
         {messages.map((m, i) => (
           <MessageBubble
             key={m.id}

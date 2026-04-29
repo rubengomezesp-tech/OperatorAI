@@ -73,7 +73,7 @@ export function MessageBubble({ message, isLastAssistant, onRegenerate, regenDis
 
   return (
     <div className={cn('flex gap-3 py-4', isUser ? 'justify-end' : 'justify-start')}>
-      <div className={cn('max-w-[85%] lg:max-w-[75%] space-y-3', isUser ? 'items-end' : 'items-start')}>
+      <div className={cn('max-w-[90%] lg:max-w-[80%] space-y-3', isUser ? 'items-end' : 'items-start')}>
         {/* Text content */}
         {cleanContent && (
           <div className={cn(

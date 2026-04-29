@@ -77,7 +77,7 @@ export function EmptyState({ onSuggestion }: EmptyStateProps) {
         initial="hidden"
         animate="visible"
         variants={staggerContainer}
-        className="relative z-10 max-w-2xl w-full text-center space-y-8"
+        className="relative z-10 max-w-3xl w-full text-center space-y-8 px-4"
       >
         {/* Greeting */}
         <motion.div variants={fadeUp} className="space-y-3">
@@ -90,7 +90,7 @@ export function EmptyState({ onSuggestion }: EmptyStateProps) {
         {/* Suggestion chips */}
         <motion.div
           variants={fadeUp}
-          className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-w-xl mx-auto"
+          className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-w-2xl mx-auto"
         >
           {SUGGESTIONS.map((s, i) => {
             const Icon = s.icon;

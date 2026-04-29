@@ -95,7 +95,7 @@ export function Composer({ onSend, onCancel, loading, disabled }: Props) {
 
   return (
     <div className="border-t border-border glass">
-      <div className="max-w-[820px] mx-auto px-4 lg:px-6 py-3 space-y-2.5">
+      <div className="w-full px-4 sm:px-6 lg:px-8 py-3 space-y-2.5">
         <div className="flex items-center gap-2">
           <AgentPicker value={agentType} onChange={setAgentType} />
         </div>
