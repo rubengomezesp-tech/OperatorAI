@@ -1,5 +1,5 @@
 'use client';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { nanoid } from 'nanoid';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
@@ -27,7 +27,13 @@ export function ChatView({ initialConversationId, initialMessages = [], initialT
   const [conversationId, setConversationId] = useState<string | null>(initialConversationId);
   const [title, setTitle] = useState<string | null>(initialTitle);
   const [messages, setMessages] = useState<UiMessage[]>(initialMessages);
-  const { send, cancel, loading } = useSendMessage();
+  const [recoveryDismissed, setRecoveryDismissed] = useState(false);
+  const { send, cancel, loading, consecutiveFailures } = useSendMessage();
+
+  // Reset dismiss when chat starts working again
+  useEffect(() => {
+    if (consecutiveFailures === 0) setRecoveryDismissed(false);
+  }, [consecutiveFailures]);
   const selectedModel = useChatStore((s) => s.selectedModel);
 
   const providerForModel = useMemo(() => {
@@ -163,6 +169,45 @@ export function ChatView({ initialConversationId, initialMessages = [], initialT
           <ChatDrawer currentId={conversationId} onSelect={handleChatSelect} />
           <ChatTopbar title={initialTitle} conversationId={conversationId} />
         </div>
+
+        {/* Recovery banner — when chat fails 2+ times in a row */}
+        {consecutiveFailures >= 2 && !recoveryDismissed && (
+          <div className="mx-4 mt-3 mb-1 p-3 rounded-xl glass border border-amber-500/30 flex items-start gap-3">
+            <div className="h-2 w-2 rounded-full bg-amber-400 animate-pulse-dot mt-1.5 flex-shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-[13.5px] text-fg leading-snug">
+                <span className="font-medium">Estamos teniendo problemas.</span>{' '}
+                <span className="text-fg-muted">
+                  Tu conversación está guardada. Reportado al equipo.
+                </span>
+              </p>
+              <div className="flex items-center gap-2 mt-2">
+                <button
+                  type="button"
+                  onClick={handleRegenerate}
+                  className="text-[12px] px-3 py-1 rounded-md bg-amber-500/15 text-amber-200 hover:bg-amber-500/25 transition-colors"
+                >
+                  Reintentar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => router.push('/chat')}
+                  className="text-[12px] px-3 py-1 rounded-md bg-surface-2 text-fg-muted hover:text-fg hover:bg-surface-3 transition-colors"
+                >
+                  Nueva conversación
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRecoveryDismissed(true)}
+                  className="text-[12px] px-2 py-1 rounded-md text-fg-subtle hover:text-fg-muted transition-colors ml-auto"
+                  aria-label="Dismiss"
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
         <div className="flex-1 overflow-y-auto overscroll-contain min-h-0">
           {messages.length === 0 ? (
             <EmptyState onSuggestion={(prompt) => {
