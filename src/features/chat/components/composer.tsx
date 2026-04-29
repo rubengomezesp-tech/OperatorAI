@@ -129,8 +129,8 @@ export function Composer({ onSend, onCancel, loading, disabled }: Props) {
         )}
 
         <div className={cn(
-          'relative flex items-end gap-2 rounded-xl border border-border bg-surface-2',
-          'focus-within:border-gold/50 focus-within:ring-2 focus-within:ring-gold/15 transition-colors',
+          'relative flex items-end gap-2 rounded-3xl glass-strong floating',
+          'focus-within:ring-2 focus-within:ring-gold/25 transition-smooth',
         )}>
           <textarea
             ref={ref}

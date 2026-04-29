@@ -32,7 +32,7 @@ export function Topbar({ email, fullName }: { email: string; fullName: string | 
 
   return (
     <>
-      <header className="sticky top-0 z-20 glass border-b border-border">
+      <header className="sticky top-0 z-20 glass border-b border-border glass">
         <div className="flex items-center justify-between h-14 px-4 lg:px-8 min-w-0">
           <div className="flex items-center gap-3 min-w-0">
             <div className="lg:hidden">
