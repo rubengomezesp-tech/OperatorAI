@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
-import { Download, FileText, BookOpen, Image as ImageIcon, Video, Loader2, AlertCircle } from 'lucide-react';
+import * as Dialog from '@radix-ui/react-dialog';
+import { Pencil, Send, Download, FileText, BookOpen, Image as ImageIcon, Video, Loader2, AlertCircle, X } from 'lucide-react';
 
 export type ToolKind = 'image' | 'video' | 'file_analysis' | 'knowledge_search';
 export type ToolStatus = 'running' | 'done' | 'failed';
@@ -207,13 +208,149 @@ function ImageGeneratingSkeleton({ aspectRatio }: { aspectRatio: string }) {
 
 function ImageTile({ url }: { url: string }) {
   const [loaded, setLoaded] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  
   return (
-    <div className="relative rounded-lg overflow-hidden border border-border bg-surface-2 group">
-      {!loaded && <div className="absolute inset-0 flex items-center justify-center"><Loader2 className="h-4 w-4 text-fg-muted animate-spin" /></div>}
-      <img src={url} alt="" onLoad={() => setLoaded(true)} className="w-full h-auto block" />
-      <a href={url} target="_blank" rel="noopener noreferrer" download className="absolute bottom-2 right-2 h-7 w-7 rounded-md bg-black/60 backdrop-blur text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center hover:bg-black/80">
-        <Download className="h-3.5 w-3.5" />
-      </a>
+    <div className="relative rounded-2xl overflow-hidden glass-subtle group">
+      {!loaded && (
+        <div className="absolute inset-0 flex items-center justify-center bg-surface-2">
+          <Loader2 className="h-4 w-4 text-fg-muted animate-spin" />
+        </div>
+      )}
+      <img
+        src={url}
+        alt=""
+        onLoad={() => setLoaded(true)}
+        className="w-full h-auto block cursor-pointer"
+        onClick={() => setEditOpen(true)}
+      />
+      
+      {/* Static bottom bar with actions */}
+      {loaded && (
+        <div className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-2 px-3 py-2.5 bg-gradient-to-t from-black/80 via-black/40 to-transparent">
+          <button
+            type="button"
+            onClick={() => setEditOpen(true)}
+            className="flex items-center gap-1.5 h-8 px-3 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-white text-[12px] font-medium hover:bg-white/20 transition-colors"
+          >
+            <Pencil className="h-3 w-3" strokeWidth={2.5} />
+            Editar
+          </button>
+<a
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            download
+            className="h-8 w-8 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-white flex items-center justify-center hover:bg-white/20 transition-colors"
+            aria-label="Descargar"
+          >
+            <Download className="h-3.5 w-3.5" />
+          </a>
+        </div>
+      )}
+      
+      <ImageEditModal open={editOpen} onClose={() => setEditOpen(false)} imageUrl={url} />
     </div>
+  );
+}
+
+function ImageEditModal({ open, onClose, imageUrl }: { open: boolean; onClose: () => void; imageUrl: string }) {
+  const [prompt, setPrompt] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  
+  function handleSubmit() {
+    const text = prompt.trim();
+    if (!text || submitting) return;
+    setSubmitting(true);
+    
+    // Build iteration message — references the previous image
+    const iterationMessage = `Regenera la imagen con estos cambios: ${text}`;
+    
+    // Pre-fill the chat composer via window event + value injection
+    if (typeof window !== 'undefined') {
+      const composer = document.querySelector('textarea[data-composer]') as HTMLTextAreaElement | null;
+      if (composer) {
+        composer.value = iterationMessage;
+        composer.focus();
+        composer.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+    }
+    
+    setPrompt('');
+    setSubmitting(false);
+    onClose();
+  }
+  
+  function handleKey(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSubmit();
+    }
+  }
+  
+  return (
+    <Dialog.Root open={open} onOpenChange={(v) => !v && onClose()}>
+      <Dialog.Portal>
+        <Dialog.Overlay className="fixed inset-0 bg-bg/80 backdrop-blur-md z-40 animate-fadeIn" />
+        <Dialog.Content className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[92vw] max-w-3xl max-h-[92vh] flex flex-col rounded-3xl glass-strong floating-strong overflow-hidden">
+          <Dialog.Title className="sr-only">Editar imagen</Dialog.Title>
+          
+          {/* Header */}
+          <div className="flex items-center justify-between px-5 py-3 border-b border-border/40">
+            <div className="flex items-center gap-2">
+              <Pencil className="h-3.5 w-3.5 text-gold" />
+              <span className="text-[13px] font-medium text-fg">Editar imagen</span>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="h-8 w-8 rounded-full hover:bg-surface-2 flex items-center justify-center text-fg-muted hover:text-fg transition-colors"
+              aria-label="Cerrar"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+          
+          {/* Image preview */}
+          <div className="flex-1 overflow-y-auto p-5 flex items-center justify-center bg-bg/40 min-h-0">
+            <img
+              src={imageUrl}
+              alt=""
+              className="max-w-full max-h-[55vh] rounded-2xl shadow-xl"
+            />
+          </div>
+          
+          {/* Prompt input */}
+          <div className="p-4 border-t border-border/40">
+            <div className="text-[11px] uppercase tracking-[0.16em] text-fg-subtle mb-2">
+              ¿Qué quieres cambiar?
+            </div>
+            <div className="flex items-end gap-2 rounded-2xl glass-subtle px-3 py-2 focus-within:ring-2 focus-within:ring-gold/30 transition-all">
+              <textarea
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+                onKeyDown={handleKey}
+                placeholder="Ej: cambia el fondo a azul oscuro, añade más luz dramática..."
+                rows={2}
+                className="flex-1 bg-transparent resize-none outline-none text-[14.5px] text-fg placeholder:text-fg-subtle max-h-32"
+                autoFocus
+              />
+              <button
+                type="button"
+                onClick={handleSubmit}
+                disabled={!prompt.trim() || submitting}
+                className="h-9 px-4 rounded-full gold-grad flex items-center gap-2 text-bg text-[13px] font-medium hover:brightness-110 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+              >
+                <Send className="h-3.5 w-3.5" strokeWidth={2.5} />
+                Regenerar
+              </button>
+            </div>
+            <div className="text-[11px] text-fg-subtle mt-2">
+              Se enviará al chat para iterar la imagen
+            </div>
+          </div>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
   );
 }

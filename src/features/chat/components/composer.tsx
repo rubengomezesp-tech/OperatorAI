@@ -134,6 +134,7 @@ export function Composer({ onSend, onCancel, loading, disabled }: Props) {
         )}>
           <textarea
             ref={ref}
+            data-composer
             value={value}
             onChange={(e) => setValue(e.target.value)}
             onKeyDown={onKeyDown}
