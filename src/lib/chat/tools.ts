@@ -1,7 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 
-export type ToolKind = 'image' | 'video' | 'file_analysis' | 'knowledge_search';
+export type ToolKind = 'image' | 'video' | 'file_analysis' | 'knowledge_search' | 'get_brand_assets' | 'compose_ad';
 
 export interface ToolSpec {
   name: ToolKind;
@@ -60,6 +60,33 @@ export const TOOL_SPECS: ToolSpec[] = [
         query: { type: 'string', description: 'What to look up.' },
       },
       required: ['query'],
+    },
+  },
+  {
+    name: 'get_brand_assets',
+    description:
+      'Retrieve the user current brand context (name, colors, fonts, logo URL, voice, target audience). Use this BEFORE generating any creative output if user says "use my brand", "respect my brand", "with my colors/logo", or whenever brand consistency matters. Call without parameters — the user is inferred from session.',
+    input_schema: {
+      type: 'object',
+      properties: {},
+      required: [],
+    },
+  },
+  {
+    name: 'compose_ad',
+    description:
+      'Compose a final advertising image by combining a generated/existing background image with copy, logo and brand colors. Use when user wants a "ready-to-publish ad" or "ad with my logo" instead of just an image. Returns a composed image URL.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        background_url: { type: 'string', description: 'URL of the background image (use a previously generated image or stock).' },
+        headline: { type: 'string', description: 'Main headline text (1-8 words). Should be punchy and conversion-focused.' },
+        subline: { type: 'string', description: 'Optional supporting line (5-15 words).' },
+        cta: { type: 'string', description: 'Call to action text (e.g. "Shop now", "Get yours").' },
+        format: { type: 'string', enum: ['square', 'instagram_story', 'tiktok_in_feed', 'reel'], description: 'Output format. Default square.' },
+        use_brand: { type: 'boolean', description: 'If true, applies user brand colors, fonts and logo automatically. Default true.' },
+      },
+      required: ['background_url', 'headline'],
     },
   },
 ];
@@ -127,6 +154,8 @@ export async function executeTool(
       case 'video': return await execVideo(input, ctx);
       case 'file_analysis': return await execFileAnalysis(input, ctx);
       case 'knowledge_search': return await execKnowledgeSearch(input, ctx);
+      case 'get_brand_assets': return await execGetBrandAssets(input, ctx);
+      case 'compose_ad': return await execComposeAd(input, ctx);
       default: return { ok: false, error: 'Unknown tool: ' + name };
     }
   } catch (e) {
@@ -305,4 +334,150 @@ export async function buildToolFetchContext(req: Request): Promise<{ origin: str
   const cookieStore = await cookies();
   const cookieHeader = cookieStore.getAll().map((c) => c.name + '=' + c.value).join('; ');
   return { origin, cookieHeader };
+}
+
+// ── BRAND ASSETS ──────────────────────────────────────────────────
+async function execGetBrandAssets(_input: Record<string, unknown>, ctx: ToolContext): Promise<ToolResult> {
+  const { data: brand } = await ctx.svc
+    .from('brand_profile')
+    .select('brand_name, industry, colors, fonts, logo_url, primary_color, target_audience, tone_keywords, visual_style, brand_values')
+    .eq('org_id', ctx.orgId)
+    .maybeSingle();
+
+  if (!brand) {
+    return { ok: true, result: { text: 'No brand configured yet. User can set it up in /brand-os.' } };
+  }
+
+  const b = brand as Record<string, unknown>;
+  const summary = [
+    b.brand_name ? `Brand: ${b.brand_name}` : '',
+    b.industry ? `Industry: ${b.industry}` : '',
+    b.target_audience ? `Audience: ${b.target_audience}` : '',
+    b.visual_style ? `Visual style: ${b.visual_style}` : '',
+    b.primary_color ? `Primary color: ${b.primary_color}` : '',
+    b.colors ? `Colors: ${JSON.stringify(b.colors)}` : '',
+    b.fonts ? `Fonts: ${JSON.stringify(b.fonts)}` : '',
+    b.logo_url ? `Logo URL: ${b.logo_url}` : 'No logo uploaded',
+    b.tone_keywords ? `Tone: ${JSON.stringify(b.tone_keywords)}` : '',
+    b.brand_values ? `Values: ${JSON.stringify(b.brand_values)}` : '',
+  ].filter(Boolean).join('\n');
+
+  return { ok: true, result: { text: summary } };
+}
+
+// ── COMPOSE AD ────────────────────────────────────────────────────
+async function execComposeAd(input: Record<string, unknown>, ctx: ToolContext): Promise<ToolResult> {
+  const backgroundUrl = String(input.background_url ?? '');
+  const headline = String(input.headline ?? '');
+  const subline = input.subline ? String(input.subline) : undefined;
+  const cta = input.cta ? String(input.cta) : undefined;
+  const format = String(input.format ?? 'square');
+  const useBrand = input.use_brand !== false;
+
+  if (!backgroundUrl || !headline) {
+    return { ok: false, error: 'Missing background_url or headline' };
+  }
+
+  try {
+    const res = await fetch(`${ctx.origin}/api/creative/render`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', cookie: ctx.cookieHeader },
+      body: JSON.stringify({
+        background_url: backgroundUrl,
+        headline,
+        subline,
+        cta,
+        format,
+        use_brand: useBrand,
+      }),
+      signal: ctx.signal,
+    });
+
+    if (!res.ok) {
+      const errText = await res.text().catch(() => 'unknown');
+      return { ok: false, error: `Compose failed: ${errText}` };
+    }
+
+    const data = await res.json().catch(() => ({})) as Record<string, unknown>;
+    const url = String((data.url as string) || ((data.urls as string[])?.[0]) || (data.composed_url as string) || '');
+    if (!url) return { ok: false, error: 'No composed URL returned' };
+
+    return { ok: true, result: { urls: [url] } };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : 'Compose error';
+    return { ok: false, error: msg };
+  }
+}
+
+// ── BRAND ASSETS ──────────────────────────────────────────────────
+async function execGetBrandAssets(_input: Record<string, unknown>, ctx: ToolContext): Promise<ToolResult> {
+  const { data: brand } = await ctx.svc
+    .from('brand_profile')
+    .select('brand_name, industry, colors, fonts, logo_url, primary_color, target_audience, tone_keywords, visual_style, brand_values')
+    .eq('org_id', ctx.orgId)
+    .maybeSingle();
+
+  if (!brand) {
+    return { ok: true, result: { text: 'No brand configured yet. User can set it up in /brand-os.' } };
+  }
+
+  const b = brand as Record<string, unknown>;
+  const summary = [
+    b.brand_name ? `Brand: ${b.brand_name}` : '',
+    b.industry ? `Industry: ${b.industry}` : '',
+    b.target_audience ? `Audience: ${b.target_audience}` : '',
+    b.visual_style ? `Visual style: ${b.visual_style}` : '',
+    b.primary_color ? `Primary color: ${b.primary_color}` : '',
+    b.colors ? `Colors: ${JSON.stringify(b.colors)}` : '',
+    b.fonts ? `Fonts: ${JSON.stringify(b.fonts)}` : '',
+    b.logo_url ? `Logo URL: ${b.logo_url}` : 'No logo uploaded',
+    b.tone_keywords ? `Tone: ${JSON.stringify(b.tone_keywords)}` : '',
+    b.brand_values ? `Values: ${JSON.stringify(b.brand_values)}` : '',
+  ].filter(Boolean).join('\n');
+
+  return { ok: true, result: { text: summary } };
+}
+
+// ── COMPOSE AD ────────────────────────────────────────────────────
+async function execComposeAd(input: Record<string, unknown>, ctx: ToolContext): Promise<ToolResult> {
+  const backgroundUrl = String(input.background_url ?? '');
+  const headline = String(input.headline ?? '');
+  const subline = input.subline ? String(input.subline) : undefined;
+  const cta = input.cta ? String(input.cta) : undefined;
+  const format = String(input.format ?? 'square');
+  const useBrand = input.use_brand !== false;
+
+  if (!backgroundUrl || !headline) {
+    return { ok: false, error: 'Missing background_url or headline' };
+  }
+
+  try {
+    const res = await fetch(`${ctx.origin}/api/creative/render`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', cookie: ctx.cookieHeader },
+      body: JSON.stringify({
+        background_url: backgroundUrl,
+        headline,
+        subline,
+        cta,
+        format,
+        use_brand: useBrand,
+      }),
+      signal: ctx.signal,
+    });
+
+    if (!res.ok) {
+      const errText = await res.text().catch(() => 'unknown');
+      return { ok: false, error: `Compose failed: ${errText}` };
+    }
+
+    const data = await res.json().catch(() => ({})) as Record<string, unknown>;
+    const url = String((data.url as string) || ((data.urls as string[])?.[0]) || (data.composed_url as string) || '');
+    if (!url) return { ok: false, error: 'No composed URL returned' };
+
+    return { ok: true, result: { urls: [url] } };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : 'Compose error';
+    return { ok: false, error: msg };
+  }
 }
