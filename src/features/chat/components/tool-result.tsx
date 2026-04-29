@@ -22,7 +22,13 @@ export interface ToolPart {
 }
 
 export function ToolResult({ part }: { part: ToolPart }) {
-  if (part.status === 'running') return <ToolRunningCard kind={part.kind} input={part.input} />;
+  if (part.status === 'running') {
+    // Premium skeleton for image generation (no boring text — show the canvas forming)
+    if (part.kind === 'image') {
+      return <ImageGeneratingSkeleton aspectRatio={(part.input.aspect_ratio as string) || '1:1'} />;
+    }
+    return <ToolRunningCard kind={part.kind} input={part.input} />;
+  }
   if (part.status === 'failed') return <ToolFailedCard kind={part.kind} error={part.error} />;
 
   if (part.kind === 'image') {
@@ -132,6 +138,69 @@ function ToolFailedCard({ kind, error }: { kind: ToolKind; error?: string }) {
     <div className="my-3 inline-flex items-start gap-2.5 rounded-lg border border-danger/30 bg-danger/5 px-3.5 py-2.5">
       <AlertCircle className="h-4 w-4 text-danger shrink-0 mt-0.5" />
       <div><div className="text-[12.5px] text-fg">{label}</div>{error && <div className="text-[11.5px] text-fg-muted mt-0.5">{error}</div>}</div>
+    </div>
+  );
+}
+
+function ImageGeneratingSkeleton({ aspectRatio }: { aspectRatio: string }) {
+  // Aspect ratio → padding-bottom %
+  const ratioMap: Record<string, string> = {
+    '1:1': '100%',
+    '16:9': '56.25%',
+    '9:16': '177.78%',
+    '4:5': '125%',
+    '3:2': '66.67%',
+  };
+  const padBottom = ratioMap[aspectRatio] ?? '100%';
+  
+  return (
+    <div className="my-3 max-w-[420px]">
+      <div
+        className="relative w-full rounded-2xl overflow-hidden glass-strong floating border border-gold/15"
+        style={{ paddingBottom: padBottom }}
+      >
+        {/* Base shimmer layer — gold sweep */}
+        <div className="absolute inset-0 bg-gradient-to-br from-surface-2 via-surface-3 to-surface-2" />
+        
+        {/* Diagonal shimmer animation */}
+        <div
+          className="absolute inset-0 bg-gradient-to-tr from-transparent via-gold/15 to-transparent bg-[length:200%_200%] animate-shimmer"
+          style={{ backgroundPosition: '0% 0%' }}
+        />
+        
+        {/* Floating particles */}
+        <div className="absolute inset-0">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <span
+              key={i}
+              className="absolute h-1 w-1 rounded-full bg-white/40 animate-pulse-dot"
+              style={{
+                left: `${(i * 13 + 7) % 90 + 5}%`,
+                top: `${(i * 19 + 11) % 80 + 10}%`,
+                animationDelay: `${(i * 0.18) % 2}s`,
+                animationDuration: `${1.2 + (i % 3) * 0.4}s`,
+              }}
+            />
+          ))}
+        </div>
+        
+        {/* Center glow */}
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="h-16 w-16 rounded-full bg-gold/10 blur-2xl animate-pulse-dot" />
+        </div>
+        
+        {/* Status text */}
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
+          <div className="flex items-center gap-1.5">
+            <span className="h-1.5 w-1.5 rounded-full bg-gold animate-pulse-dot" />
+            <span className="h-1.5 w-1.5 rounded-full bg-gold animate-pulse-dot" style={{ animationDelay: '0.2s' }} />
+            <span className="h-1.5 w-1.5 rounded-full bg-gold animate-pulse-dot" style={{ animationDelay: '0.4s' }} />
+          </div>
+          <div className="text-[11.5px] text-fg-muted/80 font-medium tracking-wide uppercase">
+            Componiendo visual
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
