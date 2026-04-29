@@ -16,6 +16,9 @@ const BodySchema = z.object({
   seed: z.number().int().optional(),
   enhance: z.boolean().default(true),
   referenceUrls: z.array(z.string().url()).max(8).optional(),
+  // Imagery model. Default to gpt-image-1 (premium quality + ref images)
+  // Falls back to Flux if gpt-image-1 fails
+  model: z.enum(['gpt-image-1', 'flux-2-pro']).optional().default('gpt-image-1'),
 });
 
 type PromptHint = 'editorial' | 'startup' | 'luxury';
@@ -97,6 +100,83 @@ export async function POST(req: NextRequest) {
 
   const imageId = (created as { id: string }).id;
 
+  // ═══ GPT-IMAGE-1 PATH (priority — premium quality, supports ref images) ═══
+  if (body.model === 'gpt-image-1') {
+    try {
+      const { generateWithGptImage, GptImageError } = await import('@/features/creative-studio/server/gpt-image-client');
+      
+      // GPT-image AspectRatio type: '9:16' | '1:1' | '4:5'
+      // Map schema values to supported set
+      const gptAspect: '9:16' | '1:1' | '4:5' = 
+        body.aspectRatio === '16:9' ? '1:1' :   // landscape→square (closest)
+        body.aspectRatio === '3:2' ? '1:1' :    // landscape→square
+        body.aspectRatio as '9:16' | '1:1' | '4:5';
+      
+      const gptResult = await generateWithGptImage({
+        prompt: fullPrompt,
+        aspectRatio: gptAspect,
+        quality: (process.env.GPT_IMAGE_QUALITY as 'low'|'medium'|'high'|'auto'|undefined) ?? 'high',
+      });
+      
+      // Upload buffer to Supabase Storage
+      const fileName = `${imageId}.png`;
+      const storagePath = `${orgId}/${fileName}`;
+      const { error: uploadErr } = await svc.storage
+        .from('generated-images')
+        .upload(storagePath, gptResult.buffer, {
+          contentType: 'image/png',
+          upsert: true,
+        });
+      
+      if (uploadErr) throw new Error(`Storage upload failed: ${uploadErr.message}`);
+      
+      const { data: pub } = svc.storage
+        .from('generated-images')
+        .getPublicUrl(storagePath);
+      
+      const publicUrl = pub.publicUrl;
+      
+      await svc
+        .from('image_generations')
+        .update({
+          status: 'complete',
+          provider: 'openai',
+          model: 'gpt-image-1',
+          output_urls: [publicUrl],
+          output_storage_paths: [storagePath],
+          latency_ms: 0,
+          cost_usd: gptResult.estimatedCostUsd,
+        } as never)
+        .eq('id', imageId);
+      
+      await svc.rpc('increment_usage', {
+        p_org_id: orgId,
+        p_kind: 'image_generation',
+        p_quantity: 1,
+        p_cost: gptResult.estimatedCostUsd,
+      });
+      
+      return NextResponse.json({
+        id: imageId,
+        urls: [publicUrl],
+        url: publicUrl,
+        storagePaths: [storagePath],
+        provider: 'openai',
+        model: 'gpt-image-1',
+      });
+    } catch (gptErr) {
+      // GPT-image failed → fall through to Flux as fallback
+      console.warn('[gpt-image-1] failed, falling back to Flux:', gptErr instanceof Error ? gptErr.message : gptErr);
+      // Update record to indicate fallback
+      await svc
+        .from('image_generations')
+        .update({ provider: 'replicate', model: 'flux-2-pro' } as never)
+        .eq('id', imageId);
+      // Continue to Flux block below
+    }
+  }
+  
+  // ═══ FLUX PATH (default fallback) ═══
   try {
     const selectedModel = (body as any).imageModel ?? 'flux-2-pro';
     const result = await generateWithFlux({

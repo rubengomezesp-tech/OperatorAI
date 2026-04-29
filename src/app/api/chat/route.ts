@@ -356,7 +356,11 @@ export async function POST(req: NextRequest) {
                 const imgRes = await fetch(`${origin}/api/images/generate`, {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json', cookie: cookieHeader },
-                  body: JSON.stringify({ prompt: imgPrompt, aspect_ratio: aspectRatio }),
+                  body: JSON.stringify({ 
+                    prompt: imgPrompt, 
+                    aspectRatio: aspectRatio,
+                    model: 'gpt-image-1',
+                  }),
                 });
                 
                 if (imgRes.ok) {
