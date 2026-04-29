@@ -278,22 +278,115 @@ export async function POST(req: NextRequest) {
           try {
             const OpenAI = (await import('openai')).default;
             const oai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-            const oaiMsgs = messages.map(m => ({
+            
+            // Convert messages
+            const oaiMsgs: Array<{role: 'system'|'user'|'assistant', content: string}> = messages.map(m => ({
               role: m.role as 'system' | 'user' | 'assistant',
               content: typeof m.content === 'string' ? m.content : JSON.stringify(m.content),
             }));
-            const oaiStream = await oai.chat.completions.create({
+            
+            // Define OpenAI function calling tools (mirror of Anthropic tools)
+            const oaiTools = [
+              {
+                type: 'function' as const,
+                function: {
+                  name: 'generate_image',
+                  description: 'Generate premium photorealistic images. Use when the user asks for an image, visual, product shot, photo, logo, or illustration. Write a detailed prompt (40-80 words) with subject, camera, lighting, colors, composition, mood. Never refuse — always produce output.',
+                  parameters: {
+                    type: 'object',
+                    properties: {
+                      prompt: { type: 'string', description: 'Detailed image description: subject, composition, lighting, mood, colors, style. At least 20 words.' },
+                      aspect_ratio: { type: 'string', enum: ['1:1','16:9','9:16','4:5','3:2'], description: 'Aspect ratio. Default 1:1.' },
+                      num_images: { type: 'number', enum: [1,2,3,4], description: 'Number of variations. Default 1.' },
+                    },
+                    required: ['prompt'],
+                  },
+                },
+              },
+            ];
+            
+            // First call — let model decide if it needs the tool
+            const firstCall = await oai.chat.completions.create({
               model: body.model || 'gpt-4o',
               messages: oaiMsgs,
-              stream: true,
+              tools: oaiTools,
+              tool_choice: 'auto',
               max_tokens: 4096,
             });
-            let oaiText = '';
-            for await (const chunk of oaiStream) {
-              const d = chunk.choices[0]?.delta?.content || '';
-              if (d) { oaiText += d; controller.enqueue(sseEncode('delta', { text: d })); }
+            
+            const choice = firstCall.choices[0];
+            const toolCalls = choice?.message?.tool_calls ?? [];
+            
+            // CASE A: No tool — stream text response
+            if (toolCalls.length === 0) {
+              const stream = await oai.chat.completions.create({
+                model: body.model || 'gpt-4o',
+                messages: oaiMsgs,
+                stream: true,
+                max_tokens: 4096,
+              });
+              let oaiText = '';
+              for await (const chunk of stream) {
+                const d = chunk.choices[0]?.delta?.content || '';
+                if (d) { oaiText += d; controller.enqueue(sseEncode('delta', { text: d })); }
+              }
+              await svc.from('messages').update({ content: oaiText, status: 'complete' } as never).eq('id', pendingMessageId);
+              controller.enqueue(sseEncode('done', { assistantMessageId: pendingMessageId, conversationId, isNewConversation: isNew }));
+              controller.close();
+              return;
             }
-            await svc.from('messages').update({ content: oaiText, status: 'complete' } as never).eq('id', pendingMessageId);
+            
+            // CASE B: Tool call — execute tool, then stream final response
+            const tcall = toolCalls[0];
+            const tname = tcall.function?.name;
+            
+            if (tname === 'generate_image') {
+              let toolArgs: { prompt?: string; aspect_ratio?: string; num_images?: number } = {};
+              try { toolArgs = JSON.parse(tcall.function?.arguments || '{}'); } catch {}
+              const imgPrompt = toolArgs.prompt || 'a product photo';
+              const aspectRatio = toolArgs.aspect_ratio || '1:1';
+              
+              // Notify client that image is generating
+              controller.enqueue(sseEncode('delta', { text: 'Generating image...\n\n' }));
+              
+              // Call internal image generation endpoint
+              const cookieHeader = req.headers.get('cookie') || '';
+              const origin = req.nextUrl.origin;
+              try {
+                const imgRes = await fetch(`${origin}/api/images/generate`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json', cookie: cookieHeader },
+                  body: JSON.stringify({ prompt: imgPrompt, aspect_ratio: aspectRatio }),
+                });
+                
+                if (imgRes.ok) {
+                  const imgData = await imgRes.json();
+                  const url = imgData.url || imgData.urls?.[0];
+                  if (url) {
+                    const imgMsg = `![Generated image](${url})`;
+                    controller.enqueue(sseEncode('delta', { text: imgMsg }));
+                    
+                    await svc.from('messages').update({ content: imgMsg, status: 'complete' } as never).eq('id', pendingMessageId);
+                    controller.enqueue(sseEncode('done', { assistantMessageId: pendingMessageId, conversationId, isNewConversation: isNew }));
+                    controller.close();
+                    return;
+                  }
+                }
+                throw new Error('Image generation returned no URL');
+              } catch (imgErr) {
+                const errMsg = imgErr instanceof Error ? imgErr.message : 'Image generation failed';
+                controller.enqueue(sseEncode('delta', { text: `Sorry, image generation failed: ${errMsg}` }));
+                await svc.from('messages').update({ content: `Image generation failed: ${errMsg}`, status: 'failed' } as never).eq('id', pendingMessageId);
+                controller.enqueue(sseEncode('done', { assistantMessageId: pendingMessageId, conversationId, isNewConversation: isNew }));
+                controller.close();
+                return;
+              }
+            }
+            
+            // Unknown tool — fallback to text
+            const fallbackMsg = choice.message?.content || 'I tried to use a tool but it is not available.';
+            controller.enqueue(sseEncode('delta', { text: fallbackMsg }));
+            await svc.from('messages').update({ content: fallbackMsg, status: 'complete' } as never).eq('id', pendingMessageId);
             controller.enqueue(sseEncode('done', { assistantMessageId: pendingMessageId, conversationId, isNewConversation: isNew }));
             controller.close();
           } catch (e) {
