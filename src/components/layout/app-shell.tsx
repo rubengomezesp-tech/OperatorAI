@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Sidebar } from './sidebar';
 import { Topbar } from './topbar';
+import { BottomNav } from './bottom-nav';
 
 export function AppShell({
   email,
@@ -32,8 +33,9 @@ export function AppShell({
 
       <div className="flex-1 min-w-0 flex flex-col">
         <Topbar email={email} fullName={fullName} />
-        <main className="flex-1 min-w-0 overflow-x-hidden relative">{children}</main>
+        <main className="flex-1 min-w-0 overflow-x-hidden relative pb-16 lg:pb-0">{children}</main>
       </div>
+      <BottomNav />
     </div>
   );
 }

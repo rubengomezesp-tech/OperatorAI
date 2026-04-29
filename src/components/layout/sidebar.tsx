@@ -203,7 +203,7 @@ export function Sidebar({ isAdmin = false, onClose }: Props) {
             <Sparkles className="h-3.5 w-3.5 text-bg" />
           </div>
           <span className="font-display text-[15px] tracking-tight text-fg">
-            Operator
+            Operator <span className="text-gold">AI</span>
           </span>
         </Link>
 

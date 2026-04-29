@@ -39,14 +39,8 @@ export function Topbar({ email, fullName }: { email: string; fullName: string | 
               <MobileMenuButton onClick={() => setMenuOpen(true)} />
             </div>
 
-            <div className="hidden lg:flex items-center gap-2 text-[11px] uppercase tracking-[0.16em] text-fg-muted">
-              <Sparkles className="h-3 w-3 text-gold" />
-              Operator
-            </div>
-
-            <span className="hidden lg:inline text-fg-subtle">/</span>
-
-            <h1 className="font-display text-[18px] truncate">{title}</h1>
+            {/* Title only — brand 'Operator AI' lives in sidebar */}
+            <h1 className="font-display text-[18px] truncate text-fg">{title}</h1>
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
