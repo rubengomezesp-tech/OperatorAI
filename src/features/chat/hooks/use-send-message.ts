@@ -21,7 +21,32 @@ interface SendOptions {
 
 export function useSendMessage() {
   const [loading, setLoading] = useState(false);
+  const [consecutiveFailures, setConsecutiveFailures] = useState(0);
   const abortRef = useRef<AbortController | null>(null);
+
+  // Auto-report errors to /api/error-report when threshold reached
+  const reportErrorToServer = useCallback(async (
+    errorMessage: string,
+    conversationId: string | null,
+    failureCount: number,
+  ) => {
+    try {
+      await fetch('/api/error-report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          error_message: errorMessage,
+          conversation_id: conversationId,
+          consecutive_failures: failureCount,
+          context: { source: 'chat_send' },
+          user_agent: typeof navigator !== 'undefined' ? navigator.userAgent : '',
+          url: typeof window !== 'undefined' ? window.location.href : '',
+        }),
+      });
+    } catch {
+      // silent — no recursive errors
+    }
+  }, []);
 
   const send = useCallback(async (opts: SendOptions) => {
     setLoading(true);
@@ -47,7 +72,14 @@ export function useSendMessage() {
 
       if (!res.ok || !res.body) {
         const body = await res.json().catch(() => ({}));
-        opts.onError?.(body?.error ?? `HTTP ${res.status}`);
+        const errMsg = body?.error ?? `HTTP ${res.status}`;
+        const newCount = consecutiveFailures + 1;
+        setConsecutiveFailures(newCount);
+        // Report to server when threshold crossed
+        if (newCount >= 2) {
+          reportErrorToServer(errMsg, opts.conversationId, newCount);
+        }
+        opts.onError?.(errMsg);
         setLoading(false);
         return;
       }
@@ -65,14 +97,34 @@ export function useSendMessage() {
         } else if (event.event === 'tool_result') {
           try { opts.onToolResult?.(JSON.parse(event.data)); } catch {}
         } else if (event.event === 'done') {
+          // Reset failure counter on successful completion
+          setConsecutiveFailures(0);
           try { opts.onDone?.(JSON.parse(event.data)); } catch {}
         } else if (event.event === 'error') {
-          try { const { message } = JSON.parse(event.data); opts.onError?.(message); } catch { opts.onError?.('Unknown error'); }
+          try {
+            const { message } = JSON.parse(event.data);
+            const newCount = consecutiveFailures + 1;
+            setConsecutiveFailures(newCount);
+            if (newCount >= 2) {
+              reportErrorToServer(message, opts.conversationId, newCount);
+            }
+            opts.onError?.(message);
+          } catch {
+            const newCount = consecutiveFailures + 1;
+            setConsecutiveFailures(newCount);
+            opts.onError?.('Unknown error');
+          }
         }
       }
     } catch (err) {
       if ((err as { name?: string }).name !== 'AbortError') {
-        opts.onError?.(err instanceof Error ? err.message : 'Network error');
+        const errMsg = err instanceof Error ? err.message : 'Network error';
+        const newCount = consecutiveFailures + 1;
+        setConsecutiveFailures(newCount);
+        if (newCount >= 2) {
+          reportErrorToServer(errMsg, opts.conversationId, newCount);
+        }
+        opts.onError?.(errMsg);
       }
     } finally {
       setLoading(false);
@@ -86,5 +138,5 @@ export function useSendMessage() {
     setLoading(false);
   }, []);
 
-  return { send, cancel, loading };
+  return { send, cancel, loading, consecutiveFailures };
 }
