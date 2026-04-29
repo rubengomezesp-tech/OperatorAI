@@ -72,19 +72,31 @@ export function MessageBubble({ message, isLastAssistant, onRegenerate, regenDis
   const cleanContent = useMemo(() => imageUrls.length > 0 ? stripImageUrls(message.content) : message.content, [message.content, imageUrls]);
 
   return (
-    <div className={cn('flex gap-3 py-4', isUser ? 'justify-end' : 'justify-start')}>
-      <div className={cn('max-w-[90%] lg:max-w-[80%] space-y-3', isUser ? 'items-end' : 'items-start')}>
-        {/* Text content */}
+    <div className={cn('group flex gap-3 py-5', isUser ? 'flex-row-reverse' : 'flex-row')}>
+      {/* Avatar */}
+      <div className="flex-shrink-0 mt-1">
+        {isUser ? (
+          <div className="h-7 w-7 rounded-full bg-gold/20 border border-gold/30 flex items-center justify-center text-[11px] font-medium text-gold">
+            T
+          </div>
+        ) : (
+          <div className="h-7 w-7 rounded-full gold-grad flex items-center justify-center">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-bg">
+              <path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5z"/>
+            </svg>
+          </div>
+        )}
+      </div>
+
+      {/* Content column */}
+      <div className={cn('flex-1 min-w-0 space-y-3', isUser ? 'flex flex-col items-end' : '')}>
+        {/* Text content — flat, no card */}
         {cleanContent && (
           <div className={cn(
-            'rounded-xl px-4 py-3.5',
-            isUser
-              ? 'bg-gold/15 border border-gold/20 text-fg'
-              : 'bg-surface-2 border border-border text-fg',
+            'prose prose-sm prose-invert max-w-none text-[15.5px] leading-[1.7] text-fg',
+            isUser ? 'text-right' : '',
           )}>
-            <div className="prose prose-sm prose-invert max-w-none text-[15.5px] leading-[1.7]">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>{cleanContent}</ReactMarkdown>
-            </div>
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>{cleanContent}</ReactMarkdown>
           </div>
         )}
 
