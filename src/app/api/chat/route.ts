@@ -316,13 +316,35 @@ export async function POST(req: NextRequest) {
             // Strip any -preview/-experimental suffixes that might 404
             const cleanModel = requestedModel.replace(/-preview$|-experimental$/, '');
             const gemModel = genAI.getGenerativeModel({ model: cleanModel });
-            const sysMsg = messages.filter(m => m.role === 'system').map(m => typeof m.content === 'string' ? m.content : '').join('\n');
-            const chatMsgs = messages.filter(m => m.role !== 'system').map(m => ({
-              role: m.role === 'assistant' ? 'model' as const : 'user' as const,
-              parts: [{ text: typeof m.content === 'string' ? m.content : JSON.stringify(m.content) }],
-            }));
+            // Build system instruction in Gemini Content format (not raw string)
+            const sysMsgRaw = messages
+              .filter(m => m.role === 'system')
+              .map(m => typeof m.content === 'string' ? m.content : '')
+              .join('\n\n')
+              .trim();
+            // Gemini caps system_instruction. Trim to safe length and use Content shape.
+            const SYS_MAX = 8000;
+            const sysMsg = sysMsgRaw.length > SYS_MAX
+              ? sysMsgRaw.slice(0, SYS_MAX)
+              : sysMsgRaw;
+            
+            const chatMsgs = messages
+              .filter(m => m.role !== 'system')
+              .map(m => ({
+                role: m.role === 'assistant' ? 'model' as const : 'user' as const,
+                parts: [{ text: typeof m.content === 'string' ? m.content : JSON.stringify(m.content) }],
+              }));
             const lastMsg = chatMsgs.pop();
-            const chat = gemModel.startChat({ history: chatMsgs, systemInstruction: sysMsg || undefined });
+            
+            // Use Content object format (not bare string) for systemInstruction
+            const systemInstructionConfig = sysMsg
+              ? { role: 'system' as const, parts: [{ text: sysMsg }] }
+              : undefined;
+            
+            const chat = gemModel.startChat({
+              history: chatMsgs,
+              systemInstruction: systemInstructionConfig,
+            });
             const gemStream = await chat.sendMessageStream(lastMsg?.parts[0]?.text || '');
             let gemText = '';
             for await (const chunk of gemStream.stream) {
