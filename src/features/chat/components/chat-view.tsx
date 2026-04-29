@@ -157,25 +157,29 @@ export function ChatView({ initialConversationId, initialMessages = [], initialT
   }
 
   return (
-    <div className="h-[calc(100vh-56px)] flex">
+    <div className="h-[100dvh] flex overflow-hidden">
       <div className="flex-1 flex flex-col min-w-0">
         <div className="flex items-center gap-2 px-4 py-2 border-b border-border">
           <ChatDrawer currentId={conversationId} onSelect={handleChatSelect} />
           <ChatTopbar title={initialTitle} conversationId={conversationId} />
         </div>
-        {messages.length === 0 ? (
-          <EmptyState onSuggestion={(prompt) => {
-            const composer = document.querySelector('textarea[data-composer]') as HTMLTextAreaElement | null;
-            if (composer) {
-              composer.value = prompt;
-              composer.focus();
-              composer.dispatchEvent(new Event('input', { bubbles: true }));
-            }
-          }} />
-        ) : (
-          <MessageList messages={messages} onRegenerate={handleRegenerate} regenDisabled={loading} />
-        )}
-        <Composer onSend={handleSend} onCancel={cancel} loading={loading} />
+        <div className="flex-1 overflow-y-auto overscroll-contain min-h-0">
+          {messages.length === 0 ? (
+            <EmptyState onSuggestion={(prompt) => {
+              const composer = document.querySelector('textarea[data-composer]') as HTMLTextAreaElement | null;
+              if (composer) {
+                composer.value = prompt;
+                composer.focus();
+                composer.dispatchEvent(new Event('input', { bubbles: true }));
+              }
+            }} />
+          ) : (
+            <MessageList messages={messages} onRegenerate={handleRegenerate} regenDisabled={loading} />
+          )}
+        </div>
+        <div className="flex-shrink-0 border-t border-border bg-bg/80 backdrop-blur-md">
+          <Composer onSend={handleSend} onCancel={cancel} loading={loading} />
+        </div>
       </div>
     </div>
   );
