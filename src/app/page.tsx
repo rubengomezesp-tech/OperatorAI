@@ -31,6 +31,13 @@ import { useI18n, LanguageToggle } from '@/lib/i18n';
 import { Aurora } from '@/components/ui/aurora';
 import { Magnetic } from '@/components/ui/magnetic';
 import { fadeUp, staggerContainer, scaleIn } from '@/lib/motion';
+import dynamic from 'next/dynamic';
+
+const GuestChat = dynamic(() => import('@/features/landing/components/guest-chat').then(m => m.GuestChat), {
+  ssr: false,
+  loading: () => <div className="h-[420px] rounded-2xl glass-subtle animate-pulse" />,
+});
+
 
 // ─────────────────────────────────────────────────────────────────
 // i18n
@@ -55,6 +62,12 @@ const tx: Record<string, Record<string, string>> = {
   hero_cta_primary: { en: 'Start free trial', es: 'Empezar gratis' },
   hero_cta_secondary: { en: 'See it in action', es: 'Ver demo' },
   hero_no_card: { en: 'No card required · 7-day trial', es: 'Sin tarjeta · 7 días gratis' },
+
+  guest_section_kicker: { en: 'Try it now', es: 'Pruébalo ya' },
+  guest_section_h2_a: { en: 'Talk to Operator. ', es: 'Habla con Operator. ' },
+  guest_section_h2_b: { en: 'No signup needed.', es: 'Sin cuenta.' },
+  guest_section_p: { en: '3 free messages. See how the agent thinks before you commit.', es: '3 mensajes gratis. Mira cómo piensa el agente antes de comprometerte.' },
+
 
   // Mockup chat
   mockup_user_msg: { en: 'I want to launch a fitness campaign for my new program', es: 'Quiero lanzar una campaña fitness para mi nuevo programa' },
@@ -231,6 +244,43 @@ export default function LandingPage() {
           className="mt-16 sm:mt-20 max-w-3xl mx-auto"
         >
           <ChatMockup t={t} />
+        </motion.div>
+      </section>
+
+      {/* GUEST CHAT — Try Operator now (no signup) */}
+      <section className="relative z-10 max-w-5xl mx-auto px-6 sm:px-8 py-20 sm:py-28 border-t border-border">
+        <motion.div
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: '-80px' }}
+          variants={staggerContainer}
+          className="text-center mb-10"
+        >
+          <motion.div variants={fadeUp} className="text-[11px] uppercase tracking-[0.18em] text-gold mb-3">
+            {t('guest_section_kicker')}
+          </motion.div>
+          <motion.h2
+            variants={fadeUp}
+            className="font-display text-[36px] sm:text-[48px] leading-[1.05] tracking-tight mb-3"
+          >
+            {t('guest_section_h2_a')}
+            <span className="text-gold-grad">{t('guest_section_h2_b')}</span>
+          </motion.h2>
+          <motion.p
+            variants={fadeUp}
+            className="text-[14.5px] text-fg-muted max-w-xl mx-auto"
+          >
+            {t('guest_section_p')}
+          </motion.p>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: '-80px' }}
+          transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+        >
+          <GuestChat />
         </motion.div>
       </section>
 
