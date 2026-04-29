@@ -87,15 +87,40 @@ export function ToolResult({ part }: { part: ToolPart }) {
 }
 
 function ToolRunningCard({ kind, input }: { kind: ToolKind; input: Record<string, unknown> }) {
-  const label = kind === 'image' ? '🎨 Generating image' : kind === 'video' ? '🎬 Rendering video' : kind === 'file_analysis' ? '📊 Analyzing file' : '📚 Searching knowledge';
+  // Contextual labels — Operator-style, no generic "Generating..."
+  const labels: Record<ToolKind, { label: string; sub: string }> = {
+    image: { label: 'Componiendo visual', sub: 'Generating image' },
+    video: { label: 'Renderizando vídeo', sub: 'Rendering video' },
+    file_analysis: { label: 'Leyendo tu documento', sub: 'Analyzing file' },
+    knowledge_search: { label: 'Buscando contexto', sub: 'Searching knowledge' },
+  };
+  const { label } = labels[kind] ?? { label: 'Procesando', sub: '' };
   const subtitle = (input.prompt ?? input.question ?? input.query ?? '') as string;
 
   return (
-    <div className="my-3 inline-flex items-center gap-3 rounded-lg border border-gold/30 bg-gold/5 px-3.5 py-2.5 max-w-full">
-      <Loader2 className="h-4 w-4 animate-spin text-gold shrink-0" />
-      <div className="min-w-0">
-        <div className="text-[12.5px] text-fg">{label}…</div>
-        {subtitle && <div className="text-[11.5px] text-fg-muted truncate max-w-[420px]">{subtitle}</div>}
+    <div className="my-3 inline-flex items-center gap-3 rounded-2xl glass-strong floating px-4 py-3 max-w-full overflow-hidden relative">
+      {/* Animated gold dots */}
+      <div className="flex items-center gap-1 shrink-0">
+        <span className="h-1.5 w-1.5 rounded-full bg-gold animate-pulse-dot" />
+        <span className="h-1.5 w-1.5 rounded-full bg-gold animate-pulse-dot" style={{ animationDelay: '0.2s' }} />
+        <span className="h-1.5 w-1.5 rounded-full bg-gold animate-pulse-dot" style={{ animationDelay: '0.4s' }} />
+      </div>
+      <div className="min-w-0 relative">
+        <div className="text-[13px] text-fg font-medium relative inline-block">
+          <span className="relative z-10">{label}</span>
+          {/* Shimmer gold overlay */}
+          <span
+            className="absolute inset-0 bg-gradient-to-r from-transparent via-gold/40 to-transparent bg-[length:200%_100%] animate-shimmer pointer-events-none"
+            style={{ WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}
+          >
+            {label}
+          </span>
+        </div>
+        {subtitle && (
+          <div className="text-[11.5px] text-fg-muted truncate max-w-[420px] mt-0.5">
+            {subtitle}
+          </div>
+        )}
       </div>
     </div>
   );
