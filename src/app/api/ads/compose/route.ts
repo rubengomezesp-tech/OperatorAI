@@ -45,15 +45,10 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const baseImageDataUrl = await urlToDataUrl(body.baseImageUrl);
-    let logoDataUrl: string | undefined;
-    if (body.logoUrl) {
-      try {
-        logoDataUrl = await urlToDataUrl(body.logoUrl);
-      } catch (logoErr) {
-        console.warn('[ads/compose] logo fetch failed, rendering without logo:', logoErr instanceof Error ? logoErr.message : logoErr);
-      }
-    }
+    const [baseImageDataUrl, logoDataUrl] = await Promise.all([
+      urlToDataUrl(body.baseImageUrl),
+      body.logoUrl ? urlToDataUrl(body.logoUrl) : Promise.resolve(undefined),
+    ]);
 
     const result = await renderAndUploadAd({
       input: {

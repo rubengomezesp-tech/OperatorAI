@@ -496,18 +496,9 @@ export async function POST(req: NextRequest) {
                   throw new Error(`Ad pipeline failed (${adRes.status}): ${errText.slice(0, 200)}`);
                 }
 
-                const adData = await adRes.json() as {
-                  results?: Array<{ format: string; url?: string; error?: string }>;
-                  stages?: Array<{ stage: string; ok: boolean; error?: string }>;
-                  baseImageUrl?: string;
-                };
+                const adData = await adRes.json() as { results?: Array<{ url?: string }> };
                 const urls = (adData.results || []).filter((r) => r.url).map((r) => r.url as string);
-                if (urls.length === 0) {
-                  const formatErrs = (adData.results || []).map((r) => `${r.format}=${r.error ?? 'no url'}`).join('; ');
-                  const failedStages = (adData.stages || []).filter((s) => !s.ok).map((s) => `${s.stage}=${s.error}`).join('; ');
-                  console.error('[chat:create_ad] empty result. formats:', formatErrs, 'stages:', failedStages, 'baseImage:', adData.baseImageUrl);
-                  throw new Error(`No ads produced. Formats: [${formatErrs}]. Failed stages: [${failedStages || 'none'}]`);
-                }
+                if (urls.length === 0) throw new Error('No ads produced');
 
                 controller.enqueue(sseEncode('tool_result', {
                   toolUseId,

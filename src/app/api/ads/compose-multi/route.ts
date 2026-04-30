@@ -59,15 +59,10 @@ export async function POST(req: NextRequest) {
 
   try {
     // Fetch base + logo ONCE (shared across all formats)
-    const baseImageDataUrl = await urlToDataUrl(body.baseImageUrl);
-    let logoDataUrl: string | undefined;
-    if (body.logoUrl) {
-      try {
-        logoDataUrl = await urlToDataUrl(body.logoUrl);
-      } catch (logoErr) {
-        console.warn('[ads/compose-multi] logo fetch failed, rendering without logo:', logoErr instanceof Error ? logoErr.message : logoErr);
-      }
-    }
+    const [baseImageDataUrl, logoDataUrl] = await Promise.all([
+      urlToDataUrl(body.baseImageUrl),
+      body.logoUrl ? urlToDataUrl(body.logoUrl) : Promise.resolve(undefined),
+    ]);
 
     // Dedupe formats
     const formats = Array.from(new Set(body.formats)) as AdAspectRatio[];

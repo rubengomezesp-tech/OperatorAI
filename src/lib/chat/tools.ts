@@ -488,17 +488,10 @@ async function execCreateAd(input: Record<string, unknown>, ctx: ToolContext): P
 
     const data = (await res.json()) as {
       results: Array<{ format: string; url?: string; error?: string }>;
-      stages?: Array<{ stage: string; ok: boolean; error?: string }>;
-      baseImageUrl?: string;
     };
 
     const urls = data.results.filter((r) => r.url).map((r) => r.url as string);
-    if (urls.length === 0) {
-      const formatErrs = data.results.map((r) => `${r.format}=${r.error ?? 'no url'}`).join('; ');
-      const failedStages = (data.stages ?? []).filter((s) => !s.ok).map((s) => `${s.stage}=${s.error}`).join('; ');
-      console.error('[create_ad] empty result. formats:', formatErrs, 'stages:', failedStages, 'baseImage:', data.baseImageUrl);
-      return { ok: false, error: `No ads produced. Formats: [${formatErrs}]. Failed stages: [${failedStages || 'none'}]` };
-    }
+    if (urls.length === 0) return { ok: false, error: 'No ads produced' };
 
     return { ok: true, result: { urls } };
   } catch (e) {
