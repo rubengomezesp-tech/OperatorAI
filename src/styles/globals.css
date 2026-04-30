@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 :root {
-  --bg: 11 11 12;
+  --bg: 6 6 8;
   --surface: 17 17 19;
   --surface-2: 22 22 26;
   --surface-3: 29 29 34;
