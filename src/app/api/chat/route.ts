@@ -366,8 +366,13 @@ export async function POST(req: NextRequest) {
               const imgPrompt = toolArgs.prompt || 'a product photo';
               const aspectRatio = toolArgs.aspect_ratio || '1:1';
               
-              // Notify client that image is generating
-              controller.enqueue(sseEncode('delta', { text: 'Generating image...\n\n' }));
+              // Emit tool_start event (activates ImageGeneratingSkeleton in UI)
+              const toolUseId = tcall.id || `gpt_img_${Date.now()}`;
+              controller.enqueue(sseEncode('tool_start', {
+                toolUseId,
+                tool: 'image',
+                input: { prompt: imgPrompt, aspect_ratio: aspectRatio },
+              }));
               
               // Call internal image generation endpoint
               const cookieHeader = req.headers.get('cookie') || '';
@@ -387,10 +392,15 @@ export async function POST(req: NextRequest) {
                   const imgData = await imgRes.json();
                   const url = imgData.url || imgData.urls?.[0];
                   if (url) {
-                    const imgMsg = `![Generated image](${url})`;
-                    controller.enqueue(sseEncode('delta', { text: imgMsg }));
+                    // Emit tool_result event (skeleton replaced by actual image)
+                    controller.enqueue(sseEncode('tool_result', {
+                      toolUseId,
+                      tool: 'image',
+                      ok: true,
+                      result: { urls: [url] },
+                    }));
                     
-                    await svc.from('messages').update({ content: imgMsg, status: 'complete' } as never).eq('id', pendingMessageId);
+                    await svc.from('messages').update({ content: `![Generated image](${url})`, status: 'complete' } as never).eq('id', pendingMessageId);
                     controller.enqueue(sseEncode('done', { assistantMessageId: pendingMessageId, conversationId, isNewConversation: isNew }));
                     controller.close();
                     return;
@@ -399,7 +409,12 @@ export async function POST(req: NextRequest) {
                 throw new Error('Image generation returned no URL');
               } catch (imgErr) {
                 const errMsg = imgErr instanceof Error ? imgErr.message : 'Image generation failed';
-                controller.enqueue(sseEncode('delta', { text: `Sorry, image generation failed: ${errMsg}` }));
+                controller.enqueue(sseEncode('tool_result', {
+                  toolUseId,
+                  tool: 'image',
+                  ok: false,
+                  error: errMsg,
+                }));
                 await svc.from('messages').update({ content: `Image generation failed: ${errMsg}`, status: 'failed' } as never).eq('id', pendingMessageId);
                 controller.enqueue(sseEncode('done', { assistantMessageId: pendingMessageId, conversationId, isNewConversation: isNew }));
                 controller.close();
