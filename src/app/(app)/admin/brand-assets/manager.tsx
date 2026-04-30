@@ -37,6 +37,30 @@ const ASSETS: BrandAsset[] = [
     description: 'Imagen grande para fondo de landing y chat. Se aplica con blur.',
     recommendedSize: 'PNG, mín 2000x2000px',
   },
+  {
+    key: 'nav-chat',
+    label: 'Nav Icon — Chat',
+    description: 'Icono custom para el item Chat del menú móvil. Si vacío, usa el icono por defecto.',
+    recommendedSize: 'PNG cuadrado, 64x64px',
+  },
+  {
+    key: 'nav-campaigns',
+    label: 'Nav Icon — Campañas',
+    description: 'Icono custom para Campañas en el menú móvil.',
+    recommendedSize: 'PNG cuadrado, 64x64px',
+  },
+  {
+    key: 'nav-brand',
+    label: 'Nav Icon — Marca',
+    description: 'Icono custom para Marca en el menú móvil.',
+    recommendedSize: 'PNG cuadrado, 64x64px',
+  },
+  {
+    key: 'nav-settings',
+    label: 'Nav Icon — Ajustes',
+    description: 'Icono custom para Ajustes en el menú móvil.',
+    recommendedSize: 'PNG cuadrado, 64x64px',
+  },
 ];
 
 export function BrandAssetsManager() {

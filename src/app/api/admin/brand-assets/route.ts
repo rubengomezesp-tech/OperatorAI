@@ -8,7 +8,7 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
-const ALLOWED_KEYS = ['logo-operator', 'logo-icon', 'operator-avatar', 'operator-bg'];
+const ALLOWED_KEYS = ['logo-operator', 'logo-icon', 'operator-avatar', 'operator-bg', 'nav-chat', 'nav-campaigns', 'nav-brand', 'nav-settings'];
 
 async function checkAdmin() {
   const ssr = await createSupabaseServerClient();

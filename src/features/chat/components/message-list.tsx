@@ -9,9 +9,11 @@ interface Props {
   messages: UiMessage[];
   onRegenerate?: () => void;
   regenDisabled?: boolean;
+  userAvatarUrl?: string | null;
+  userInitial?: string;
 }
 
-export function MessageList({ messages, onRegenerate, regenDisabled }: Props) {
+export function MessageList({ messages, onRegenerate, regenDisabled, userAvatarUrl, userInitial }: Props) {
   const { t } = useI18n();
   const endRef = useRef<HTMLDivElement>(null);
 

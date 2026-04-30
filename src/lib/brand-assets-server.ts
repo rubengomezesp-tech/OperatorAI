@@ -13,9 +13,22 @@ export interface BrandAssetUrls {
   iconUrl: string | null;
   avatarUrl: string | null;
   bgUrl: string | null;
+  navChatUrl: string | null;
+  navCampaignsUrl: string | null;
+  navBrandUrl: string | null;
+  navSettingsUrl: string | null;
 }
 
-const ASSET_KEYS = ['logo-operator', 'logo-icon', 'operator-avatar', 'operator-bg'] as const;
+const ASSET_KEYS = [
+  'logo-operator',
+  'logo-icon',
+  'operator-avatar',
+  'operator-bg',
+  'nav-chat',
+  'nav-campaigns',
+  'nav-brand',
+  'nav-settings',
+] as const;
 
 export async function getBrandAssets(): Promise<BrandAssetUrls> {
   try {
@@ -27,7 +40,7 @@ export async function getBrandAssets(): Promise<BrandAssetUrls> {
       .list('', { limit: 100 });
 
     if (error || !files) {
-      return { logoUrl: null, iconUrl: null, avatarUrl: null, bgUrl: null };
+      return { logoUrl: null, iconUrl: null, avatarUrl: null, bgUrl: null, navChatUrl: null, navCampaignsUrl: null, navBrandUrl: null, navSettingsUrl: null };
     }
 
     const fileNames = new Set(files.map((f) => f.name));
@@ -45,8 +58,15 @@ export async function getBrandAssets(): Promise<BrandAssetUrls> {
       iconUrl: urlFor('logo-icon'),
       avatarUrl: urlFor('operator-avatar'),
       bgUrl: urlFor('operator-bg'),
+      navChatUrl: urlFor('nav-chat'),
+      navCampaignsUrl: urlFor('nav-campaigns'),
+      navBrandUrl: urlFor('nav-brand'),
+      navSettingsUrl: urlFor('nav-settings'),
     };
   } catch {
-    return { logoUrl: null, iconUrl: null, avatarUrl: null, bgUrl: null };
+    return {
+      logoUrl: null, iconUrl: null, avatarUrl: null, bgUrl: null,
+      navChatUrl: null, navCampaignsUrl: null, navBrandUrl: null, navSettingsUrl: null,
+    };
   }
 }

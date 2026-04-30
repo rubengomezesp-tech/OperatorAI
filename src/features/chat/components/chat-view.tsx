@@ -20,12 +20,15 @@ interface Props {
   initialConversationId: string | null;
   initialMessages?: UiMessage[];
   initialTitle?: string | null;
+  currentUserName?: string;
+  currentUserAvatarUrl?: string | null;
 }
 
-export function ChatView({ initialConversationId, initialMessages = [], initialTitle = null }: Props) {
+export function ChatView({ initialConversationId, initialMessages = [], initialTitle = null, currentUserName, currentUserAvatarUrl }: Props) {
   const router = useRouter();
   
   const [conversationId, setConversationId] = useState<string | null>(initialConversationId);
+  const userInitial = (currentUserName || 'U').trim().charAt(0).toUpperCase() || 'U';
   const [title, setTitle] = useState<string | null>(initialTitle);
   const [messages, setMessages] = useState<UiMessage[]>(initialMessages);
   const [recoveryDismissed, setRecoveryDismissed] = useState(false);
@@ -221,7 +224,7 @@ export function ChatView({ initialConversationId, initialMessages = [], initialT
               }
             }} />
           ) : (
-            <MessageList messages={messages} onRegenerate={handleRegenerate} regenDisabled={loading} />
+            <MessageList messages={messages} onRegenerate={handleRegenerate} regenDisabled={loading}  userAvatarUrl={currentUserAvatarUrl} userInitial={userInitial} />
           )}
         </div>
         <div className="flex-shrink-0 border-t border-border bg-bg/80 backdrop-blur-md">

@@ -45,6 +45,8 @@ interface Props {
   onRegenerate?: () => void;
   regenDisabled?: boolean;
   previousUserContent?: string;
+  userAvatarUrl?: string | null;
+  userInitial?: string;
 }
 
 function extractImageUrls(text: string): string[] {
@@ -67,7 +69,7 @@ function stripImageUrls(text: string): string {
   return cleaned;
 }
 
-export function MessageBubble({ message, isLastAssistant, onRegenerate, regenDisabled, previousUserContent }: Props) {
+export function MessageBubble({ message, isLastAssistant, onRegenerate, regenDisabled, previousUserContent, userAvatarUrl, userInitial = 'U' }: Props) {
   const { avatarUrl } = useBrandAssets();
   const isUser = message.role === 'user';
   const imageUrls = useMemo(() => extractImageUrls(message.content), [message.content]);
@@ -78,9 +80,16 @@ export function MessageBubble({ message, isLastAssistant, onRegenerate, regenDis
       {/* Avatar */}
       <div className="flex-shrink-0 mt-1">
         {isUser ? (
-          <div className="h-7 w-7 rounded-full bg-gold/20 border border-gold/30 flex items-center justify-center text-[11px] font-medium text-gold">
-            T
-          </div>
+          userAvatarUrl ? (
+            <div className="h-7 w-7 rounded-full overflow-hidden bg-gold/10 border border-gold/30">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={userAvatarUrl} alt="" className="h-full w-full object-cover" />
+            </div>
+          ) : (
+            <div className="h-7 w-7 rounded-full bg-gold/20 border border-gold/30 flex items-center justify-center text-[11px] font-medium text-gold uppercase">
+              {userInitial}
+            </div>
+          )
         ) : avatarUrl ? (
           <div className="h-7 w-7 rounded-full overflow-hidden bg-bg/40 flex items-center justify-center">
             {/* eslint-disable-next-line @next/next/no-img-element */}

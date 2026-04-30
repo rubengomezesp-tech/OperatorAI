@@ -217,8 +217,9 @@ export function Sidebar({ isAdmin = false, onClose }: Props) {
               <img src={logoUrl} alt="Operator AI" className="h-full w-auto object-contain" />
             </div>
           ) : (
-            <span className="font-display text-[15px] tracking-tight text-fg">
-              Operator <span className="text-gold">AI</span>
+            <span className="font-display text-[15px] tracking-tight text-fg flex items-center gap-1.5">
+              <span className="text-gold text-[12px]">⏵</span>
+              Operator <span className="text-fg-muted">AI</span>
             </span>
           )}
         </Link>

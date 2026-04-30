@@ -10,18 +10,20 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { MessageSquare, Sparkles, Palette, Settings } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
+import { useBrandAssets } from '@/lib/brand-assets-context';
 import { cn } from '@/lib/utils';
 
 export function BottomNav() {
   const pathname = usePathname();
   const { locale } = useI18n();
+  const { navChatUrl, navCampaignsUrl, navBrandUrl, navSettingsUrl } = useBrandAssets();
   const isEs = locale === 'es';
 
   const items = [
-    { href: '/chat', label: isEs ? 'Chat' : 'Chat', icon: MessageSquare },
-    { href: '/campaigns', label: isEs ? 'Campañas' : 'Campaigns', icon: Sparkles },
-    { href: '/brand-os', label: isEs ? 'Marca' : 'Brand', icon: Palette },
-    { href: '/settings', label: isEs ? 'Ajustes' : 'Settings', icon: Settings },
+    { href: '/chat', label: isEs ? 'Chat' : 'Chat', icon: MessageSquare, customUrl: navChatUrl },
+    { href: '/campaigns', label: isEs ? 'Campañas' : 'Campaigns', icon: Sparkles, customUrl: navCampaignsUrl },
+    { href: '/brand-os', label: isEs ? 'Marca' : 'Brand', icon: Palette, customUrl: navBrandUrl },
+    { href: '/settings', label: isEs ? 'Ajustes' : 'Settings', icon: Settings, customUrl: navSettingsUrl },
   ];
 
   return (
@@ -39,7 +41,14 @@ export function BottomNav() {
                 isActive ? 'text-gold' : 'text-fg-muted hover:text-fg',
               )}
             >
-              <Icon className={cn('h-[18px] w-[18px]', isActive && 'text-gold')} strokeWidth={2} />
+              {item.customUrl ? (
+                <div className={cn('h-[18px] w-[18px] flex items-center justify-center', isActive && 'opacity-100', !isActive && 'opacity-70')}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={item.customUrl} alt={item.label} className="h-full w-full object-contain" />
+                </div>
+              ) : (
+                <Icon className={cn('h-[18px] w-[18px]', isActive && 'text-gold')} strokeWidth={2} />
+              )}
               <span className="text-[10px] font-medium tracking-tight">{item.label}</span>
             </Link>
           );

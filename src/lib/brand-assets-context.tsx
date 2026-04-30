@@ -7,6 +7,10 @@ export interface BrandAssets {
   iconUrl: string | null;
   avatarUrl: string | null;
   bgUrl: string | null;
+  navChatUrl: string | null;
+  navCampaignsUrl: string | null;
+  navBrandUrl: string | null;
+  navSettingsUrl: string | null;
 }
 
 const BrandAssetsContext = createContext<BrandAssets>({
@@ -14,6 +18,10 @@ const BrandAssetsContext = createContext<BrandAssets>({
   iconUrl: null,
   avatarUrl: null,
   bgUrl: null,
+  navChatUrl: null,
+  navCampaignsUrl: null,
+  navBrandUrl: null,
+  navSettingsUrl: null,
 });
 
 export function BrandAssetsProvider({
