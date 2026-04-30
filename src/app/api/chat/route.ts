@@ -413,7 +413,7 @@ export async function POST(req: NextRequest) {
                   body: JSON.stringify({ 
                     prompt: imgPrompt, 
                     aspectRatio: aspectRatio,
-                    model: 'gpt-image-1',
+                    model: 'gpt-image-2',
                     referenceImages: refImages,
                   }),
                 });

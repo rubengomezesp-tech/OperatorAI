@@ -404,7 +404,7 @@ function ImageEditModal({ open, onClose, imageUrl }: { open: boolean; onClose: (
       const body: Record<string, unknown> = {
         prompt: text,
         aspectRatio: aspectRatio || '1:1',
-        model: 'gpt-image-1',
+        model: 'gpt-image-2',
         enhance: false,
         referenceUrls: [currentImage],
       };
