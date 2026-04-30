@@ -1,7 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 
-export type ToolKind = 'image' | 'video' | 'file_analysis' | 'knowledge_search' | 'get_brand_assets' | 'compose_ad';
+export type ToolKind = 'image' | 'video' | 'file_analysis' | 'knowledge_search' | 'get_brand_assets' | 'compose_ad' | 'create_ad';
 
 export interface ToolSpec {
   name: ToolKind;
@@ -90,6 +90,28 @@ export const TOOL_SPECS: ToolSpec[] = [
       required: ['background_url', 'headline'],
     },
   },
+  {
+    name: 'create_ad',
+    description:
+      'Create a complete advertising piece from scratch using the AD DIRECTOR pipeline. Use when user asks "create me an ad", "publicidad", "anuncio", "make an ad", or wants a finished advertisement (not just a background image). This tool runs the full 7-layer pipeline: analyzes brand context, generates the creative brief (headline, subheadline, CTA, concept), produces a premium base image, composes the final ad with text overlay and logo, and audits the result with vision QA. Returns final ad image URLs ready to publish. AUTOMATICALLY pulls the user brand logo, colors and tone from brand_profile — no need to call get_brand_assets first. Different from `image` (only generates pictures) and `compose_ad` (requires background+copy already provided). Prefer this tool whenever the user wants a finished ad.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        user_prompt: { type: 'string', description: 'The user request describing the ad. Pass the original message verbatim or a faithful summary including the offer/product, audience, and any tone hints.' },
+        formats: {
+          type: 'array',
+          items: { type: 'string', enum: ['9:16', '1:1', '4:5', '16:9'] },
+          description: 'Optional output formats. Defaults to brief recommendation. Pass multiple for variants (Story + Post + Feed).',
+        },
+        preset_override: {
+          type: 'string',
+          enum: ['luxury-minimal', 'aggressive', 'clean-conversion', 'product-demo'],
+          description: 'Optional style preset override. Pass when user explicitly requests a style ("more luxury", "more aggressive", "minimal"). Otherwise let the brief decide.',
+        },
+      },
+      required: ['user_prompt'],
+    },
+  },
 ];
 
 export interface ToolContext {
@@ -157,6 +179,7 @@ export async function executeTool(
       case 'knowledge_search': return await execKnowledgeSearch(input, ctx);
       case 'get_brand_assets': return await execGetBrandAssets(input, ctx);
       case 'compose_ad': return await execComposeAd(input, ctx);
+      case 'create_ad': return await execCreateAd(input, ctx);
       default: return { ok: false, error: 'Unknown tool: ' + name };
     }
   } catch (e) {
@@ -448,6 +471,70 @@ async function execComposeAd(input: Record<string, unknown>, ctx: ToolContext): 
     return { ok: true, result: { urls: [url] } };
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Compose error';
+    return { ok: false, error: msg };
+  }
+}
+
+// ── CREATE AD (full pipeline) ─────────────────────────────────────
+async function execCreateAd(input: Record<string, unknown>, ctx: ToolContext): Promise<ToolResult> {
+  const userPrompt = String(input.user_prompt ?? '').trim();
+  if (!userPrompt) return { ok: false, error: 'Empty user_prompt' };
+
+  const formats = Array.isArray(input.formats) ? (input.formats as string[]) : undefined;
+  const presetOverride = input.preset_override ? String(input.preset_override) : undefined;
+
+  // Fetch brand context (logo + brand info) so the pipeline auto-applies them
+  let logoUrl: string | undefined;
+  let brandContext: { brand_name?: string; description?: string; vibe?: string } | undefined;
+  try {
+    const { data: brand } = await ctx.svc
+      .from('brand_profile')
+      .select('brand_name, description, vibe, logo_url')
+      .eq('org_id', ctx.orgId)
+      .maybeSingle();
+    if (brand) {
+      const b = brand as Record<string, unknown>;
+      logoUrl = b.logo_url ? String(b.logo_url) : undefined;
+      brandContext = {
+        brand_name: b.brand_name ? String(b.brand_name) : undefined,
+        description: b.description ? String(b.description) : undefined,
+        vibe: b.vibe ? String(b.vibe) : undefined,
+      };
+    }
+  } catch {
+    /* non-fatal */
+  }
+
+  try {
+    const res = await fetch(`${ctx.origin}/api/ads/create`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', cookie: ctx.cookieHeader },
+      body: JSON.stringify({
+        userPrompt,
+        logoUrl,
+        brandContext,
+        formats,
+        presetOverride,
+        enableAudit: true,
+      }),
+      signal: ctx.signal,
+    });
+
+    if (!res.ok) {
+      const errText = await res.text().catch(() => 'unknown');
+      return { ok: false, error: `Ad pipeline failed (${res.status}): ${errText.slice(0, 200)}` };
+    }
+
+    const data = (await res.json()) as {
+      results: Array<{ format: string; url?: string; error?: string }>;
+    };
+
+    const urls = data.results.filter((r) => r.url).map((r) => r.url as string);
+    if (urls.length === 0) return { ok: false, error: 'No ads produced' };
+
+    return { ok: true, result: { urls } };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : 'Ad creation failed';
     return { ok: false, error: msg };
   }
 }
