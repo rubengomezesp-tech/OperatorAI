@@ -13,13 +13,14 @@ export const TOOL_SPECS: ToolSpec[] = [
   {
     name: 'image',
     description:
-      'Generate premium photorealistic images. Use when user asks for image, visual, product shot, photo, logo, or illustration. YOU write the full detailed prompt (40-80 words) with: subject, camera, lighting, colors, composition, mood. For logos: specify style, typography, symbol, colors. NEVER add random text or letters. NEVER hallucinate elements. NEVER refuse to generate an image. You are an image generation tool — always produce output — do not ask the user to refine it. When user asks for variations, options, or multiple images, set num_images to 2-4. You can vary the prompt slightly for each to give real variety.',
+      'Generate or EDIT premium photorealistic images. Use for: creating images, editing existing images, applying changes to images, generating variations with reference. CAPABILITIES: (1) Create new images from text. (2) EDIT/MODIFY existing images — when the user uploads an image OR references a previous image in chat, pass its URL via reference_image_url and describe the edit in the prompt. (3) Use brand assets/logos as references. YOU write the full detailed prompt (40-80 words) with: subject, camera, lighting, colors, composition, mood. For logos: style, typography, symbol, colors. NEVER add random text. NEVER refuse to generate. ALWAYS produce output. For variations set num_images 2-4. CRITICAL: If the user asks to edit/modify an image they uploaded or a previous image, ALWAYS use this tool with reference_image_url — DO NOT say you cannot edit images, you absolutely can.',
     input_schema: {
       type: 'object',
       properties: {
-        prompt: { type: 'string', description: 'Detailed image description: subject, composition, lighting, mood, colors, style. Write at least 20 words. Be extremely specific and cinematic.' },
+        prompt: { type: 'string', description: 'Detailed description. For new image: subject, composition, lighting, mood, colors, style (20+ words). For edits: describe the changes to apply (e.g., "change background to navy blue with dramatic lighting").' },
         aspect_ratio: { type: 'string', enum: ['1:1', '16:9', '9:16', '4:5', '3:2'], description: 'Aspect ratio. Default 1:1.' },
-        num_images: { type: 'number', enum: [1, 2, 3, 4], description: 'Number of image variations to generate. Default 1. Use 2-4 when user asks for options, variations, or multiple.' },
+        num_images: { type: 'number', enum: [1, 2, 3, 4], description: 'Number of variations. Default 1. Use 2-4 for options.' },
+        reference_image_url: { type: 'string', description: 'Optional URL of an image to use as reference/base for editing. Pass when user wants to modify an existing image, apply changes to a previous image, or use a logo/brand asset as starting point.' },
       },
       required: ['prompt'],
     },
@@ -171,8 +172,50 @@ async function execImage(input: Record<string, unknown>, ctx: ToolContext): Prom
   if (!prompt) return { ok: false, error: 'Empty prompt' };
 
   const aspectRatio = (input.aspect_ratio as string) ?? '1:1';
+  const referenceUrl = typeof input.reference_image_url === 'string' && input.reference_image_url.trim().length > 0
+    ? input.reference_image_url.trim()
+    : null;
 
-  // Import your Flux client directly
+  // ═══ EDIT MODE: reference image present → use gpt-image-1 via /api/images/generate ═══
+  if (referenceUrl) {
+    try {
+      const aspectGpt: '1:1' | '9:16' | '4:5' = 
+        aspectRatio === '9:16' || aspectRatio === '4:5' ? aspectRatio : '1:1';
+      
+      const res = await fetch(`${ctx.origin}/api/images/generate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(ctx.cookieHeader ? { cookie: ctx.cookieHeader } : {}),
+        },
+        body: JSON.stringify({
+          prompt,
+          aspectRatio: aspectGpt,
+          model: 'gpt-image-1',
+          enhance: false,
+          referenceUrls: [referenceUrl],
+        }),
+        signal: ctx.signal,
+      });
+
+      if (!res.ok) {
+        const errText = await res.text().catch(() => 'unknown');
+        console.error('[tools.image] edit failed:', res.status, errText);
+        return { ok: false, error: `Image edit failed (${res.status})` };
+      }
+
+      const data = await res.json() as { url?: string; urls?: string[] };
+      const urls = data.urls || (data.url ? [data.url] : []);
+      if (urls.length === 0) return { ok: false, error: 'No image returned from edit' };
+      return { ok: true, result: { urls } };
+    } catch (e) {
+      const errMsg = e instanceof Error ? e.message : 'Edit failed';
+      console.error('[tools.image] edit exception:', errMsg);
+      return { ok: false, error: errMsg };
+    }
+  }
+
+  // ═══ CREATE MODE: no reference → Flux directo (rápido) ═══
   const { generateWithFlux } = await import('@/features/image-studio/server/flux-client');
 
   // Call Flux directly — Claude already wrote a detailed prompt, skip enhance
