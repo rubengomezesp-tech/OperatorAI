@@ -478,10 +478,6 @@ export async function POST(req: NextRequest) {
                   }
                 } catch { /* non-fatal */ }
 
-                const attachedImages = body.imageBase64 && body.imageMimeType
-                  ? [{ base64: body.imageBase64, mimeType: body.imageMimeType }]
-                  : undefined;
-
                 const adRes = await fetch(`${origin}/api/ads/create`, {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json', cookie: cookieHeader },
@@ -489,7 +485,6 @@ export async function POST(req: NextRequest) {
                     userPrompt,
                     logoUrl,
                     brandContext,
-                    images: attachedImages,
                     formats: toolArgs.formats,
                     presetOverride: toolArgs.preset_override,
                     enableAudit: true,

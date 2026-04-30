@@ -144,10 +144,7 @@ export async function POST(req: NextRequest) {
         prompt: visualPrompt,
         aspectRatio: effectiveAspectRatio,
         model: 'gpt-image-1',
-        enhance: false,
-        referenceImages: body.images && body.images.length > 0
-          ? body.images.map((img) => ({ data: img.base64, mimeType: img.mimeType }))
-          : undefined,
+        enhance: false, // visualPrompt is already optimized
       }),
     );
 
