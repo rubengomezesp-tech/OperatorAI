@@ -137,35 +137,6 @@ export interface ToolResult {
 }
 
 
-async function generateMultipleImages(
-  input: Record<string, unknown>,
-  ctx: ToolContext,
-): Promise<{ ok: boolean; result?: { urls: string[] }; error?: string }> {
-  const { generateWithFlux } = await import('@/features/image-studio/server/flux-client');
-  const numImages = Math.min(Math.max(Number(input.num_images) || 1, 1), 4);
-  const allUrls: string[] = [];
-  
-  for (let i = 0; i < numImages; i++) {
-    try {
-      // Vary the seed for each image to get different results
-      const result = await generateWithFlux({
-        prompt: String(input.prompt || ''),
-        aspectRatio: (input.aspect_ratio as any) || '1:1',
-        seed: Math.floor(Math.random() * 999999),
-      });
-      
-      if (result.urls) allUrls.push(...result.urls);
-    } catch (e) {
-      console.error('Image generation error:', e);
-    }
-  }
-  
-  if (allUrls.length === 0) {
-    return { ok: false, error: 'Failed to generate images' };
-  }
-  return { ok: true, result: { urls: allUrls } };
-}
-
 export async function executeTool(
   name: ToolKind,
   input: Record<string, unknown>,
