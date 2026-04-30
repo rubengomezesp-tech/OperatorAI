@@ -1,24 +1,25 @@
-import { promises as fs } from 'fs';
-import path from 'path';
+import {
+  INTER_BOLD,
+  INTER_REGULAR,
+  PLAYFAIR_BOLD,
+  PLAYFAIR_REGULAR,
+} from './fonts-data';
 
-const FONT_FILES = {
-  interBold: 'Inter-Bold.ttf',
-  interRegular: 'Inter-Regular.ttf',
-  playfairBold: 'PlayfairDisplay-Bold.ttf',
-  playfairRegular: 'PlayfairDisplay-Regular.ttf',
+const FONT_B64 = {
+  interBold: INTER_BOLD,
+  interRegular: INTER_REGULAR,
+  playfairBold: PLAYFAIR_BOLD,
+  playfairRegular: PLAYFAIR_REGULAR,
 } as const;
 
-type FontKey = keyof typeof FONT_FILES;
+type FontKey = keyof typeof FONT_B64;
 
 const cache = new Map<FontKey, ArrayBuffer>();
 
-async function loadFont(key: FontKey): Promise<ArrayBuffer> {
+function decodeFont(key: FontKey): ArrayBuffer {
   const cached = cache.get(key);
   if (cached) return cached;
-
-  const filePath = path.join(process.cwd(), 'public', 'fonts', FONT_FILES[key]);
-  const buf = await fs.readFile(filePath);
-  // Convert Node Buffer to ArrayBuffer (Satori expects ArrayBuffer)
+  const buf = Buffer.from(FONT_B64[key], 'base64');
   const arrayBuffer = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
   cache.set(key, arrayBuffer);
   return arrayBuffer;
@@ -36,13 +37,8 @@ export async function getFontsForPreset(preset: string): Promise<SatoriFont[]> {
   const headlineKey: FontKey = isLuxury ? 'playfairBold' : 'interBold';
   const bodyKey: FontKey = isLuxury ? 'playfairRegular' : 'interRegular';
 
-  const [headlineBuf, bodyBuf] = await Promise.all([
-    loadFont(headlineKey),
-    loadFont(bodyKey),
-  ]);
-
   return [
-    { name: 'Headline', data: headlineBuf, weight: 700, style: 'normal' },
-    { name: 'Body', data: bodyBuf, weight: 400, style: 'normal' },
+    { name: 'Headline', data: decodeFont(headlineKey), weight: 700, style: 'normal' },
+    { name: 'Body', data: decodeFont(bodyKey), weight: 400, style: 'normal' },
   ];
 }
