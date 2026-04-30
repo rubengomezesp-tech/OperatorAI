@@ -25,7 +25,7 @@ const BodySchema = z.object({
   mask: z.string().min(10).optional(),
   // Imagery model. Default to gpt-image-1 (premium quality + ref images)
   // Falls back to Flux if gpt-image-1 fails
-  model: z.enum(['gpt-image-2']).optional().default('gpt-image-2'),
+  model: z.enum(['gpt-image-1']).optional().default('gpt-image-1'),
 });
 
 type PromptHint = 'editorial' | 'startup' | 'luxury';
@@ -126,7 +126,7 @@ export async function POST(req: NextRequest) {
   const imageId = (created as { id: string }).id;
 
   // ═══ GPT-IMAGE-1 PATH (priority — premium quality, supports ref images) ═══
-  if (body.model === 'gpt-image-2') {
+  if (body.model === 'gpt-image-1') {
     try {
       const { generateWithGptImage, GptImageError } = await import('@/features/creative-studio/server/gpt-image-client');
       
@@ -172,7 +172,7 @@ export async function POST(req: NextRequest) {
         .update({
           status: 'complete',
           provider: 'openai',
-          model: 'gpt-image-2',
+          model: 'gpt-image-1',
           output_urls: [publicUrl],
           output_storage_paths: [storagePath],
           latency_ms: 0,
@@ -193,7 +193,7 @@ export async function POST(req: NextRequest) {
         url: publicUrl,
         storagePaths: [storagePath],
         provider: 'openai',
-        model: 'gpt-image-2',
+        model: 'gpt-image-1',
       });
     } catch (gptErr) {
       const message = gptErr instanceof Error ? gptErr.message : 'gpt-image-1 generation failed';

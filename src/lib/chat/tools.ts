@@ -215,7 +215,7 @@ async function execImage(input: Record<string, unknown>, ctx: ToolContext): Prom
         body: JSON.stringify({
           prompt,
           aspectRatio: aspectGpt,
-          model: 'gpt-image-2',
+          model: 'gpt-image-1',
           enhance: false,
           referenceUrls: [referenceUrl],
         }),
@@ -253,7 +253,7 @@ async function execImage(input: Record<string, unknown>, ctx: ToolContext): Prom
       body: JSON.stringify({
         prompt,
         aspectRatio: aspectGpt,
-        model: 'gpt-image-2',
+        model: 'gpt-image-1',
         enhance: false,
       }),
       signal: ctx.signal,
