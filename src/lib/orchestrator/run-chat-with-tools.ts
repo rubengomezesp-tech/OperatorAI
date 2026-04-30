@@ -93,36 +93,7 @@ export async function* runChatWithTools(args: RunArgs): AsyncIterable<ToolStream
   let totalInputTokens = 0;
   let totalOutputTokens = 0;
 
-  // Detect ad intent in last user message → force create_ad on first turn
-  const lastUserText = (() => {
-    for (let i = convo.length - 1; i >= 0; i--) {
-      const m = convo[i];
-      if (m.role !== 'user') continue;
-      if (typeof m.content === 'string') return m.content.toLowerCase();
-      if (Array.isArray(m.content)) {
-        for (const blk of m.content) {
-          if (blk.type === 'text' && typeof (blk as { text?: string }).text === 'string') {
-            return (blk as { text: string }).text.toLowerCase();
-          }
-        }
-      }
-      return '';
-    }
-    return '';
-  })();
-  const adKeywords = /\b(publicidad|anuncio|advertisement|advert|ad|marketing\s+piece|creative)\b/i;
-  const isAdRequest = adKeywords.test(lastUserText);
-
   for (let loop = 0; loop < MAX_TOOL_LOOPS; loop++) {
-    const toolChoice: Anthropic.MessageCreateParams.ToolChoiceTool | Anthropic.MessageCreateParams.ToolChoiceAuto =
-      (loop === 0 && isAdRequest)
-        ? { type: 'tool', name: 'create_ad' }
-        : { type: 'auto' };
-
-    if (loop === 0) {
-      console.log('[chat:anthropic] tool_choice:', isAdRequest ? 'create_ad (forced)' : 'auto', 'msg:', lastUserText.slice(0, 80));
-    }
-
     let stream: Awaited<ReturnType<typeof client.messages.stream>>;
     try {
       stream = client.messages.stream(
@@ -135,7 +106,6 @@ export async function* runChatWithTools(args: RunArgs): AsyncIterable<ToolStream
             description: t.description,
             input_schema: t.input_schema as Anthropic.Tool.InputSchema,
           })),
-          tool_choice: toolChoice,
           messages: convo,
         },
         { signal: args.signal },
@@ -205,9 +175,6 @@ export async function* runChatWithTools(args: RunArgs): AsyncIterable<ToolStream
         origin: args.origin,
         cookieHeader: args.cookieHeader,
         signal: args.signal,
-        attachedImages: args.imageBase64 && args.imageMimeType
-          ? [{ base64: args.imageBase64, mimeType: args.imageMimeType }]
-          : undefined,
       });
 
       yield {
