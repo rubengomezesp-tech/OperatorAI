@@ -381,7 +381,7 @@ function ImageEditModal({ open, onClose, imageUrl }: { open: boolean; onClose: (
     setMaskDataUrl(null);
   }
 
-  async function handleEdit(customPrompt?: string, aspectRatio?: '1:1' | '9:16' | '4:5') {
+  async function handleEdit(customPrompt?: string, aspectRatio?: '1:1' | '9:16' | '4:5' | '16:9') {
     const text = (customPrompt || prompt).trim();
     if (!text || generating) return;
 
@@ -540,6 +540,7 @@ function ImageEditModal({ open, onClose, imageUrl }: { open: boolean; onClose: (
                 { ratio: '1:1' as const, label: 'Cuadrado · Post' },
                 { ratio: '9:16' as const, label: 'Vertical · Story' },
                 { ratio: '4:5' as const, label: 'Vertical · IG' },
+                { ratio: '16:9' as const, label: 'Horizontal · Web' },
               ].map((opt) => (
                 <button
                   key={opt.ratio}

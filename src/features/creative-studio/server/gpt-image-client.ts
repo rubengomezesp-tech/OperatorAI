@@ -1,5 +1,5 @@
 import 'server-only';
-import type { AspectRatio } from '../types';
+type AspectRatio = '1:1' | '16:9' | '9:16' | '4:5' | '3:2';
 
 // ═══════════════════════════════════════════════════════════════════
 // GPT-Image Client
@@ -66,9 +66,15 @@ function aspectToSize(
   switch (aspect) {
     case '1:1':
       return '1024x1024';
+    case '16:9':
+    case '3:2':
+      return '1536x1024';
     case '4:5':
     case '9:16':
       return '1024x1536';
+    case '16:9':
+    case '3:2':
+      return '1536x1024';
     default:
       return '1024x1024';
   }

@@ -114,10 +114,7 @@ export async function POST(req: NextRequest) {
       
       // GPT-image AspectRatio type: '9:16' | '1:1' | '4:5'
       // Map schema values to supported set
-      const gptAspect: '9:16' | '1:1' | '4:5' = 
-        body.aspectRatio === '16:9' ? '1:1' :   // landscape→square (closest)
-        body.aspectRatio === '3:2' ? '1:1' :    // landscape→square
-        body.aspectRatio as '9:16' | '1:1' | '4:5';
+      const gptAspect = body.aspectRatio;
       
       // Convert referenceImages (base64) → data: URIs (cliente acepta string[])
       const refDataUris = (body.referenceImages || []).map(
