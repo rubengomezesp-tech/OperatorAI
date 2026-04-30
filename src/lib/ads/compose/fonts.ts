@@ -1,27 +1,27 @@
-/**
- * Font loader for Satori. Caches fonts in module-level Map.
- * Fonts served from jsdelivr (Google Fonts mirror, stable).
- */
+import {
+  INTER_BOLD,
+  INTER_REGULAR,
+  PLAYFAIR_BOLD,
+  PLAYFAIR_REGULAR,
+} from './fonts-data';
 
-const FONT_URLS = {
-  interBold: 'https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/inter/static/Inter-Bold.ttf',
-  interRegular: 'https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/inter/static/Inter-Regular.ttf',
-  playfairBold: 'https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/playfairdisplay/static/PlayfairDisplay-Bold.ttf',
-  playfairRegular: 'https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/playfairdisplay/static/PlayfairDisplay-Regular.ttf',
+const FONT_B64 = {
+  interBold: INTER_BOLD,
+  interRegular: INTER_REGULAR,
+  playfairBold: PLAYFAIR_BOLD,
+  playfairRegular: PLAYFAIR_REGULAR,
 } as const;
 
-type FontKey = keyof typeof FONT_URLS;
-
+type FontKey = keyof typeof FONT_B64;
 const cache = new Map<FontKey, ArrayBuffer>();
 
-async function loadFont(key: FontKey): Promise<ArrayBuffer> {
+function decodeFont(key: FontKey): ArrayBuffer {
   const cached = cache.get(key);
   if (cached) return cached;
-  const res = await fetch(FONT_URLS[key]);
-  if (!res.ok) throw new Error(`Failed to load font ${key}: ${res.status}`);
-  const buf = await res.arrayBuffer();
-  cache.set(key, buf);
-  return buf;
+  const buf = Buffer.from(FONT_B64[key], 'base64');
+  const arrayBuffer = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
+  cache.set(key, arrayBuffer);
+  return arrayBuffer;
 }
 
 export type SatoriFont = {
@@ -36,13 +36,8 @@ export async function getFontsForPreset(preset: string): Promise<SatoriFont[]> {
   const headlineKey: FontKey = isLuxury ? 'playfairBold' : 'interBold';
   const bodyKey: FontKey = isLuxury ? 'playfairRegular' : 'interRegular';
 
-  const [headlineBuf, bodyBuf] = await Promise.all([
-    loadFont(headlineKey),
-    loadFont(bodyKey),
-  ]);
-
   return [
-    { name: 'Headline', data: headlineBuf, weight: 700, style: 'normal' },
-    { name: 'Body', data: bodyBuf, weight: 400, style: 'normal' },
+    { name: 'Headline', data: decodeFont(headlineKey), weight: 700, style: 'normal' },
+    { name: 'Body', data: decodeFont(bodyKey), weight: 400, style: 'normal' },
   ];
 }
