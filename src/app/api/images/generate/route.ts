@@ -25,7 +25,7 @@ const BodySchema = z.object({
   mask: z.string().min(10).optional(),
   // Imagery model. Default to gpt-image-1 (premium quality + ref images)
   // Falls back to Flux if gpt-image-1 fails
-  model: z.enum(['gpt-image-2']).optional().default('gpt-image-2'),
+  model: z.enum([(input.model ?? 'gpt-image-2')]).optional().default('gpt-image-2'),
 });
 
 type PromptHint = 'editorial' | 'startup' | 'luxury';
@@ -141,13 +141,39 @@ export async function POST(req: NextRequest) {
       // Combine with any external URL refs
       const allRefUrls = [...(body.referenceUrls || []), ...refDataUris];
       
-      const gptResult = await generateWithGptImage({
-        prompt: fullPrompt,
-        aspectRatio: gptAspect,
-        quality: (process.env.GPT_IMAGE_QUALITY as 'low'|'medium'|'high'|'auto'|undefined) ?? 'high',
-        referenceUrls: allRefUrls.length > 0 ? allRefUrls : undefined,
-        mask: body.mask,
-      });
+      // Retry up to 2 times on 5xx errors, then fallback to gpt-image-1
+      async function generateWithRetry(model: 'gpt-image-2' | 'gpt-image-1', maxRetries = 2) {
+        let lastErr: unknown;
+        for (let attempt = 0; attempt <= maxRetries; attempt++) {
+          try {
+            return await generateWithGptImage({
+              prompt: fullPrompt,
+              aspectRatio: gptAspect,
+              quality: (process.env.GPT_IMAGE_QUALITY as 'low'|'medium'|'high'|'auto'|undefined) ?? 'high',
+              referenceUrls: allRefUrls.length > 0 ? allRefUrls : undefined,
+              mask: body.mask,
+              model,
+            });
+          } catch (e) {
+            lastErr = e;
+            const msg = e instanceof Error ? e.message : String(e);
+            const is5xx = /5\d\d|502|503|504/.test(msg);
+            console.warn(`[generate] ${model} attempt ${attempt + 1} failed:`, msg.slice(0, 200));
+            if (!is5xx || attempt === maxRetries) throw e;
+            await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+          }
+        }
+        throw lastErr;
+      }
+
+      let gptResult;
+      try {
+        gptResult = await generateWithRetry('gpt-image-2', 2);
+      } catch (primaryErr) {
+        const msg = primaryErr instanceof Error ? primaryErr.message : String(primaryErr);
+        console.warn('[generate] gpt-image-2 failed after retries, falling back to gpt-image-1:', msg.slice(0, 200));
+        gptResult = await generateWithRetry('gpt-image-1', 1);
+      }
       
       // Upload buffer to Supabase Storage
       const fileName = `${imageId}.png`;
