@@ -253,6 +253,20 @@ function ImageEditModal({ open, onClose, imageUrl }: { open: boolean; onClose: (
     setShowEditInput(false);
     setMaskDataUrl(null);
     setSelectMode(false);
+
+    // Fetch persistent history from DB
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/images/history?url=${encodeURIComponent(imageUrl)}`);
+        if (!res.ok) return;
+        const data = await res.json() as { versions?: string[] };
+        if (!cancelled && data.versions && data.versions.length > 1) {
+          setHistory(data.versions);
+        }
+      } catch { /* graceful */ }
+    })();
+    return () => { cancelled = true; };
   }, [imageUrl]);
 
   useEffect(() => {

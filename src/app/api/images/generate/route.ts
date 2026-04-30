@@ -87,14 +87,32 @@ export async function POST(req: NextRequest) {
     aspect_ratio: body.aspectRatio,
     seed: body.seed ?? null,
     reference_storage_path: hasReferences ? body.referenceUrls!.join(',') : null,
+    is_edit: hasReferences,
+    edit_prompt: hasReferences ? body.prompt : null,
     provider: 'replicate',
     model: (body as any)?.model ?? 'flux-2-pro',
     status: 'processing',
   } as never;
 
+  // Lookup parent image (for edit history chain)
+  let parentId: string | null = null;
+  if (hasReferences && body.referenceUrls?.[0]) {
+    const refUrl = body.referenceUrls[0].split('?')[0];
+    const { data: parent } = await svc
+      .from('image_generations')
+      .select('id')
+      .eq('org_id', orgId)
+      .filter('output_urls', 'cs', `{${refUrl}}`)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (parent) parentId = (parent as { id: string }).id;
+  }
+  const pendingRowWithParent = { ...(pendingRow as Record<string, unknown>), parent_image_id: parentId } as never;
+
   const { data: created, error: insErr } = await svc
     .from('image_generations')
-    .insert(pendingRow)
+    .insert(pendingRowWithParent)
     .select('id')
     .single();
 
