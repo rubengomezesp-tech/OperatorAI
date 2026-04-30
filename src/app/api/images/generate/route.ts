@@ -10,7 +10,7 @@ export const runtime = 'nodejs';
 export const maxDuration = 120;
 
 const BodySchema = z.object({
-  prompt: z.string().min(2).max(2000),
+  prompt: z.string().min(2).max(8000),
   preset: z.string().optional(),
   aspectRatio: z.enum(['1:1', '16:9', '9:16', '4:5', '3:2']).default('1:1'),
   seed: z.number().int().optional(),
