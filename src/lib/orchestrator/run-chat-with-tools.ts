@@ -39,6 +39,7 @@ interface RunArgs {
   cookieHeader: string;
   /** Base64-encoded image attached by the user */
   imageBase64?: string;
+  imagesBase64?: Array<{ data: string; mimeType: string }>;
   /** MIME type of attached image, e.g. image/jpeg */
   imageMimeType?: string;
   signal?: AbortSignal;
@@ -205,9 +206,11 @@ export async function* runChatWithTools(args: RunArgs): AsyncIterable<ToolStream
         origin: args.origin,
         cookieHeader: args.cookieHeader,
         signal: args.signal,
-        attachedImages: args.imageBase64 && args.imageMimeType
-          ? [{ base64: args.imageBase64, mimeType: args.imageMimeType }]
-          : undefined,
+        attachedImages: args.imagesBase64 && args.imagesBase64.length > 0
+          ? args.imagesBase64.map((i) => ({ base64: i.data, mimeType: i.mimeType }))
+          : (args.imageBase64 && args.imageMimeType
+              ? [{ base64: args.imageBase64, mimeType: args.imageMimeType }]
+              : undefined),
       });
 
       yield {

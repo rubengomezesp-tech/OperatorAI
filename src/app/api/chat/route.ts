@@ -31,6 +31,7 @@ const BodySchema = z.object({
   agentType: z.enum(['creative','brand','copy','research','analyst','social']).optional(),
   webBrowse: z.boolean().optional(),
   imageBase64: z.string().optional(),
+  imagesBase64: z.array(z.object({ data: z.string(), mimeType: z.string() })).max(5).optional(),
   imageMimeType: z.string().optional(),
   projectId: z.string().optional().nullable(),
 });
@@ -653,6 +654,7 @@ export async function POST(req: NextRequest) {
           cookieHeader: toolFetchCtx.cookieHeader,
           imageBase64: body.imageBase64,
           imageMimeType: body.imageMimeType,
+          imagesBase64: body.imagesBase64,
           signal: req.signal,
         })) {
           if (event.type === 'text') {
