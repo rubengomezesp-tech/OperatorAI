@@ -3,6 +3,7 @@ import { AppFooter } from '@/components/layout/app-footer';
 import { CommandPaletteProvider } from '@/features/command-palette/components/command-palette-provider';
 import { redirect } from 'next/navigation';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
+import { BrandAssetsProvider } from '@/lib/brand-assets-context';
 import { createSupabaseServiceClient } from '@/lib/supabase/service';
 import { resolveCurrentOrg } from '@/features/organizations/server/resolve';
 import { AppShell } from '@/components/layout/app-shell';
