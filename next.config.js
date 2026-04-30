@@ -9,7 +9,17 @@ const nextConfig = {
   eslint: { ignoreDuringBuilds: true },
   reactStrictMode: true,
   poweredByHeader: false,
-  experimental: { serverActions: { bodySizeLimit: '25mb' }, serverComponentsExternalPackages: ['@resvg/resvg-js'] },
+  experimental: {
+    serverActions: { bodySizeLimit: '25mb' },
+    serverComponentsExternalPackages: ['@resvg/resvg-js'],
+    outputFileTracingIncludes: {
+      '/api/ads/compose': ['./public/fonts/**/*'],
+      '/api/ads/compose-multi': ['./public/fonts/**/*'],
+      '/api/ads/edit': ['./public/fonts/**/*'],
+      '/api/ads/create': ['./public/fonts/**/*'],
+      '/api/chat': ['./public/fonts/**/*'],
+    },
+  },
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: 'replicate.delivery' },
