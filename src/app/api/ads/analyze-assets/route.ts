@@ -34,43 +34,16 @@ export type AnalyzeAssetsResponse = {
   overallStyle: string;
 };
 
-const SYSTEM_PROMPT = `You are a visual asset analyzer for an AI ad director system.
-Analyze each image and return ONLY a valid JSON object — no markdown, no preamble.
-
-For each image determine:
-- type: "logo" | "screenshot" | "avatar" | "background" | "unknown"
-- dominantColors: array of 2-4 hex codes (most prominent colors)
-- style: "luxury" | "aggressive" | "minimalist" | "tech" | "dark" | "vibrant" | "neutral"
-- hasText: boolean — does the image contain text/typography?
-- suggestedFormat: best ad format for this asset: "9:16" | "1:1" | "4:5" | "16:9"
-- description: 1 sentence max describing the asset
-
-Then provide:
-- recommendedPreset: "luxury-minimal" | "aggressive" | "clean-conversion" | "product-demo"
-- overallStyle: 1 sentence summarizing the visual identity
-
-Response format (strict JSON):
-{
-  "assets": [ { "type": "...", "dominantColors": ["#000000"], "style": "...", "hasText": true, "suggestedFormat": "1:1", "description": "..." } ],
-  "recommendedPreset": "luxury-minimal",
-  "overallStyle": "..."
-}`;
+const SYSTEM_PROMPT = "You are a visual asset analyzer for an AI ad director system. Analyze each image and return ONLY a valid JSON object — no markdown, no preamble.\n\nFor each image determine:\n- type: logo | screenshot | avatar | background | unknown\n- dominantColors: array of 2-4 hex codes\n- style: luxury | aggressive | minimalist | tech | dark | vibrant | neutral\n- hasText: boolean\n- suggestedFormat: 9:16 | 1:1 | 4:5 | 16:9\n- description: 1 sentence max\n\nThen provide:\n- recommendedPreset: luxury-minimal | aggressive | clean-conversion | product-demo\n- overallStyle: 1 sentence\n\nReturn strict JSON:\n{\"assets\":[{\"type\":\"...\",\"dominantColors\":[\"#000000\"],\"style\":\"...\",\"hasText\":true,\"suggestedFormat\":\"1:1\",\"description\":\"...\"}],\"recommendedPreset\":\"luxury-minimal\",\"overallStyle\":\"...\"}";
 
 export async function POST(req: NextRequest) {
-  // Auth
   const ssr = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await ssr.auth.getUser();
+  const { data: { user } } = await ssr.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
 
-  // Parse body
   const parsed = BodySchema.safeParse(await req.json().catch(() => ({})));
   if (!parsed.success) {
-    return NextResponse.json(
-      { error: 'Invalid body', details: parsed.error.flatten() },
-      { status: 400 },
-    );
+    return NextResponse.json({ error: 'Invalid body', details: parsed.error.flatten() }, { status: 400 });
   }
 
   const { images } = parsed.data;
@@ -81,21 +54,12 @@ export async function POST(req: NextRequest) {
 
   const client = new OpenAI({ apiKey: serverEnv.OPENAI_API_KEY });
 
-  // Build vision message content
   const content: OpenAI.Chat.ChatCompletionContentPart[] = [
-    {
-      type: 'text',
-      text: `Analyze these ${images.length} image(s) and return the JSON as instructed.`,
-    },
-    ...images.map(
-      (img): OpenAI.Chat.ChatCompletionContentPart => ({
-        type: 'image_url',
-        image_url: {
-          url: `data:${img.mimeType};base64,${img.base64}`,
-          detail: 'high',
-        },
-      }),
-    ),
+    { type: 'text', text: `Analyze these ${images.length} image(s) and return the JSON as instructed.` },
+    ...images.map((img): OpenAI.Chat.ChatCompletionContentPart => ({
+      type: 'image_url',
+      image_url: { url: `data:${img.mimeType};base64,${img.base64}`, detail: 'high' },
+    })),
   ];
 
   try {
@@ -106,22 +70,17 @@ export async function POST(req: NextRequest) {
         { role: 'system', content: SYSTEM_PROMPT },
         { role: 'user', content },
       ],
-      temperature: 0.1, // deterministic for analysis
+      temperature: 0.1,
     });
 
     const raw = response.choices[0]?.message?.content ?? '';
-
-    // Strip potential markdown fences
     const clean = raw.replace(/```json|```/g, '').trim();
 
     let result: AnalyzeAssetsResponse;
     try {
       result = JSON.parse(clean) as AnalyzeAssetsResponse;
     } catch {
-      return NextResponse.json(
-        { error: 'Failed to parse vision response', raw },
-        { status: 500 },
-      );
+      return NextResponse.json({ error: 'Failed to parse vision response', raw }, { status: 500 });
     }
 
     return NextResponse.json(result);
