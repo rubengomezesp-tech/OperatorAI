@@ -7,6 +7,7 @@ import { Download, X, ChevronLeft, ChevronRight, ZoomIn, Image as ImageIcon } fr
 import { MessageActions } from './message-actions';
 import { ActionCard } from './action-card';
 import { cn } from '@/lib/utils';
+import { ToolResult } from './tool-result';
 import { useBrandAssets } from '@/lib/brand-assets-context';
 
 const IMAGE_URL_REGEX = /https?:\/\/[^\s)]+\.(?:png|jpe?g|gif|webp|avif)(?:\?[^\s)]*)?/gi;
@@ -37,6 +38,7 @@ interface Message {
   id: string;
   role: 'user' | 'assistant';
   content: string;
+  toolParts?: import('@/lib/chat/types').ToolPart[];
 }
 
 interface Props {
@@ -106,6 +108,15 @@ export function MessageBubble({ message, isLastAssistant, onRegenerate, regenDis
 
       {/* Content column */}
       <div className={cn('flex-1 min-w-0 space-y-3', isUser ? 'flex flex-col items-end' : '')}>
+        {/* Tool invocations (image gen, video, file analysis...) */}
+        {!isUser && message.toolParts && message.toolParts.length > 0 && (
+          <div className="space-y-2">
+            {message.toolParts.map((part) => (
+              <ToolResult key={part.id} part={part} />
+            ))}
+          </div>
+        )}
+
         {/* Text content — flat, no card */}
         {cleanContent && (
           <div className={cn(
