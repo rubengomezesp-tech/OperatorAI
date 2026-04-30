@@ -3,7 +3,8 @@ import type { UiMessage } from '@/lib/chat/types';
 import { useState, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Download, X, ChevronLeft, ChevronRight, ZoomIn, Image as ImageIcon } from 'lucide-react';
+import { Download, X, ChevronLeft, ChevronRight, ZoomIn, Image as ImageIcon, Wand2 } from 'lucide-react';
+import { EditAdModal } from './edit-ad-modal';
 import { MessageActions } from './message-actions';
 import { ActionCard } from './action-card';
 import { cn } from '@/lib/utils';
@@ -173,6 +174,7 @@ export function MessageBubble({ message, isLastAssistant, onRegenerate, regenDis
 
 function ImageGallery({ urls }: { urls: string[] }) {
   const [lightbox, setLightbox] = useState<number | null>(null);
+  const [editUrl, setEditUrl] = useState<string | null>(null);
   const count = urls.length;
 
   return (
@@ -241,12 +243,28 @@ function ImageGallery({ urls }: { urls: string[] }) {
                 <Download className="h-3.5 w-3.5" />
                 <span>Save</span>
               </a>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setEditUrl(urls[lightbox]);
+                  setLightbox(null);
+                }}
+                className="h-9 px-4 rounded-md bg-gold text-black text-[13px] font-semibold flex items-center gap-2 hover:opacity-90 transition-opacity"
+              >
+                <Wand2 className="h-3.5 w-3.5" />
+                <span>Editar</span>
+              </button>
               {count > 1 && (
                 <span className="text-[12px] text-fg-muted">{lightbox + 1} / {count}</span>
               )}
             </div>
           </div>
         </div>
+      )}
+
+      {editUrl && (
+        <EditAdModal imageUrl={editUrl} onClose={() => setEditUrl(null)} />
       )}
     </>
   );
