@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { createSupabaseServiceClient } from '@/lib/supabase/service';
 import { resolveOrgContext } from '@/features/chat/server/resolve-org-context';
-import { generateWithFlux, enhancePrompt } from '@/features/image-studio/server/flux-client';
+import { enhancePrompt } from '@/features/image-studio/server/flux-client';
 import { IMAGE_PRESETS } from '@/features/image-studio/data/presets';
 
 export const runtime = 'nodejs';
@@ -25,7 +25,7 @@ const BodySchema = z.object({
   mask: z.string().min(10).optional(),
   // Imagery model. Default to gpt-image-1 (premium quality + ref images)
   // Falls back to Flux if gpt-image-1 fails
-  model: z.enum(['gpt-image-1', 'flux-2-pro']).optional().default('gpt-image-1'),
+  model: z.enum(['gpt-image-1']).optional().default('gpt-image-1'),
 });
 
 type PromptHint = 'editorial' | 'startup' | 'luxury';
@@ -196,91 +196,15 @@ export async function POST(req: NextRequest) {
         model: 'gpt-image-1',
       });
     } catch (gptErr) {
-      // GPT-image failed → fall through to Flux as fallback
-      console.warn('[gpt-image-1] failed, falling back to Flux:', gptErr instanceof Error ? gptErr.message : gptErr);
-      // Update record to indicate fallback
+      const message = gptErr instanceof Error ? gptErr.message : 'gpt-image-1 generation failed';
+      console.error('[gpt-image-1] failed:', message);
       await svc
         .from('image_generations')
-        .update({ provider: 'replicate', model: 'flux-2-pro' } as never)
+        .update({ status: 'failed', error_message: message } as never)
         .eq('id', imageId);
-      // Continue to Flux block below
+      return NextResponse.json({ error: message }, { status: 500 });
     }
   }
-  
-  // ═══ FLUX PATH (default fallback) ═══
-  try {
-    const selectedModel = (body as any).imageModel ?? 'flux-2-pro';
-    const result = await generateWithFlux({
-      prompt: fullPrompt,
-      aspectRatio: body.aspectRatio,
-      model: selectedModel,
-      seed: body.seed,
-    });
 
-    const storagePaths: string[] = [];
-
-    for (let i = 0; i < result.urls.length; i++) {
-      const url = result.urls[i];
-      try {
-        const res = await fetch(url);
-        if (!res.ok) continue;
-
-        const buffer = Buffer.from(await res.arrayBuffer());
-        const path = orgId + '/' + imageId + '-' + i + '.png';
-
-        const { error: upErr } = await svc.storage
-          .from('image-outputs')
-          .upload(path, buffer, {
-            contentType: 'image/png',
-            cacheControl: '3600',
-            upsert: true,
-          });
-
-        if (!upErr) storagePaths.push(path);
-      } catch {
-        // continue with remote URL only
-      }
-    }
-
-    const baseCost = hasReferences ? 0.06 : 0.03;
-    const costUsd = baseCost * result.urls.length;
-
-    await svc
-      .from('image_generations')
-      .update({
-        status: 'complete',
-        output_urls: result.urls,
-        output_storage_paths: storagePaths,
-        seed: result.seed,
-        latency_ms: result.latencyMs,
-        cost_usd: costUsd,
-      } as never)
-      .eq('id', imageId);
-
-    await svc.rpc('increment_usage', {
-      p_org_id: orgId,
-      p_kind: 'image_generation',
-      p_quantity: 1,
-      p_cost: costUsd,
-    });
-
-    return NextResponse.json({
-      id: imageId,
-      urls: result.urls,
-      storagePaths,
-      seed: result.seed,
-      enhancedPrompt: enhanced,
-      latencyMs: result.latencyMs,
-      costUsd,
-    });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : 'Generation failed';
-
-    await svc
-      .from('image_generations')
-      .update({ status: 'failed', error_message: message } as never)
-      .eq('id', imageId);
-
-    return NextResponse.json({ error: message }, { status: 500 });
-  }
+  return NextResponse.json({ error: 'Generation failed' }, { status: 500 });
 }

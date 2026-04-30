@@ -238,80 +238,41 @@ async function execImage(input: Record<string, unknown>, ctx: ToolContext): Prom
     }
   }
 
-  // ═══ CREATE MODE: no reference → Flux directo (rápido) ═══
-  const { generateWithFlux } = await import('@/features/image-studio/server/flux-client');
-
-  // Call Flux directly — Claude already wrote a detailed prompt, skip enhance
-  let result: { urls: string[]; seed: number; latencyMs: number };
+  // ═══ CREATE MODE: gpt-image-1 via /api/images/generate ═══
   try {
-    result = await generateWithFlux({
-      prompt,
-      aspectRatio: aspectRatio as '1:1' | '16:9' | '9:16' | '4:5' | '3:2',
+    const aspectGpt: '1:1' | '9:16' | '4:5' =
+      aspectRatio === '9:16' || aspectRatio === '4:5' ? aspectRatio : '1:1';
+
+    const res = await fetch(`${ctx.origin}/api/images/generate`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(ctx.cookieHeader ? { cookie: ctx.cookieHeader } : {}),
+      },
+      body: JSON.stringify({
+        prompt,
+        aspectRatio: aspectGpt,
+        model: 'gpt-image-1',
+        enhance: false,
+      }),
+      signal: ctx.signal,
     });
-  } catch (e) {
-    const errMsg = e instanceof Error ? e.message : 'Flux generation failed';
-    console.error('[tools.image] generateWithFlux error:', errMsg);
-    return { ok: false, error: errMsg };
-  }
 
-  if (!result.urls || result.urls.length === 0) {
-    return { ok: false, error: 'Flux returned no images' };
-  }
-
-  // Save to DB + storage — return permanent Supabase URLs
-  const permanentUrls: string[] = [];
-  try {
-    const imageId = crypto.randomUUID();
-    const storagePaths: string[] = [];
-
-    for (let i = 0; i < result.urls.length; i++) {
-      try {
-        const imgRes = await fetch(result.urls[i]);
-        if (!imgRes.ok) continue;
-        const buffer = Buffer.from(await imgRes.arrayBuffer());
-        const path = ctx.orgId + '/' + imageId + '-' + i + '.png';
-        const { error: upErr } = await ctx.svc.storage
-          .from('image-outputs')
-          .upload(path, buffer, { contentType: 'image/png', cacheControl: '31536000', upsert: true });
-        if (!upErr) {
-          storagePaths.push(path);
-          const { data: pubUrl } = ctx.svc.storage.from('image-outputs').getPublicUrl(path);
-          if (pubUrl?.publicUrl) permanentUrls.push(pubUrl.publicUrl);
-        }
-      } catch { /* continue */ }
+    if (!res.ok) {
+      const errText = await res.text().catch(() => 'unknown');
+      console.error('[tools.image] create failed:', res.status, errText);
+      return { ok: false, error: `Image creation failed (${res.status})` };
     }
 
-    const costUsd = 0.03 * result.urls.length;
-
-    await ctx.svc.from('image_generations').insert({
-      id: imageId,
-      org_id: ctx.orgId,
-      user_id: ctx.userId,
-      prompt,
-      enhanced_prompt: prompt,
-      preset: 'editorial',
-      aspect_ratio: aspectRatio,
-      provider: 'replicate',
-      model: 'flux-2-pro',
-      status: 'complete',
-      output_urls: result.urls,
-      output_storage_paths: storagePaths,
-      seed: result.seed,
-      latency_ms: result.latencyMs,
-      cost_usd: costUsd,
-    } as never);
-
-    await ctx.svc.rpc('increment_usage', {
-      p_org_id: ctx.orgId,
-      p_kind: 'image_generation',
-      p_quantity: 1,
-      p_cost: costUsd,
-    });
+    const data = (await res.json()) as { url?: string; urls?: string[] };
+    const urls = data.urls || (data.url ? [data.url] : []);
+    if (urls.length === 0) return { ok: false, error: 'No image returned' };
+    return { ok: true, result: { urls } };
   } catch (e) {
-    console.error('[tools.image] DB save failed (image still returned):', e);
+    const errMsg = e instanceof Error ? e.message : 'Create failed';
+    console.error('[tools.image] create exception:', errMsg);
+    return { ok: false, error: errMsg };
   }
-
-  return { ok: true, result: { urls: permanentUrls.length > 0 ? permanentUrls : result.urls } };
 }
 
 // ── VIDEO ─────────────────────────────────────────────────────────
