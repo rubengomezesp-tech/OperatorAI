@@ -9,7 +9,7 @@ const nextConfig = {
   eslint: { ignoreDuringBuilds: true },
   reactStrictMode: true,
   poweredByHeader: false,
-  experimental: { serverActions: { bodySizeLimit: '25mb' } },
+  experimental: { serverActions: { bodySizeLimit: '25mb' }, serverComponentsExternalPackages: ['@resvg/resvg-js'] },
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: 'replicate.delivery' },
