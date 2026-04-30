@@ -23,6 +23,12 @@ export interface GptImageInput {
    * Max 16 images supported by OpenAI.
    */
   referenceUrls?: string[];
+  /**
+   * Optional inpainting mask (base64 PNG, no data: prefix).
+   * White pixels = edit zone, transparent = keep original.
+   * Only used when referenceUrls also provided (uses /v1/images/edits).
+   */
+  mask?: string;
 }
 
 export interface GptImageResult {
@@ -165,6 +171,13 @@ export async function generateWithGptImage(
         const blob = new Blob([new Uint8Array(refBuffer)], { type: refMime });
         const ext = refMime.split('/')[1] || 'png';
         formData.append('image[]', blob, `ref-${i}.${ext}`);
+      }
+      
+      // Optional inpainting mask
+      if (input.mask) {
+        const maskBuffer = Buffer.from(input.mask, 'base64');
+        const maskBlob = new Blob([new Uint8Array(maskBuffer)], { type: 'image/png' });
+        formData.append('mask', maskBlob, 'mask.png');
       }
       
       res = await fetch('https://api.openai.com/v1/images/edits', {

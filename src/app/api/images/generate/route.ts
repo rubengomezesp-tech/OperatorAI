@@ -21,6 +21,8 @@ const BodySchema = z.object({
     data: z.string().min(10),       // base64 (no data: prefix)
     mimeType: z.string().min(3),    // e.g. 'image/png'
   })).max(8).optional(),
+  // Optional inpainting mask: PNG base64 (white pixels = edit zone, transparent = keep)
+  mask: z.string().min(10).optional(),
   // Imagery model. Default to gpt-image-1 (premium quality + ref images)
   // Falls back to Flux if gpt-image-1 fails
   model: z.enum(['gpt-image-1', 'flux-2-pro']).optional().default('gpt-image-1'),
@@ -129,6 +131,7 @@ export async function POST(req: NextRequest) {
         aspectRatio: gptAspect,
         quality: (process.env.GPT_IMAGE_QUALITY as 'low'|'medium'|'high'|'auto'|undefined) ?? 'high',
         referenceUrls: allRefUrls.length > 0 ? allRefUrls : undefined,
+        mask: body.mask,
       });
       
       // Upload buffer to Supabase Storage
