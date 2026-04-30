@@ -311,7 +311,7 @@ export async function POST(req: NextRequest) {
                 type: 'function' as const,
                 function: {
                   name: 'generate_image',
-                  description: 'Generate premium photorealistic images. Use when the user asks for an image, visual, product shot, photo, logo, or illustration. Write a detailed prompt (40-80 words) with subject, camera, lighting, colors, composition, mood. Never refuse — always produce output.',
+                  description: 'Generate raw photorealistic images, photos, or illustrations WITHOUT text overlay, logo, or CTA. Use ONLY for plain image generation. DO NOT use this when user asks for an "ad", "publicidad", "anuncio", or "advertisement" — use create_ad for those.',
                   parameters: {
                     type: 'object',
                     properties: {
@@ -320,6 +320,22 @@ export async function POST(req: NextRequest) {
                       num_images: { type: 'number', enum: [1,2,3,4], description: 'Number of variations. Default 1.' },
                     },
                     required: ['prompt'],
+                  },
+                },
+              },
+              {
+                type: 'function' as const,
+                function: {
+                  name: 'create_ad',
+                  description: 'Create a complete advertising piece (with copy, logo, CTA, audited) using the AD DIRECTOR pipeline. USE THIS — not generate_image — when the user asks for: "publicidad", "anuncio", "ad", "advertisement", "marketing piece", "creative", or any finished marketing asset. Auto-pulls brand logo and colors. Returns final ad image URLs ready to publish.',
+                  parameters: {
+                    type: 'object',
+                    properties: {
+                      user_prompt: { type: 'string', description: 'Faithful description of what the user wants the ad to communicate. Pass their original request.' },
+                      formats: { type: 'array', items: { type: 'string', enum: ['9:16', '1:1', '4:5', '16:9'] }, description: 'Optional output formats. Pass multiple for variants (Story + Post + Feed).' },
+                      preset_override: { type: 'string', enum: ['luxury-minimal', 'aggressive', 'clean-conversion', 'product-demo'], description: 'Optional style preset override when user explicitly requests a style.' },
+                    },
+                    required: ['user_prompt'],
                   },
                 },
               },
@@ -428,6 +444,84 @@ export async function POST(req: NextRequest) {
               }
             }
             
+            if (tname === 'create_ad') {
+              let toolArgs: { user_prompt?: string; formats?: string[]; preset_override?: string } = {};
+              try { toolArgs = JSON.parse(tcall.function?.arguments || '{}'); } catch {}
+              const userPrompt = toolArgs.user_prompt || '';
+
+              const toolUseId = tcall.id || `gpt_ad_${Date.now()}`;
+              controller.enqueue(sseEncode('tool_start', {
+                toolUseId,
+                tool: 'image',
+                input: { prompt: 'Creating ad...' },
+              }));
+
+              const cookieHeader = req.headers.get('cookie') || '';
+              const origin = req.nextUrl.origin;
+
+              try {
+                let logoUrl: string | undefined;
+                let brandContext: { brand_name?: string; description?: string; vibe?: string } | undefined;
+                try {
+                  const { data: brand } = await svc.from('brand_profile')
+                    .select('brand_name, description, vibe, logo_url')
+                    .eq('org_id', orgId)
+                    .maybeSingle();
+                  if (brand) {
+                    const b = brand as Record<string, unknown>;
+                    logoUrl = b.logo_url ? String(b.logo_url) : undefined;
+                    brandContext = {
+                      brand_name: b.brand_name ? String(b.brand_name) : undefined,
+                      description: b.description ? String(b.description) : undefined,
+                      vibe: b.vibe ? String(b.vibe) : undefined,
+                    };
+                  }
+                } catch { /* non-fatal */ }
+
+                const adRes = await fetch(`${origin}/api/ads/create`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json', cookie: cookieHeader },
+                  body: JSON.stringify({
+                    userPrompt,
+                    logoUrl,
+                    brandContext,
+                    formats: toolArgs.formats,
+                    presetOverride: toolArgs.preset_override,
+                    enableAudit: true,
+                  }),
+                });
+
+                if (!adRes.ok) {
+                  const errText = await adRes.text().catch(() => 'unknown');
+                  throw new Error(`Ad pipeline failed (${adRes.status}): ${errText.slice(0, 200)}`);
+                }
+
+                const adData = await adRes.json() as { results?: Array<{ url?: string }> };
+                const urls = (adData.results || []).filter((r) => r.url).map((r) => r.url as string);
+                if (urls.length === 0) throw new Error('No ads produced');
+
+                controller.enqueue(sseEncode('tool_result', {
+                  toolUseId,
+                  tool: 'image',
+                  ok: true,
+                  result: { urls },
+                }));
+
+                const md = urls.map((u) => `![Ad](${u})`).join('\n\n');
+                await svc.from('messages').update({ content: md, status: 'complete' } as never).eq('id', pendingMessageId);
+                controller.enqueue(sseEncode('done', { assistantMessageId: pendingMessageId, conversationId, isNewConversation: isNew }));
+                controller.close();
+                return;
+              } catch (adErr) {
+                const errMsg = adErr instanceof Error ? adErr.message : 'Ad creation failed';
+                controller.enqueue(sseEncode('tool_result', { toolUseId, tool: 'image', ok: false, error: errMsg }));
+                await svc.from('messages').update({ content: `Ad creation failed: ${errMsg}`, status: 'failed' } as never).eq('id', pendingMessageId);
+                controller.enqueue(sseEncode('done', { assistantMessageId: pendingMessageId, conversationId, isNewConversation: isNew }));
+                controller.close();
+                return;
+              }
+            }
+
             // Unknown tool — fallback to text
             const fallbackMsg = choice.message?.content || 'I tried to use a tool but it is not available.';
             controller.enqueue(sseEncode('delta', { text: fallbackMsg }));
