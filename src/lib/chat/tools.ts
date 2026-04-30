@@ -105,6 +105,7 @@ export interface ToolContext {
   origin: string;
   cookieHeader: string;
   signal?: AbortSignal;
+  attachedImages?: Array<{ base64: string; mimeType: string }>;
 }
 
 export interface ToolResult {
