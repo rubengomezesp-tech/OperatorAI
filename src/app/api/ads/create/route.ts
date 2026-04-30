@@ -6,7 +6,7 @@ import { buildAdVisualPrompt, type AdPreset } from '@/lib/ads/visual-prompt';
 export const runtime = 'nodejs';
 export const maxDuration = 300;
 
-const PresetEnum = z.enum(['luxury-minimal', 'aggressive', 'clean-conversion', 'product-demo']);
+const PresetEnum = z.enum(['luxury-minimal', 'luxury-editorial', 'aggressive-bold', 'aggressive-sport', 'aggressive', 'clean-conversion', 'product-demo', 'tech-futuristic', 'storytelling-warm']);
 const AspectEnum = z.enum(['9:16', '1:1', '4:5', '16:9']);
 
 const BodySchema = z.object({
@@ -140,13 +140,30 @@ export async function POST(req: NextRequest) {
     const _hasReference = _refImages.length > 0;
     console.log('[ads/create] images received:', body.images?.length ?? 0, '| refs (no logos):', _refImages.length);
 
-    // ── CAPA 3: Build visual prompt (adaptive)
+    // ── CAPA 3: Mega-Prompt Composer (todo dentro de la imagen, sin Satori)
+    type ExtendedBrief = typeof brief & {
+      microCopy?: string;
+      featureIcons?: Array<{ icon: string; label: string }>;
+      trustSignals?: string[];
+      composition?: string;
+      typography?: string;
+      colorStrategy?: string;
+    };
+    const eb = brief as ExtendedBrief;
     const { prompt: visualPrompt } = buildAdVisualPrompt({
       preset: effectivePreset,
       aspectRatio: effectiveAspectRatio as '9:16' | '1:1' | '4:5' | '16:9',
-      customAtmosphere: _hasReference ? undefined : brief.visualPrompt,
+      copy: brief.copy,
+      microCopy: eb.microCopy,
+      featureIcons: eb.featureIcons,
+      trustSignals: eb.trustSignals,
       hasReference: _hasReference,
+      brandName: body.brandContext?.brand_name,
+      composition: eb.composition,
+      typography: eb.typography,
+      colorStrategy: eb.colorStrategy,
     });
+    console.log('[ads/create] mega-prompt length:', visualPrompt.length, '| preset:', effectivePreset);
 
     // ── Image generation
     type ImageGenResponse = {
