@@ -125,11 +125,27 @@ export async function POST(req: NextRequest) {
     const effectivePreset = (body.presetOverride ?? brief.preset) as AdPreset;
     const effectiveAspectRatio = body.aspectRatioOverride ?? brief.aspectRatio;
 
-    // ── CAPA 3: Build visual prompt
+    // ── Filtrado por tipo (CAPA 1): logos NO van como reference (van a overlay)
+    type AssetAnalysisShape = { assets?: Array<{ type?: string }> };
+    const _analysis = assetAnalysis as AssetAnalysisShape | undefined;
+    const _refImages: Array<{ data: string; mimeType: string }> = [];
+    if (body.images && body.images.length > 0) {
+      body.images.forEach((img, i) => {
+        const detected = _analysis?.assets?.[i]?.type;
+        if (detected !== 'logo') {
+          _refImages.push({ data: img.base64, mimeType: img.mimeType });
+        }
+      });
+    }
+    const _hasReference = _refImages.length > 0;
+    console.log('[ads/create] images received:', body.images?.length ?? 0, '| refs (no logos):', _refImages.length);
+
+    // ── CAPA 3: Build visual prompt (adaptive)
     const { prompt: visualPrompt } = buildAdVisualPrompt({
       preset: effectivePreset,
       aspectRatio: effectiveAspectRatio as '9:16' | '1:1' | '4:5' | '16:9',
-      customAtmosphere: brief.visualPrompt,
+      customAtmosphere: _hasReference ? undefined : brief.visualPrompt,
+      hasReference: _hasReference,
     });
 
     // ── Image generation
@@ -144,7 +160,8 @@ export async function POST(req: NextRequest) {
         prompt: visualPrompt,
         aspectRatio: effectiveAspectRatio,
         model: 'gpt-image-1',
-        enhance: false, // visualPrompt is already optimized
+        enhance: false,
+        referenceImages: _hasReference ? _refImages : undefined,
       }),
     );
 

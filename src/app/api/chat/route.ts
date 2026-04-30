@@ -341,12 +341,20 @@ export async function POST(req: NextRequest) {
               },
             ];
             
-            // First call — let model decide if it needs the tool
+            // Detect ad intent in user message → force create_ad tool
+            const _userMsgForChoice = (body.message || '').toLowerCase();
+            const _adKeywords = /\b(publicidad|anuncio|ad|advertisement|advert|creative|marketing\s+piece|ads)\b/i;
+            const _isAdRequest = _adKeywords.test(_userMsgForChoice);
+            const _forcedChoice = _isAdRequest
+              ? { type: 'function' as const, function: { name: 'create_ad' } }
+              : 'auto' as const;
+            console.log('[chat:openai] tool_choice:', _isAdRequest ? 'create_ad (forced)' : 'auto', '| msg:', _userMsgForChoice.slice(0, 80));
+
             const firstCall = await oai.chat.completions.create({
               model: body.model || 'gpt-4o',
               messages: oaiMsgs as never,
               tools: oaiTools,
-              tool_choice: 'auto',
+              tool_choice: _forcedChoice,
               max_tokens: 4096,
             });
             
@@ -478,6 +486,11 @@ export async function POST(req: NextRequest) {
                   }
                 } catch { /* non-fatal */ }
 
+                const _attachedImages = body.imageBase64 && body.imageMimeType
+                  ? [{ base64: body.imageBase64, mimeType: body.imageMimeType }]
+                  : undefined;
+                console.log('[chat:openai] create_ad images:', _attachedImages ? _attachedImages.length : 0);
+
                 const adRes = await fetch(`${origin}/api/ads/create`, {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json', cookie: cookieHeader },
@@ -485,6 +498,7 @@ export async function POST(req: NextRequest) {
                     userPrompt,
                     logoUrl,
                     brandContext,
+                    images: _attachedImages,
                     formats: toolArgs.formats,
                     presetOverride: toolArgs.preset_override,
                     enableAudit: true,
@@ -496,9 +510,16 @@ export async function POST(req: NextRequest) {
                   throw new Error(`Ad pipeline failed (${adRes.status}): ${errText.slice(0, 200)}`);
                 }
 
-                const adData = await adRes.json() as { results?: Array<{ url?: string }> };
+                const adData = await adRes.json() as {
+                  results?: Array<{ format: string; url?: string; error?: string }>;
+                  stages?: Array<{ stage: string; ok: boolean; error?: string }>;
+                };
                 const urls = (adData.results || []).filter((r) => r.url).map((r) => r.url as string);
-                if (urls.length === 0) throw new Error('No ads produced');
+                if (urls.length === 0) {
+                  const fmtErrs = (adData.results || []).map((r) => `${r.format}=${r.error ?? 'no url'}`).join('; ');
+                  const stgErrs = (adData.stages || []).filter((s) => !s.ok).map((s) => `${s.stage}=${s.error}`).join('; ');
+                  throw new Error(`No ads produced. Formats[${fmtErrs}] Stages[${stgErrs || 'all ok'}]`);
+                }
 
                 controller.enqueue(sseEncode('tool_result', {
                   toolUseId,

@@ -122,6 +122,7 @@ export interface ToolContext {
   origin: string;
   cookieHeader: string;
   signal?: AbortSignal;
+  attachedImages?: Array<{ base64: string; mimeType: string }>;
 }
 
 export interface ToolResult {
@@ -466,6 +467,11 @@ async function execCreateAd(input: Record<string, unknown>, ctx: ToolContext): P
     /* non-fatal */
   }
 
+  const images = ctx.attachedImages && ctx.attachedImages.length > 0
+    ? ctx.attachedImages
+    : undefined;
+  console.log('[execCreateAd] images:', images ? images.length : 0, 'logoUrl:', logoUrl ? 'yes' : 'no');
+
   try {
     const res = await fetch(`${ctx.origin}/api/ads/create`, {
       method: 'POST',
@@ -474,6 +480,7 @@ async function execCreateAd(input: Record<string, unknown>, ctx: ToolContext): P
         userPrompt,
         logoUrl,
         brandContext,
+        images,
         formats,
         presetOverride,
         enableAudit: true,
@@ -488,10 +495,16 @@ async function execCreateAd(input: Record<string, unknown>, ctx: ToolContext): P
 
     const data = (await res.json()) as {
       results: Array<{ format: string; url?: string; error?: string }>;
+      stages?: Array<{ stage: string; ok: boolean; error?: string }>;
     };
 
     const urls = data.results.filter((r) => r.url).map((r) => r.url as string);
-    if (urls.length === 0) return { ok: false, error: 'No ads produced' };
+    if (urls.length === 0) {
+      const fmtErrs = data.results.map((r) => `${r.format}=${r.error ?? 'no url'}`).join('; ');
+      const stgErrs = (data.stages ?? []).filter((s) => !s.ok).map((s) => `${s.stage}=${s.error}`).join('; ');
+      console.error('[execCreateAd] empty result. formats:', fmtErrs, 'stages:', stgErrs);
+      return { ok: false, error: `No ads produced. Formats[${fmtErrs}] Stages[${stgErrs || 'all ok'}]` };
+    }
 
     return { ok: true, result: { urls } };
   } catch (e) {
