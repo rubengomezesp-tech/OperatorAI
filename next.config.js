@@ -48,7 +48,7 @@ const nextConfig = {
               "font-src 'self' https://fonts.gstatic.com data:",
               "img-src 'self' blob: data: https://*.supabase.co https://*.stripe.com https://generativelanguage.googleapis.com https://replicate.delivery https://*.supabase.co/storage https://*.supabase.co/storage https://*.replicate.com https://*.replicate.delivery",
               "media-src 'self' blob: https://*.supabase.co",
-              "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.openai.com https://api.anthropic.com https://generativelanguage.googleapis.com https://api.replicate.com https://api.search.brave.com https://api.stripe.com https://api.composio.dev",
+              "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.openai.com https://api.anthropic.com https://generativelanguage.googleapis.com https://api.replicate.com https://*.replicate.delivery https://replicate.delivery https://*.fal.media https://fal.media https://*.fal.run https://oaidalleapiprodscus.blob.core.windows.net https://api.search.brave.com https://api.stripe.com https://api.composio.dev",
               "frame-src 'self' https://js.stripe.com",
               "worker-src 'self' blob:",
               "object-src 'none'",
