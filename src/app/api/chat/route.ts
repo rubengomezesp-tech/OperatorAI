@@ -378,6 +378,11 @@ export async function POST(req: NextRequest) {
               const cookieHeader = req.headers.get('cookie') || '';
               const origin = req.nextUrl.origin;
               try {
+                // If user attached an image, pass it as reference for gpt-image-1
+                const refImages = body.imageBase64 && body.imageMimeType
+                  ? [{ data: body.imageBase64, mimeType: body.imageMimeType }]
+                  : undefined;
+                
                 const imgRes = await fetch(`${origin}/api/images/generate`, {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json', cookie: cookieHeader },
@@ -385,6 +390,7 @@ export async function POST(req: NextRequest) {
                     prompt: imgPrompt, 
                     aspectRatio: aspectRatio,
                     model: 'gpt-image-1',
+                    referenceImages: refImages,
                   }),
                 });
                 
