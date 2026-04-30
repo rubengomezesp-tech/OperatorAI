@@ -185,60 +185,56 @@ export async function POST(req: NextRequest) {
     const baseImageUrl = imageGen.url ?? imageGen.urls?.[0];
     if (!baseImageUrl) throw new Error('No image URL returned from image generation');
 
-    // ── CAPA 4 / 5: Compose
+    // ── CAPA 4: Skipped — gpt-image-1 already rendered the complete ad with mega-prompt.
+    // The image returned from /api/images/generate IS the final ad (text, CTA, icons, all baked in).
+    // No need for Satori overlay composition.
     const formats = body.formats && body.formats.length > 0
       ? body.formats
       : [effectiveAspectRatio as '9:16' | '1:1' | '4:5' | '16:9'];
 
-    type ComposeMultiResponse = {
-      results: Array<{
-        format: string;
-        ok: boolean;
-        data?: { url: string; storagePath: string };
-        error?: string;
-      }>;
-    };
-
-    type ComposeSingleResponse = {
-      url: string;
-      storagePath: string;
-    };
-
     const formatOutputs: FormatOutput[] = [];
 
-    if (formats.length === 1) {
-      const composed = await runStage('compose', () =>
-        internalPost<ComposeSingleResponse>('/api/ads/compose', {
-          baseImageUrl,
-          logoUrl: body.logoUrl,
-          copy: brief.copy,
-          preset: effectivePreset,
-          aspectRatio: formats[0],
-        }),
-      );
-      formatOutputs.push({
-        format: formats[0],
-        url: composed.url,
-        storagePath: composed.storagePath,
+    // Use the gpt-image-1 output directly as the primary format
+    formatOutputs.push({
+      format: formats[0],
+      url: baseImageUrl,
+      storagePath: undefined,
+    });
+
+    // For additional formats, regenerate via gpt-image-1 with the same mega-prompt at different aspect
+    if (formats.length > 1) {
+      type ImageGenResp = { url?: string; urls?: string[] };
+      const extraStart = Date.now();
+      const extraPromises = formats.slice(1).map(async (fmt) => {
+        try {
+          const { prompt: extraPrompt } = buildAdVisualPrompt({
+            preset: effectivePreset,
+            aspectRatio: fmt as '9:16' | '1:1' | '4:5' | '16:9',
+            copy: brief.copy,
+            microCopy: eb.microCopy,
+            featureIcons: eb.featureIcons,
+            trustSignals: eb.trustSignals,
+            hasReference: _hasReference,
+            brandName: body.brandContext?.brand_name,
+            composition: eb.composition,
+            typography: eb.typography,
+            colorStrategy: eb.colorStrategy,
+          });
+          const r = await internalPost<ImageGenResp>('/api/images/generate', {
+            prompt: extraPrompt,
+            aspectRatio: fmt,
+            model: 'gpt-image-1',
+            enhance: false,
+            referenceImages: _hasReference ? _refImages : undefined,
+          });
+          return { format: fmt, url: r.url ?? r.urls?.[0] };
+        } catch (err) {
+          return { format: fmt, error: err instanceof Error ? err.message : 'Format render failed' };
+        }
       });
-    } else {
-      const multi = await runStage('compose-multi', () =>
-        internalPost<ComposeMultiResponse>('/api/ads/compose-multi', {
-          baseImageUrl,
-          logoUrl: body.logoUrl,
-          copy: brief.copy,
-          preset: effectivePreset,
-          formats,
-        }),
-      );
-      for (const r of multi.results) {
-        formatOutputs.push({
-          format: r.format,
-          url: r.data?.url,
-          storagePath: r.data?.storagePath,
-          error: r.error,
-        });
-      }
+      const extras = await Promise.all(extraPromises);
+      extras.forEach((e) => formatOutputs.push({ format: e.format, url: e.url, error: e.error }));
+      stages.push({ stage: 'extra-formats', ok: true, latencyMs: Date.now() - extraStart });
     }
 
     // ── CAPA 7: Audit (per format, parallel)
