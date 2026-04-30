@@ -1,7 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 
-export type ToolKind = 'image' | 'video' | 'file_analysis' | 'knowledge_search' | 'get_brand_assets' | 'compose_ad' | 'create_ad';
+export type ToolKind = 'image' | 'video' | 'file_analysis' | 'knowledge_search' | 'get_brand_assets' | 'create_ad';
 
 export interface ToolSpec {
   name: ToolKind;
@@ -74,23 +74,6 @@ export const TOOL_SPECS: ToolSpec[] = [
     },
   },
   {
-    name: 'compose_ad',
-    description:
-      'Compose a final advertising image by combining a generated/existing background image with copy, logo and brand colors. Use when user wants a "ready-to-publish ad" or "ad with my logo" instead of just an image. Returns a composed image URL.',
-    input_schema: {
-      type: 'object',
-      properties: {
-        background_url: { type: 'string', description: 'URL of the background image (use a previously generated image or stock).' },
-        headline: { type: 'string', description: 'Main headline text (1-8 words). Should be punchy and conversion-focused.' },
-        subline: { type: 'string', description: 'Optional supporting line (5-15 words).' },
-        cta: { type: 'string', description: 'Call to action text (e.g. "Shop now", "Get yours").' },
-        format: { type: 'string', enum: ['square', 'instagram_story', 'tiktok_in_feed', 'reel'], description: 'Output format. Default square.' },
-        use_brand: { type: 'boolean', description: 'If true, applies user brand colors, fonts and logo automatically. Default true.' },
-      },
-      required: ['background_url', 'headline'],
-    },
-  },
-  {
     name: 'create_ad',
     description:
       'Create a complete advertising piece from scratch using the AD DIRECTOR pipeline. Use when user asks "create me an ad", "publicidad", "anuncio", "make an ad", or wants a finished advertisement (not just a background image). This tool runs the full 7-layer pipeline: analyzes brand context, generates the creative brief (headline, subheadline, CTA, concept), produces a premium base image, composes the final ad with text overlay and logo, and audits the result with vision QA. Returns final ad image URLs ready to publish. AUTOMATICALLY pulls the user brand logo, colors and tone from brand_profile — no need to call get_brand_assets first. Different from `image` (only generates pictures) and `compose_ad` (requires background+copy already provided). Prefer this tool whenever the user wants a finished ad.',
@@ -149,7 +132,6 @@ export async function executeTool(
       case 'file_analysis': return await execFileAnalysis(input, ctx);
       case 'knowledge_search': return await execKnowledgeSearch(input, ctx);
       case 'get_brand_assets': return await execGetBrandAssets(input, ctx);
-      case 'compose_ad': return await execComposeAd(input, ctx);
       case 'create_ad': return await execCreateAd(input, ctx);
       default: return { ok: false, error: 'Unknown tool: ' + name };
     }
@@ -363,49 +345,6 @@ async function execGetBrandAssets(_input: Record<string, unknown>, ctx: ToolCont
   return { ok: true, result: { text: summary } };
 }
 
-// ── COMPOSE AD ────────────────────────────────────────────────────
-async function execComposeAd(input: Record<string, unknown>, ctx: ToolContext): Promise<ToolResult> {
-  const backgroundUrl = String(input.background_url ?? '');
-  const headline = String(input.headline ?? '');
-  const subline = input.subline ? String(input.subline) : undefined;
-  const cta = input.cta ? String(input.cta) : undefined;
-  const format = String(input.format ?? 'square');
-  const useBrand = input.use_brand !== false;
-
-  if (!backgroundUrl || !headline) {
-    return { ok: false, error: 'Missing background_url or headline' };
-  }
-
-  try {
-    const res = await fetch(`${ctx.origin}/api/creative/render`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', cookie: ctx.cookieHeader },
-      body: JSON.stringify({
-        background_url: backgroundUrl,
-        headline,
-        subline,
-        cta,
-        format,
-        use_brand: useBrand,
-      }),
-      signal: ctx.signal,
-    });
-
-    if (!res.ok) {
-      const errText = await res.text().catch(() => 'unknown');
-      return { ok: false, error: `Compose failed: ${errText}` };
-    }
-
-    const data = await res.json().catch(() => ({})) as Record<string, unknown>;
-    const url = String((data.url as string) || ((data.urls as string[])?.[0]) || (data.composed_url as string) || '');
-    if (!url) return { ok: false, error: 'No composed URL returned' };
-
-    return { ok: true, result: { urls: [url] } };
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : 'Compose error';
-    return { ok: false, error: msg };
-  }
-}
 
 // ── CREATE AD (full pipeline) ─────────────────────────────────────
 async function execCreateAd(input: Record<string, unknown>, ctx: ToolContext): Promise<ToolResult> {
