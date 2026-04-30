@@ -25,7 +25,7 @@ const BodySchema = z.object({
   mask: z.string().min(10).optional(),
   // Imagery model. Default to gpt-image-1 (premium quality + ref images)
   // Falls back to Flux if gpt-image-1 fails
-  model: z.enum([(input.model ?? 'gpt-image-2')]).optional().default('gpt-image-2'),
+  model: z.enum(['gpt-image-2', 'gpt-image-1']).optional().default('gpt-image-2'),
 });
 
 type PromptHint = 'editorial' | 'startup' | 'luxury';
