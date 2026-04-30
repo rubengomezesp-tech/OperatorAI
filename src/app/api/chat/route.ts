@@ -341,12 +341,21 @@ export async function POST(req: NextRequest) {
               },
             ];
             
-            // First call — let model decide if it needs the tool
+            // Detect ad intent in last user message → force create_ad
+            const lastUserMsg = (body.message || '').toLowerCase();
+            const adKeywords = /\b(publicidad|anuncio|ad|advertisement|advert|creative|marketing\s+piece)\b/i;
+            const isAdRequest = adKeywords.test(lastUserMsg);
+            const forcedToolChoice = isAdRequest
+              ? { type: 'function' as const, function: { name: 'create_ad' } }
+              : 'auto' as const;
+
+            console.log('[chat:openai] tool_choice:', isAdRequest ? 'create_ad (forced)' : 'auto', 'msg:', lastUserMsg.slice(0, 80));
+
             const firstCall = await oai.chat.completions.create({
               model: body.model || 'gpt-4o',
               messages: oaiMsgs as never,
               tools: oaiTools,
-              tool_choice: 'auto',
+              tool_choice: forcedToolChoice,
               max_tokens: 4096,
             });
             
