@@ -54,8 +54,8 @@ export function OperatorBg({ variant = 'chat', className }: Props) {
           className={cn(
             'h-full w-auto max-w-none object-contain object-bottom',
             isLanding
-              ? 'opacity-25'
-              : 'opacity-10 blur-[2px]',
+              ? 'opacity-40'
+              : 'opacity-18 blur-[1px]',
           )}
           style={{ transform: 'translateY(8%)' }}
         />
@@ -66,8 +66,8 @@ export function OperatorBg({ variant = 'chat', className }: Props) {
         className={cn(
           'absolute inset-0',
           isLanding
-            ? 'bg-gradient-to-t from-bg via-bg/60 to-bg/30'
-            : 'bg-gradient-to-t from-bg via-bg/85 to-bg/70',
+            ? 'bg-gradient-to-t from-bg/95 via-bg/40 to-bg/10'
+            : 'bg-gradient-to-t from-bg/90 via-bg/60 to-bg/40',
         )}
       />
 
@@ -76,7 +76,7 @@ export function OperatorBg({ variant = 'chat', className }: Props) {
         className="absolute inset-0"
         style={{
           background:
-            'radial-gradient(ellipse at center 65%, transparent 0%, rgb(var(--bg) / 0.4) 50%, rgb(var(--bg) / 0.85) 100%)',
+            'radial-gradient(ellipse at center 60%, transparent 0%, rgb(var(--bg) / 0.2) 60%, rgb(var(--bg) / 0.7) 100%)',
         }}
       />
     </div>
