@@ -125,30 +125,11 @@ export async function POST(req: NextRequest) {
     const effectivePreset = (body.presetOverride ?? brief.preset) as AdPreset;
     const effectiveAspectRatio = body.aspectRatioOverride ?? brief.aspectRatio;
 
-    // ── Filtrado inteligente de imágenes según CAPA 1
-    // Logos NO van como reference (se usan como overlay en CAPA 4).
-    // Screenshots/photos/backgrounds SÍ van como reference.
-    type AssetAnalysisShape = {
-      assets?: Array<{ type?: string }>;
-    };
-    const analysis = assetAnalysis as AssetAnalysisShape | undefined;
-    const referenceImages: Array<{ data: string; mimeType: string }> = [];
-    if (body.images && body.images.length > 0) {
-      body.images.forEach((img, i) => {
-        const detectedType = analysis?.assets?.[i]?.type;
-        if (detectedType !== 'logo') {
-          referenceImages.push({ data: img.base64, mimeType: img.mimeType });
-        }
-      });
-    }
-    const hasReference = referenceImages.length > 0;
-
-    // ── CAPA 3: Build visual prompt (adaptive based on reference presence)
+    // ── CAPA 3: Build visual prompt
     const { prompt: visualPrompt } = buildAdVisualPrompt({
       preset: effectivePreset,
       aspectRatio: effectiveAspectRatio as '9:16' | '1:1' | '4:5' | '16:9',
-      customAtmosphere: hasReference ? undefined : brief.visualPrompt,
-      hasReference,
+      customAtmosphere: brief.visualPrompt,
     });
 
     // ── Image generation
@@ -164,7 +145,9 @@ export async function POST(req: NextRequest) {
         aspectRatio: effectiveAspectRatio,
         model: 'gpt-image-1',
         enhance: false,
-        referenceImages: hasReference ? referenceImages : undefined,
+        referenceImages: body.images && body.images.length > 0
+          ? body.images.map((img) => ({ data: img.base64, mimeType: img.mimeType }))
+          : undefined,
       }),
     );
 

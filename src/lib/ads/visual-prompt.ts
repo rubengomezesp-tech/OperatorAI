@@ -64,39 +64,14 @@ export function buildAdVisualPrompt({
   preset,
   aspectRatio,
   customAtmosphere,
-  hasReference,
 }: {
   preset: AdPreset;
   aspectRatio: AdAspectRatio;
-  customAtmosphere?: string;
-  hasReference?: boolean;
+  customAtmosphere?: string; // from CAPA 2 brief.visualPrompt
 }): { prompt: string; negativePrompt: string } {
   const config = PRESET_CONFIGS[preset];
   const aspectRule = ASPECT_RATIO_RULES[aspectRatio];
 
-  // ── REFERENCE MODE: short prompt that PRESERVES the user's image ──
-  // gpt-image-1 with reference images respects them better when prompt is concise
-  // and explicitly asks to keep the subject prominent.
-  if (hasReference) {
-    const lightingByPreset: Record<AdPreset, string> = {
-      'luxury-minimal': 'cinematic golden rim lighting, dark moody atmosphere',
-      'aggressive': 'high contrast dramatic lighting, intense energy',
-      'clean-conversion': 'soft bright studio lighting, clean professional',
-      'product-demo': 'neutral studio lighting, modern tech aesthetic',
-    };
-    const refPrompt = [
-      'Premium advertising composition.',
-      'Use the provided image as the dominant central subject — keep it sharp, prominent, fully visible at 100% opacity.',
-      `Add ${lightingByPreset[preset]} around the subject.`,
-      'Background: ' + config.colorPalette + '.',
-      aspectRule,
-      'Leave clear negative space for text overlay (top and bottom).',
-      'NO text, NO logos, NO typography in the output image.',
-    ].join(' ');
-    return { prompt: refPrompt, negativePrompt: config.negativePrompt };
-  }
-
-  // ── DEFAULT MODE: full scene generation ──
   const parts = [
     customAtmosphere ?? config.baseAtmosphere,
     config.lighting,
