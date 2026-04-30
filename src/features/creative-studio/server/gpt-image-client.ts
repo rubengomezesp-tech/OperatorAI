@@ -14,8 +14,15 @@ export interface GptImageInput {
   aspectRatio: AspectRatio;
   /** Override env default */
   quality?: GptImageQuality;
-  /** Default 45s */
+  /** Default 180s */
   timeoutMs?: number;
+  /**
+   * Optional reference images (URLs or data: URIs).
+   * When provided, gpt-image-1 uses /v1/images/edits endpoint
+   * and treats these as visual context (logos, branding, style).
+   * Max 16 images supported by OpenAI.
+   */
+  referenceUrls?: string[];
 }
 
 export interface GptImageResult {
@@ -116,22 +123,78 @@ export async function generateWithGptImage(
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    const res = await fetch('https://api.openai.com/v1/images/generations', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: 'gpt-image-1',
-        prompt: input.prompt,
-        n: 1,
-        size,
-        quality,
-        output_format: 'png',
-      }),
-      signal: controller.signal,
-    });
+    const hasReferences = Array.isArray(input.referenceUrls) && input.referenceUrls.length > 0;
+    let res: Response;
+    
+    if (hasReferences) {
+      // ═══ /v1/images/edits — supports reference images ═══
+      // Build multipart form-data with image[] field per reference
+      const formData = new FormData();
+      formData.append('model', 'gpt-image-1');
+      formData.append('prompt', input.prompt);
+      formData.append('n', '1');
+      formData.append('size', size);
+      formData.append('quality', quality);
+      
+      // Download each reference and append as image[]
+      for (let i = 0; i < input.referenceUrls!.length && i < 16; i++) {
+        const refUrl = input.referenceUrls![i];
+        let refBuffer: Buffer;
+        let refMime = 'image/png';
+        
+        if (refUrl.startsWith('data:')) {
+          // data: URI — extract mime + base64
+          const match = refUrl.match(/^data:([^;]+);base64,(.+)$/);
+          if (!match) {
+            throw new GptImageError('INVALID_RESPONSE', `Invalid data: URI for reference ${i}`);
+          }
+          refMime = match[1];
+          refBuffer = Buffer.from(match[2], 'base64');
+        } else {
+          // External URL — fetch
+          const refRes = await fetch(refUrl, { signal: controller.signal });
+          if (!refRes.ok) {
+            throw new GptImageError('API_ERROR', `Reference ${i} fetch failed: ${refRes.status}`);
+          }
+          const arr = await refRes.arrayBuffer();
+          refBuffer = Buffer.from(arr);
+          refMime = refRes.headers.get('content-type') || 'image/png';
+        }
+        
+        // Convert Buffer to Blob (Node 18+)
+        const blob = new Blob([new Uint8Array(refBuffer)], { type: refMime });
+        const ext = refMime.split('/')[1] || 'png';
+        formData.append('image[]', blob, `ref-${i}.${ext}`);
+      }
+      
+      res = await fetch('https://api.openai.com/v1/images/edits', {
+        method: 'POST',
+        headers: {
+          // NOTE: do NOT set Content-Type — fetch sets multipart boundary automatically
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: formData,
+        signal: controller.signal,
+      });
+    } else {
+      // ═══ /v1/images/generations — standard text-to-image ═══
+      res = await fetch('https://api.openai.com/v1/images/generations', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: 'gpt-image-1',
+          prompt: input.prompt,
+          n: 1,
+          size,
+          quality,
+          output_format: 'png',
+        }),
+        signal: controller.signal,
+      });
+    }
 
     clearTimeout(timeoutId);
 
