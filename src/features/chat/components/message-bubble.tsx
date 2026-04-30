@@ -7,6 +7,7 @@ import { Download, X, ChevronLeft, ChevronRight, ZoomIn, Image as ImageIcon } fr
 import { MessageActions } from './message-actions';
 import { ActionCard } from './action-card';
 import { cn } from '@/lib/utils';
+import { useBrandAssets } from '@/lib/brand-assets-context';
 
 const IMAGE_URL_REGEX = /https?:\/\/[^\s)]+\.(?:png|jpe?g|gif|webp|avif)(?:\?[^\s)]*)?/gi;
 const REPLICATE_URL_REGEX = /https?:\/\/(?:replicate\.delivery|pbxt\.replicate\.com|[^\s)]+\.supabase\.co\/storage\/v1\/object\/public)[^\s)]+/gi;
@@ -67,6 +68,7 @@ function stripImageUrls(text: string): string {
 }
 
 export function MessageBubble({ message, isLastAssistant, onRegenerate, regenDisabled, previousUserContent }: Props) {
+  const { avatarUrl } = useBrandAssets();
   const isUser = message.role === 'user';
   const imageUrls = useMemo(() => extractImageUrls(message.content), [message.content]);
   const cleanContent = useMemo(() => imageUrls.length > 0 ? stripImageUrls(message.content) : message.content, [message.content, imageUrls]);
@@ -78,6 +80,11 @@ export function MessageBubble({ message, isLastAssistant, onRegenerate, regenDis
         {isUser ? (
           <div className="h-7 w-7 rounded-full bg-gold/20 border border-gold/30 flex items-center justify-center text-[11px] font-medium text-gold">
             T
+          </div>
+        ) : avatarUrl ? (
+          <div className="h-7 w-7 rounded-full overflow-hidden bg-bg/40 flex items-center justify-center">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={avatarUrl} alt="Operator" className="h-full w-full object-cover" />
           </div>
         ) : (
           <div className="h-7 w-7 rounded-full gold-grad flex items-center justify-center">
