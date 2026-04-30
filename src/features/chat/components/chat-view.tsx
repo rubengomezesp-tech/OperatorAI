@@ -13,6 +13,7 @@ import { ActionCard } from './action-card';
 import { detectsCampaignGenerationIntent } from '@/lib/agents/action-detector';
 import { useChatStore, MODEL_OPTIONS } from '../stores/chat-store';
 import type { UiMessage } from '@/lib/chat/types';
+import { OperatorBg } from '@/components/layout/operator-bg';
 import type { ToolPart } from './tool-result';
 
 interface Props {
@@ -163,7 +164,8 @@ export function ChatView({ initialConversationId, initialMessages = [], initialT
   }
 
   return (
-    <div className="h-[100dvh] flex overflow-hidden">
+    <div className="h-[100dvh] flex overflow-hidden relative">
+      <OperatorBg variant="chat" />
       <div className="flex-1 flex flex-col min-w-0">
         <div className="flex items-center gap-2 px-4 py-2 border-b border-border">
           <ChatDrawer currentId={conversationId} onSelect={handleChatSelect} />

@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import { useI18n, LanguageToggle } from '@/lib/i18n';
 import { Aurora } from '@/components/ui/aurora';
+import { OperatorBg } from '@/components/layout/operator-bg';
 import { Magnetic } from '@/components/ui/magnetic';
 import { fadeUp, staggerContainer, scaleIn } from '@/lib/motion';
 import dynamic from 'next/dynamic';
@@ -135,6 +136,7 @@ export default function LandingPage() {
       {/* Aurora as fixed background — stays as you scroll */}
       <div className="fixed inset-0 -z-10 pointer-events-none">
         <Aurora intensity="medium" />
+      <OperatorBg variant="landing" />
       </div>
 
       {/* Top nav */}
