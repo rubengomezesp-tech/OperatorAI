@@ -4,6 +4,7 @@ import { CommandPaletteProvider } from '@/features/command-palette/components/co
 import { redirect } from 'next/navigation';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { BrandAssetsProvider } from '@/lib/brand-assets-context';
+import { getBrandAssets } from '@/lib/brand-assets-server';
 import { createSupabaseServiceClient } from '@/lib/supabase/service';
 import { resolveCurrentOrg } from '@/features/organizations/server/resolve';
 import { AppShell } from '@/components/layout/app-shell';
@@ -39,9 +40,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const { currentOrg, orgs } = await resolveCurrentOrg(user.id);
   if (!currentOrg) redirect('/welcome');
 
+  // Fetch brand assets (logo, icon, avatar, bg) from Supabase Storage
+  const brandAssets = await getBrandAssets();
+
   return (
     <OrgProvider initialOrg={currentOrg} initialOrgs={orgs}>
-      <AppShell email={me?.email ?? user.email ?? ''} fullName={me?.full_name ?? null}>
+      <BrandAssetsProvider {...brandAssets}>
+        <AppShell email={me?.email ?? user.email ?? ''} fullName={me?.full_name ?? null}>
         <CommandPaletteProvider>
           <div className="relative min-h-full bg-mesh">
             {/* Subtle global aurora — visible but never intrusive */}
@@ -54,6 +59,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <AppFooter />
         </CommandPaletteProvider>
       </AppShell>
+      </BrandAssetsProvider>
     </OrgProvider>
   );
 }
