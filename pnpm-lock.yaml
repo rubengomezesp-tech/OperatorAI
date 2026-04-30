@@ -192,12 +192,6 @@ importers:
         specifier: ^5.0.12
         version: 5.0.12(@types/react@18.3.28)(react@18.3.1)(use-sync-external-store@1.6.0(react@18.3.1))
     devDependencies:
-      '@expo-google-fonts/inter':
-        specifier: ^0.4.2
-        version: 0.4.2
-      '@expo-google-fonts/playfair-display':
-        specifier: ^0.4.2
-        version: 0.4.2
       '@tanstack/react-query-devtools':
         specifier: ^5.100.5
         version: 5.100.5(@tanstack/react-query@5.100.5(react@18.3.1))(react@18.3.1)
@@ -518,12 +512,6 @@ packages:
   '@eslint/js@8.57.1':
     resolution: {integrity: sha512-d9zaMRSTIKDLhctzH12MtXvJKSSUhaHcjV+2Z+GK+EEY7XKpP5yR4x+N3TAcHTcu963nIr+TMcCb4DBCYX1z6Q==}
     engines: {node: ^12.22.0 || ^14.17.0 || >=16.0.0}
-
-  '@expo-google-fonts/inter@0.4.2':
-    resolution: {integrity: sha512-syfiImMaDmq7cFi0of+waE2M4uSCyd16zgyWxdPOY7fN2VBmSLKEzkfbZgeOjJq61kSqPBNNtXjggiQiSD6gMQ==}
-
-  '@expo-google-fonts/playfair-display@0.4.2':
-    resolution: {integrity: sha512-mWhBV59RUjSS3aYpytUb7UyHHTnXcHh7epAn7gq+M4XAEh5PuMKUrP8eiUfkJLb6UwHZCi7EhQpUzxHu5OL96w==}
 
   '@fal-ai/client@1.10.0':
     resolution: {integrity: sha512-sQWnBc6cdIzK8nFybrVKal0rLeJS2vqrrNxx4Hcc0SorndkfkMXL3TIAiIfiF/AlZuVoRpazpNg6n8K81WHzOQ==}
@@ -5611,10 +5599,6 @@ snapshots:
       - supports-color
 
   '@eslint/js@8.57.1': {}
-
-  '@expo-google-fonts/inter@0.4.2': {}
-
-  '@expo-google-fonts/playfair-display@0.4.2': {}
 
   '@fal-ai/client@1.10.0':
     dependencies:
