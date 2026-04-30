@@ -181,7 +181,7 @@ function ImageGeneratingSkeleton({ aspectRatio }: { aspectRatio: string }) {
   );
 }
 
-function ImageTile({ url }: { url: string }) {
+export function ImageTile({ url }: { url: string }) {
   const [loaded, setLoaded] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
 

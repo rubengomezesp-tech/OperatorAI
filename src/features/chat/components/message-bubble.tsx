@@ -3,8 +3,8 @@ import type { UiMessage } from '@/lib/chat/types';
 import { useState, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Download, X, ChevronLeft, ChevronRight, ZoomIn, Image as ImageIcon, Wand2 } from 'lucide-react';
-import { EditAdModal } from './edit-ad-modal';
+import { Download, X, ChevronLeft, ChevronRight, ZoomIn, Image as ImageIcon } from 'lucide-react';
+import { ImageTile } from './tool-result';
 import { MessageActions } from './message-actions';
 import { ActionCard } from './action-card';
 import { cn } from '@/lib/utils';
@@ -173,99 +173,18 @@ export function MessageBubble({ message, isLastAssistant, onRegenerate, regenDis
 }
 
 function ImageGallery({ urls }: { urls: string[] }) {
-  const [lightbox, setLightbox] = useState<number | null>(null);
-  const [editUrl, setEditUrl] = useState<string | null>(null);
   const count = urls.length;
 
   return (
-    <>
-      {/* Grid */}
-      <div className={cn(
-        'grid gap-2 rounded-xl overflow-hidden',
-        count === 1 ? 'grid-cols-1' :
-        count === 2 ? 'grid-cols-2' :
-        count === 3 ? 'grid-cols-2' :
-        'grid-cols-2',
-      )}>
-        {urls.map((url, i) => (
-          <button
-            key={url + i}
-            type="button"
-            onClick={() => setLightbox(i)}
-            className={cn(
-              'relative group overflow-hidden rounded-lg border border-border bg-surface-2 hover:border-gold/40 transition-all',
-              count === 1 ? 'max-h-[400px]' :
-              count === 3 && i === 0 ? 'row-span-2' : '',
-            )}
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={url}
-              alt=""
-              className="w-full h-full object-cover min-h-[120px] max-h-[400px]"
-              loading="lazy"
-            />
-            <div className="absolute inset-0 bg-bg/0 group-hover:bg-bg/20 transition-colors flex items-center justify-center">
-              <ZoomIn className="h-6 w-6 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-lg" />
-            </div>
-          </button>
-        ))}
-      </div>
-
-      {/* Lightbox */}
-      {lightbox !== null && (
-        <div className="fixed inset-0 z-[100] bg-bg/95 backdrop-blur-md flex items-center justify-center" onClick={() => setLightbox(null)}>
-          <button className="absolute top-4 right-4 h-10 w-10 rounded-full bg-surface-2 border border-border flex items-center justify-center text-fg-muted hover:text-fg z-10" onClick={() => setLightbox(null)}>
-            <X className="h-5 w-5" />
-          </button>
-
-          {count > 1 && (
-            <>
-              <button className="absolute left-4 top-1/2 -translate-y-1/2 h-10 w-10 rounded-full bg-surface-2 border border-border flex items-center justify-center text-fg-muted hover:text-fg z-10" onClick={(e) => { e.stopPropagation(); setLightbox((lightbox - 1 + count) % count); }}>
-                <ChevronLeft className="h-5 w-5" />
-              </button>
-              <button className="absolute right-4 top-1/2 -translate-y-1/2 h-10 w-10 rounded-full bg-surface-2 border border-border flex items-center justify-center text-fg-muted hover:text-fg z-10" onClick={(e) => { e.stopPropagation(); setLightbox((lightbox + 1) % count); }}>
-                <ChevronRight className="h-5 w-5" />
-              </button>
-            </>
-          )}
-
-          <div className="max-w-[90vw] max-h-[85vh] relative" onClick={(e) => e.stopPropagation()}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={urls[lightbox]} alt="" className="max-w-full max-h-[85vh] rounded-lg object-contain" />
-            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-3">
-              <a
-                href={urls[lightbox]}
-                download
-                className="h-9 px-4 rounded-md bg-surface border border-border text-[13px] text-fg flex items-center gap-2 hover:border-gold/40 transition-colors"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <Download className="h-3.5 w-3.5" />
-                <span>Save</span>
-              </a>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setEditUrl(urls[lightbox]);
-                  setLightbox(null);
-                }}
-                className="h-9 px-4 rounded-md bg-gold text-black text-[13px] font-semibold flex items-center gap-2 hover:opacity-90 transition-opacity"
-              >
-                <Wand2 className="h-3.5 w-3.5" />
-                <span>Editar</span>
-              </button>
-              {count > 1 && (
-                <span className="text-[12px] text-fg-muted">{lightbox + 1} / {count}</span>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {editUrl && (
-        <EditAdModal imageUrl={editUrl} onClose={() => setEditUrl(null)} />
-      )}
-    </>
+    <div className={cn(
+      'grid gap-2',
+      count === 1 ? 'grid-cols-1 max-w-md' :
+      count === 2 ? 'grid-cols-2' :
+      'grid-cols-1 sm:grid-cols-2',
+    )}>
+      {urls.map((url, i) => (
+        <ImageTile key={url + i} url={url} />
+      ))}
+    </div>
   );
 }
