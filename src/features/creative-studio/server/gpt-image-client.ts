@@ -142,7 +142,7 @@ export async function generateWithGptImage(
       // ═══ /v1/images/edits — supports reference images ═══
       // Build multipart form-data with image[] field per reference
       const formData = new FormData();
-      formData.append('model', 'gpt-image-2');
+      formData.append('model', 'gpt-image-1');
       formData.append('prompt', input.prompt);
       formData.append('n', '1');
       formData.append('size', size);
@@ -204,7 +204,7 @@ export async function generateWithGptImage(
           Authorization: `Bearer ${apiKey}`,
         },
         body: JSON.stringify({
-          model: 'gpt-image-2',
+          model: 'gpt-image-1',
           prompt: input.prompt,
           n: 1,
           size,

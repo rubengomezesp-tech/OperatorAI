@@ -176,7 +176,7 @@ export async function POST(req: NextRequest) {
       internalPost<ImageGenResponse>('/api/images/generate', {
         prompt: visualPrompt,
         aspectRatio: effectiveAspectRatio,
-        model: 'gpt-image-2',
+        model: 'gpt-image-1',
         enhance: false,
         referenceImages: _hasReference ? _refImages : undefined,
       }),
@@ -223,7 +223,7 @@ export async function POST(req: NextRequest) {
           const r = await internalPost<ImageGenResp>('/api/images/generate', {
             prompt: extraPrompt,
             aspectRatio: fmt,
-            model: 'gpt-image-2',
+            model: 'gpt-image-1',
             enhance: false,
             referenceImages: _hasReference ? _refImages : undefined,
           });
