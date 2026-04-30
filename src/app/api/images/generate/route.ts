@@ -16,6 +16,11 @@ const BodySchema = z.object({
   seed: z.number().int().optional(),
   enhance: z.boolean().default(true),
   referenceUrls: z.array(z.string().url()).max(8).optional(),
+  // Reference images as base64 (used by chat — uploads come this way)
+  referenceImages: z.array(z.object({
+    data: z.string().min(10),       // base64 (no data: prefix)
+    mimeType: z.string().min(3),    // e.g. 'image/png'
+  })).max(8).optional(),
   // Imagery model. Default to gpt-image-1 (premium quality + ref images)
   // Falls back to Flux if gpt-image-1 fails
   model: z.enum(['gpt-image-1', 'flux-2-pro']).optional().default('gpt-image-1'),
@@ -112,10 +117,18 @@ export async function POST(req: NextRequest) {
         body.aspectRatio === '3:2' ? '1:1' :    // landscape→square
         body.aspectRatio as '9:16' | '1:1' | '4:5';
       
+      // Convert referenceImages (base64) → data: URIs (cliente acepta string[])
+      const refDataUris = (body.referenceImages || []).map(
+        (ref) => `data:${ref.mimeType};base64,${ref.data}`
+      );
+      // Combine with any external URL refs
+      const allRefUrls = [...(body.referenceUrls || []), ...refDataUris];
+      
       const gptResult = await generateWithGptImage({
         prompt: fullPrompt,
         aspectRatio: gptAspect,
         quality: (process.env.GPT_IMAGE_QUALITY as 'low'|'medium'|'high'|'auto'|undefined) ?? 'high',
+        referenceUrls: allRefUrls.length > 0 ? allRefUrls : undefined,
       });
       
       // Upload buffer to Supabase Storage
