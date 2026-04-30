@@ -7,6 +7,7 @@ import { UserMenu } from './user-menu';
 import { BrandPill } from './brand-pill';
 import { LanguageToggle, useI18n } from '@/lib/i18n';
 import { MobileMenu, MobileMenuButton } from './mobile-menu';
+import { useBrandAssets } from '@/lib/brand-assets-context';
 
 const TITLES: Record<string, string> = {
   '/chat': 'Creative Agent',
@@ -20,6 +21,7 @@ const TITLES: Record<string, string> = {
 };
 
 export function Topbar({ email, fullName }: { email: string; fullName: string | null }) {
+  const { iconUrl } = useBrandAssets();
   const pathname = usePathname();
   const { t } = useI18n();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -38,6 +40,14 @@ export function Topbar({ email, fullName }: { email: string; fullName: string | 
             <div className="lg:hidden">
               <MobileMenuButton onClick={() => setMenuOpen(true)} />
             </div>
+
+            {/* Mobile-only icon (sidebar shows full logo on desktop) */}
+            {iconUrl && (
+              <div className="lg:hidden h-7 w-7 rounded-md overflow-hidden flex items-center justify-center">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={iconUrl} alt="Operator AI" className="h-full w-full object-contain" />
+              </div>
+            )}
 
             {/* Title only — brand 'Operator AI' lives in sidebar */}
             <h1 className="font-display text-[18px] truncate text-fg">{title}</h1>

@@ -25,6 +25,7 @@ import {
   Loader2,
   type LucideIcon,
 } from 'lucide-react';
+import { useBrandAssets } from '@/lib/brand-assets-context';
 import { cn } from '@/lib/utils';
 import { useI18n } from '@/lib/i18n';
 
@@ -86,6 +87,7 @@ function groupByTime(convs: Conversation[]): Record<TimeGroup, Conversation[]> {
 // ─────────────────────────────────────────────────────────────────
 
 export function Sidebar({ isAdmin = false, onClose }: Props) {
+  const { iconUrl, logoUrl } = useBrandAssets();
   const router = useRouter();
   const pathname = usePathname();
   const { t, locale } = useI18n();
@@ -199,12 +201,26 @@ export function Sidebar({ isAdmin = false, onClose }: Props) {
           onClick={onClose}
           className="flex items-center gap-2 px-2 py-1.5 hover:opacity-80 transition-opacity"
         >
-          <div className="h-7 w-7 rounded-md gold-grad flex items-center justify-center">
-            <Sparkles className="h-3.5 w-3.5 text-bg" />
-          </div>
-          <span className="font-display text-[15px] tracking-tight text-fg">
-            Operator <span className="text-gold">AI</span>
-          </span>
+          {iconUrl ? (
+            <div className="h-7 w-7 rounded-md overflow-hidden flex items-center justify-center bg-bg/40">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={iconUrl} alt="Operator AI" className="h-full w-full object-contain" />
+            </div>
+          ) : (
+            <div className="h-7 w-7 rounded-md gold-grad flex items-center justify-center">
+              <Sparkles className="h-3.5 w-3.5 text-bg" />
+            </div>
+          )}
+          {logoUrl ? (
+            <div className="h-6 max-w-[120px] flex items-center">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={logoUrl} alt="Operator AI" className="h-full w-auto object-contain" />
+            </div>
+          ) : (
+            <span className="font-display text-[15px] tracking-tight text-fg">
+              Operator <span className="text-gold">AI</span>
+            </span>
+          )}
         </Link>
 
         <button
