@@ -21,10 +21,10 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { jobId: string } }
+  { params }: { params: Promise<{ jobId: string }> }
 ) {
   try {
-    const jobId = params.jobId;
+    const { jobId } = await params;
 
     if (!jobId) {
       return NextResponse.json({ error: 'jobId is required' }, { status: 400 });

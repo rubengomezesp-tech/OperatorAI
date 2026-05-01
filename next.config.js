@@ -1,24 +1,27 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  turbopack: {
+    resolveAlias: {
+      canvas: './empty-module.js',
+      sharp: './empty-module.js',
+      '@resvg/resvg-js': './empty-module.js',
+    },
+  },
   webpack: (config) => {
     config.resolve = config.resolve || {};
     config.resolve.alias = config.resolve.alias || {};
     config.resolve.alias.canvas = false;
     return config;
   },
-  eslint: { ignoreDuringBuilds: true },
   reactStrictMode: true,
   poweredByHeader: false,
-  experimental: {
-    serverActions: { bodySizeLimit: '25mb' },
-    serverComponentsExternalPackages: ['@resvg/resvg-js'],
-    outputFileTracingIncludes: {
-      '/api/ads/compose': ['./public/fonts/**/*'],
-      '/api/ads/compose-multi': ['./public/fonts/**/*'],
-      '/api/ads/edit': ['./public/fonts/**/*'],
-      '/api/ads/create': ['./public/fonts/**/*'],
-      '/api/chat': ['./public/fonts/**/*'],
-    },
+  experimental: { serverComponentsExternalPackages: ['@resvg/resvg-js', 'sharp'], serverActions: { bodySizeLimit: '25mb' } },
+  outputFileTracingIncludes: {
+    '/api/ads/compose': ['./public/fonts/**/*'],
+    '/api/ads/compose-multi': ['./public/fonts/**/*'],
+    '/api/ads/edit': ['./public/fonts/**/*'],
+    '/api/ads/create': ['./public/fonts/**/*'],
+    '/api/chat': ['./public/fonts/**/*'],
   },
   images: {
     remotePatterns: [
@@ -36,19 +39,12 @@ const nextConfig = {
       {
         source: '/(.*)',
         headers: [
-          // Prevent clickjacking
           { key: 'X-Frame-Options', value: 'DENY' },
-          // Prevent MIME-type sniffing
           { key: 'X-Content-Type-Options', value: 'nosniff' },
-          // Enable XSS protection
           { key: 'X-XSS-Protection', value: '1; mode=block' },
-          // Referrer policy
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
-          // Permissions policy (disable unnecessary browser APIs)
           { key: 'Permissions-Policy', value: 'camera=(), geolocation=(), microphone=(self)' },
-          // HSTS — force HTTPS for 1 year including subdomains
           { key: 'Strict-Transport-Security', value: 'max-age=31536000; includeSubDomains; preload' },
-          // Content Security Policy
           {
             key: 'Content-Security-Policy',
             value: [

@@ -1,8 +1,7 @@
-import { NextResponse, type NextRequest } from 'next/server';
+import { NextResponse, type NextRequest, after } from 'next/server';
 import { z } from 'zod';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { buildAdVisualPrompt, type AdPreset } from '@/lib/ads/visual-prompt';
-import { waitUntil } from '@vercel/functions';
 
 export const runtime = 'nodejs';
 export const maxDuration = 300;
@@ -244,7 +243,7 @@ export async function POST(req: NextRequest) {
     // ── CAPA 7: Audit MOVIDO a after() — corre en background, no bloquea respuesta
     // El usuario recibe la imagen YA. El audit se persiste para analítica posterior.
     if (body.enableAudit) {
-      waitUntil((async () => {
+      after(async () => {
         try {
           const auditPromises = formatOutputs.map(async (output) => {
             if (!output.url) return;
@@ -266,7 +265,7 @@ export async function POST(req: NextRequest) {
         } catch (e) {
           console.warn('[ads/create] background audit error:', e);
         }
-      })());
+      });
       stages.push({ stage: 'audit', ok: true, latencyMs: 0 }); // 0 porque ya no bloquea
     }
 

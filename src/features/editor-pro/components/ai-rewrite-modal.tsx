@@ -141,7 +141,7 @@ export function AiRewriteModal({
           <div className="text-[10px] uppercase tracking-wider text-fg-subtle mb-1">
             Original
           </div>
-          <div className="text-[13px] text-fg italic">"{originalText}"</div>
+          <div className="text-[13px] text-fg italic">&ldquo;{originalText}&rdquo;</div>
         </div>
 
         {/* Tones */}

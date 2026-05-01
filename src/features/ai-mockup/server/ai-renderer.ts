@@ -127,6 +127,7 @@ export async function generateMaskBuffer(opts: {
   const bottom = Math.min(H, Math.round(zoneCy + zoneH / 2));
 
   try {
+    // @ts-ignore - sharp is a native module handled at runtime
     const sharp = (await import('sharp')).default;
 
     const pixelCount = W * H;

@@ -59,7 +59,7 @@ function InlineImage(props: ComponentPropsWithoutRef<'img'>) {
       />
       {props.src && (
         <a
-          href={props.src}
+          href={typeof props.src === 'string' ? props.src : URL.createObjectURL(props.src)}
           target="_blank"
           rel="noopener noreferrer"
           download
