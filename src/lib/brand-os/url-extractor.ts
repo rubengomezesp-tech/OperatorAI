@@ -212,7 +212,7 @@ function validateUrl(url: string): void {
   }
 }
 
-async function fetchHtml(url: string): Promise<string> {
+export async function fetchHtml(url: string): Promise<string> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 15_000);
   try {
@@ -251,7 +251,7 @@ function extractName(html: string): string | undefined {
   return undefined;
 }
 
-function extractMetaContent(html: string, name: string, attr: 'name' | 'property' = 'name'): string | undefined {
+export function extractMetaContent(html: string, name: string, attr: 'name' | 'property' = 'name'): string | undefined {
   const re = new RegExp(
     `<meta\\s+(?:[^>]*?\\s)?${attr}=["']${name}["'][^>]*?content=["']([^"']*)["']`,
     'i'

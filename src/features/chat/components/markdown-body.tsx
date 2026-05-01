@@ -4,6 +4,7 @@ import ReactMarkdown, { type Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Check, Copy, Download } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { LinkPreview } from './link-preview';
 
 function CodeBlock({ children, ...props }: ComponentPropsWithoutRef<'pre'>) {
   const [copied, setCopied] = useState(false);
@@ -75,6 +76,17 @@ function InlineImage(props: ComponentPropsWithoutRef<'img'>) {
 const components: Components = {
   pre: (props) => <CodeBlock {...props} />,
   img: (props) => <InlineImage {...props} />,
+  a: (props) => {
+    const { href, children } = props;
+    if (!href) return <a {...props} />;
+    // If the visible text equals the href, treat as bare URL → preview card
+    const text = Array.isArray(children) ? children.join('') : String(children ?? '');
+    const isBareUrl = text === href || text === decodeURIComponent(href);
+    if (isBareUrl && /^https?:\/\//.test(href)) {
+      return <LinkPreview url={href} />;
+    }
+    return <a {...props} target="_blank" rel="noopener noreferrer" className="text-gold underline" />;
+  },
 };
 
 export function MarkdownBody({ content, className }: { content: string; className?: string }) {
