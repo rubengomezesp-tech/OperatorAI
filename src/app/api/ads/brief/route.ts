@@ -49,6 +49,8 @@ export type AdBrief = {
   concept: string;
   conceptReasoning: string;
   alternativeConcepts: Array<{ concept: string; reasoning: string }>;
+  // Creative framework (NEW)
+  framework: 'before-after' | 'social-proof' | 'problem-agitation' | 'lifestyle' | 'direct-offer' | 'demo' | 'awareness';
   // Visual direction
   preset: string;
   aspectRatio: string;
@@ -127,6 +129,52 @@ OPTIONAL CREATIVE ELEMENTS:
   trustSignals: 1-3 short trust phrases ("SEGURO • PRIVADO • CONFIABLE" style) IF luxury/premium
   microCopy: small tagline above headline IF it adds context ("DISEÑADO PARA EJECUTAR" style)
 
+═══════ STAGE 2.5: PICK A CREATIVE FRAMEWORK ═══════
+
+Choose ONE framework based on funnel stage + product type:
+
+before-after
+  Use for: transformation products (fitness, skincare, productivity tools, before/after results)
+  Composition: split layout, left side desaturated/problem, right side vibrant/solution
+  Required visual elements: visible contrast between two states, "ANTES / DESPUÉS" or "BEFORE / AFTER" labels
+  Best funnel stage: consideration, conversion
+
+social-proof
+  Use for: established products, B2B SaaS, services where trust matters most
+  Composition: product centered with rating stars, customer photo or quote bubble, brand logo
+  Required visual elements: 5-star rating graphic, testimonial in quotes (≤10 words), customer name + role
+  Best funnel stage: consideration, conversion
+
+problem-agitation
+  Use for: pain-driven products, audience that doesn't yet realize they need a solution
+  Composition: desaturated/dark scene showing the frustration, bold problem headline, subtle solution hint
+  Required visual elements: low-key lighting, body language showing frustration, hard-hitting headline
+  Best funnel stage: awareness, consideration
+
+lifestyle
+  Use for: aspirational products, fashion, consumer goods, identity-driven purchases
+  Composition: product in real-life context, person using/wearing it, candid documentary feel
+  Required visual elements: human subject, natural environment, golden-hour or natural lighting, no studio sterility
+  Best funnel stage: awareness, retention
+
+direct-offer
+  Use for: time-sensitive promotions, ecommerce sales, conversion-focused campaigns
+  Composition: product hero centered, BIG offer text ("50% OFF", "2x1", "DESDE 19€"), bold CTA
+  Required visual elements: huge offer number/percentage as visual element, product clear, strong CTA pill
+  Best funnel stage: conversion
+
+demo
+  Use for: SaaS, apps, tech products where the interface IS the product
+  Composition: app screenshot or device mockup centered, feature callouts with icon+label, minimal copy
+  Required visual elements: clean device frame or floating UI, 2-4 feature highlights with arrows or callouts
+  Best funnel stage: consideration, conversion
+
+awareness
+  Use for: brand introduction, hero shots, no specific offer yet
+  Composition: brand-forward, single powerful image, minimal copy, brand voice statement
+  Required visual elements: hero shot of subject/product, brand logo prominent, manifesto-style headline
+  Best funnel stage: awareness
+
 ═══════ PRESETS (8 — pick the most fitting) ═══════
   luxury-minimal       → black + gold, vast negative space, serif, aspirational
   luxury-editorial     → magazine-style, high fashion, dramatic crops
@@ -202,6 +250,7 @@ NEVER USE: Discover now | Learn more | Get started | Click here | Find out more
   "angle": "...",
   "tone": "...",
   "emotionalTrigger": "...",
+  "framework": "before-after|social-proof|problem-agitation|lifestyle|direct-offer|demo|awareness",
   "concept": "...",
   "conceptReasoning": "...",
   "alternativeConcepts": [

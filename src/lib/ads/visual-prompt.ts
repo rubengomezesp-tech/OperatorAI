@@ -175,7 +175,19 @@ interface BuildPromptInput {
   composition?: string;
   typography?: string;
   colorStrategy?: string;
+  framework?: 'before-after' | 'social-proof' | 'problem-agitation' | 'lifestyle' | 'direct-offer' | 'demo' | 'awareness';
 }
+
+const FRAMEWORK_INSTRUCTIONS: Record<string, string> = {
+  'before-after': 'FRAMEWORK: BEFORE/AFTER — Split the canvas vertically into two halves. LEFT half: desaturated, low-key lighting, "BEFORE" / "ANTES" label in small caps top-left, showing the problem state. RIGHT half: vibrant, well-lit, "AFTER" / "DESPUÉS" label, showing the transformation. The contrast between the two halves must be IMMEDIATELY visible. Headline spans across both halves at top or bottom.',
+  'social-proof': 'FRAMEWORK: SOCIAL PROOF — Center the product/subject. Add a horizontal row of 5 gold filled stars below the product. Render a customer testimonial in italic quotes (under 10 words) below the stars. Include a small attribution line ("— [Name], [Role]") below the quote. Brand logo prominent in corner.',
+  'problem-agitation': 'FRAMEWORK: PROBLEM/AGITATION — Use desaturated, low-key, slightly dark cinematic lighting. The visual subject should convey frustration or struggle (body language, environment). The HEADLINE must hit the pain hard and direct (e.g., "TIRED OF X?"). Subheadline hints at the solution but does not reveal it fully. Mood: tension, unresolved.',
+  'lifestyle': 'FRAMEWORK: LIFESTYLE — Place the product/brand in a real-life aspirational context. Show a human subject naturally interacting with the product (using, wearing, holding). Use golden-hour or natural daylight, candid documentary photography feel. NO studio sterility. The headline should feel like a manifesto, not a sales pitch.',
+  'direct-offer': 'FRAMEWORK: DIRECT OFFER — The OFFER itself is the dominant visual element. Render the discount or offer ("50% OFF", "2x1", "DESDE 19€", or whatever the copy specifies) in MASSIVE typography — comparable in size to the headline, in the brand accent color. Product centered. CTA pill must be the second-largest element. Pure conversion energy.',
+  'demo': 'FRAMEWORK: PRODUCT DEMO — Center a device mockup (phone, laptop, app screen) showing the product UI. Add 2-4 feature callouts around the device — each with a small line icon + 1-2 word label, connected to the device with thin lines or arrows. Clean, technical, conversion-oriented. White or neutral background.',
+  'awareness': 'FRAMEWORK: AWARENESS — Brand-first composition. Single powerful hero image of the subject/product. Brand logo prominent (top center or top left). Headline reads as a manifesto or brand statement, not a sales line. Minimal supporting copy. Premium, confident, statement-piece energy.',
+};
+
 
 /**
  * Builds the mega-prompt for gpt-image-1.
@@ -202,6 +214,11 @@ export function buildAdVisualPrompt(input: BuildPromptInput): { prompt: string; 
   sections.push(`FORMAT AND COMPOSITION:
 - Aspect ratio: ${aspect}
 - Layout philosophy: ${input.composition ?? dna.layoutPhilosophy}.`);
+
+  // ─── 3.5. CREATIVE FRAMEWORK (overrides composition if set) ───
+  if (input.framework && FRAMEWORK_INSTRUCTIONS[input.framework]) {
+    sections.push(FRAMEWORK_INSTRUCTIONS[input.framework]);
+  }
 
   // ─── 4. REFERENCE HANDLING ───
   if (input.hasReference) {

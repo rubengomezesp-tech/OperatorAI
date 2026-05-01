@@ -148,6 +148,7 @@ export async function POST(req: NextRequest) {
       composition?: string;
       typography?: string;
       colorStrategy?: string;
+      framework?: 'before-after' | 'social-proof' | 'problem-agitation' | 'lifestyle' | 'direct-offer' | 'demo' | 'awareness';
     };
     const eb = brief as ExtendedBrief;
     const { prompt: visualPrompt } = buildAdVisualPrompt({
@@ -162,6 +163,7 @@ export async function POST(req: NextRequest) {
       composition: eb.composition,
       typography: eb.typography,
       colorStrategy: eb.colorStrategy,
+      framework: eb.framework,
     });
     console.log('[ads/create] mega-prompt length:', visualPrompt.length, '| preset:', effectivePreset);
 
@@ -219,6 +221,7 @@ export async function POST(req: NextRequest) {
             composition: eb.composition,
             typography: eb.typography,
             colorStrategy: eb.colorStrategy,
+            framework: eb.framework,
           });
           const r = await internalPost<ImageGenResp>('/api/images/generate', {
             prompt: extraPrompt,
