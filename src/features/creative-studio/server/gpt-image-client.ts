@@ -29,6 +29,11 @@ export interface GptImageInput {
    * Only used when referenceUrls also provided (uses /v1/images/edits).
    */
   mask?: string;
+  /**
+   * Optional model override. Defaults to gpt-image-2.
+   * Allows fallback to gpt-image-1 if gpt-image-2 fails.
+   */
+  model?: 'gpt-image-2' | 'gpt-image-1';
 }
 
 export interface GptImageResult {
@@ -142,7 +147,7 @@ export async function generateWithGptImage(
       // ═══ /v1/images/edits — supports reference images ═══
       // Build multipart form-data with image[] field per reference
       const formData = new FormData();
-      formData.append('model', 'gpt-image-2');
+      formData.append('model', input.model ?? 'gpt-image-2');
       formData.append('prompt', input.prompt);
       formData.append('n', '1');
       formData.append('size', size);
@@ -204,7 +209,7 @@ export async function generateWithGptImage(
           Authorization: `Bearer ${apiKey}`,
         },
         body: JSON.stringify({
-          model: 'gpt-image-2',
+          model: input.model ?? 'gpt-image-2',
           prompt: input.prompt,
           n: 1,
           size,
