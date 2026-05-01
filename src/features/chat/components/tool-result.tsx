@@ -128,6 +128,18 @@ function ToolFailedCard({ kind, error }: { kind: ToolKind; error?: string }) {
   );
 }
 
+// Pipeline stages mostrados al usuario — temporización aproximada por fase real
+const PIPELINE_STAGES: Array<{ label: string; ms: number }> = [
+  { label: 'Analizando tu petición',     ms: 2500 },
+  { label: 'Definiendo el concepto',     ms: 4000 },
+  { label: 'Eligiendo dirección creativa', ms: 3500 },
+  { label: 'Generando el visual',        ms: 12000 },
+  { label: 'Refinando composición',      ms: 6000 },
+  { label: 'Renderizando texto',         ms: 5000 },
+  { label: 'Comprobando calidad',        ms: 4000 },
+  { label: 'Casi listo',                 ms: 8000 },
+];
+
 function ImageGeneratingSkeleton({ aspectRatio }: { aspectRatio: string }) {
   const ratioMap: Record<string, string> = {
     '1:1': '100%',
@@ -137,6 +149,17 @@ function ImageGeneratingSkeleton({ aspectRatio }: { aspectRatio: string }) {
     '3:2': '66.67%',
   };
   const padBottom = ratioMap[aspectRatio] ?? '100%';
+
+  const [stageIdx, setStageIdx] = useState(0);
+
+  useEffect(() => {
+    if (stageIdx >= PIPELINE_STAGES.length - 1) return;
+    const t = setTimeout(() => setStageIdx((i) => Math.min(i + 1, PIPELINE_STAGES.length - 1)), PIPELINE_STAGES[stageIdx].ms);
+    return () => clearTimeout(t);
+  }, [stageIdx]);
+
+  const currentLabel = PIPELINE_STAGES[stageIdx].label;
+  const progress = Math.min(100, Math.round(((stageIdx + 1) / PIPELINE_STAGES.length) * 100));
 
   return (
     <div className="my-3 max-w-[420px]">
@@ -166,14 +189,33 @@ function ImageGeneratingSkeleton({ aspectRatio }: { aspectRatio: string }) {
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="h-16 w-16 rounded-full bg-gold/10 blur-2xl animate-pulse-dot" />
         </div>
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
+
+        {/* Stage label + progress */}
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-6">
           <div className="flex items-center gap-1.5">
             <span className="h-1.5 w-1.5 rounded-full bg-gold animate-pulse-dot" />
             <span className="h-1.5 w-1.5 rounded-full bg-gold animate-pulse-dot" style={{ animationDelay: '0.2s' }} />
             <span className="h-1.5 w-1.5 rounded-full bg-gold animate-pulse-dot" style={{ animationDelay: '0.4s' }} />
           </div>
-          <div className="text-[11.5px] text-fg-muted/80 font-medium tracking-wide uppercase">
-            Componiendo visual
+
+          {/* Animated stage label — re-mounts on change for fade effect */}
+          <div
+            key={stageIdx}
+            className="text-[12px] text-fg/90 font-medium tracking-wide text-center animate-fade-in-up"
+          >
+            {currentLabel}
+          </div>
+
+          {/* Stepper bar */}
+          <div className="w-32 h-0.5 bg-white/10 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-gradient-to-r from-gold/60 to-gold rounded-full transition-all duration-700 ease-out"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+
+          <div className="text-[10px] text-fg-muted/60 tabular-nums">
+            {stageIdx + 1} / {PIPELINE_STAGES.length}
           </div>
         </div>
       </div>
