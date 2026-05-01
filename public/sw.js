@@ -63,9 +63,12 @@ self.addEventListener('notificationclick', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
+  // NO interceptar API routes (streaming, SSE, POSTs)
   if (event.request.url.includes('/api/')) return;
+  // NO interceptar non-GET (POSTs, PUTs, etc.)
+  if (event.request.method !== 'GET') return;
 
   event.respondWith(
-    caches.match(event.request).then((cached) => cached || fetch(event.request))
+    caches.match(event.request).then((cached) => cached || fetch(event.request).catch(() => cached))
   );
 });
