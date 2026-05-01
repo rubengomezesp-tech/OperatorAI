@@ -60,9 +60,9 @@ export function useAdStreamGeneration() {
     setState({ ...INITIAL_STATE, stage: 'analysis', message: 'Analizando tu petición' });
 
     try {
-      const res = await fetch('/api/ads/create-stream', {
+      const res = await fetch('/api/ads/create', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Accept': 'text/event-stream' },
         body: JSON.stringify({
           ...payload,
           partialImages: payload.partialImages ?? 2,

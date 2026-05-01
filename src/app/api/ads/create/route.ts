@@ -1,38 +1,49 @@
+/**
+ * /api/ads/create — UNIFIED endpoint
+ *
+ * Two modes based on Accept header:
+ *   - Accept: text/event-stream → SSE with partials (live generation UX)
+ *   - Otherwise → JSON response (tool calling, batch generation)
+ *
+ * Both modes share the SAME pipeline logic.
+ */
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
-import { createSupabaseServerClient } from '@/lib/supabase/server';
-import { buildAdVisualPrompt, type AdPreset } from '@/lib/ads/visual-prompt';
 import { waitUntil } from '@vercel/functions';
+import { createSupabaseServerClient } from '@/lib/supabase/server';
+import { createSupabaseServiceClient } from '@/lib/supabase/service';
+import { buildAdVisualPrompt, type AdPreset } from '@/lib/ads/visual-prompt';
+import { streamGenerateGptImage } from '@/features/creative-studio/server/gpt-image-client';
 
 export const runtime = 'nodejs';
 export const maxDuration = 300;
+export const dynamic = 'force-dynamic';
 
-const PresetEnum = z.enum(['luxury-minimal', 'luxury-editorial', 'aggressive-bold', 'aggressive-sport', 'aggressive', 'clean-conversion', 'product-demo', 'tech-futuristic', 'storytelling-warm']);
+const PresetEnum = z.enum([
+  'luxury-minimal', 'luxury-editorial',
+  'aggressive-bold', 'aggressive-sport', 'aggressive',
+  'clean-conversion', 'product-demo',
+  'tech-futuristic', 'storytelling-warm',
+]);
 const AspectEnum = z.enum(['9:16', '1:1', '4:5', '16:9']);
 
 const BodySchema = z.object({
   userPrompt: z.string().min(1).max(2000),
-  images: z
-    .array(
-      z.object({
-        base64: z.string().min(1),
-        mimeType: z.string().default('image/png'),
-      }),
-    )
-    .max(5)
-    .optional(),
+  images: z.array(z.object({
+    base64: z.string().min(1),
+    mimeType: z.string().default('image/png'),
+  })).max(5).optional(),
   logoUrl: z.string().url().optional(),
-  brandContext: z
-    .object({
-      brand_name: z.string().optional(),
-      description: z.string().optional(),
-      vibe: z.string().optional(),
-    })
-    .optional(),
+  brandContext: z.object({
+    brand_name: z.string().optional(),
+    description: z.string().optional(),
+    vibe: z.string().optional(),
+  }).optional(),
   formats: z.array(AspectEnum).max(4).optional(),
-  enableAudit: z.boolean().default(true),
   presetOverride: PresetEnum.optional(),
   aspectRatioOverride: AspectEnum.optional(),
+  enableAudit: z.boolean().default(true),
+  partialImages: z.number().int().min(0).max(3).default(2),
 });
 
 interface PipelineStage {
@@ -50,16 +61,40 @@ interface FormatOutput {
   error?: string;
 }
 
+type BriefResponse = {
+  objective: string;
+  audience: string;
+  pain: string;
+  concept: string;
+  preset: AdPreset;
+  aspectRatio: string;
+  copy: { headline: string; subheadline: string; cta: string };
+  visualPrompt: string;
+  microCopy?: string;
+  featureIcons?: Array<{ icon: string; label: string }>;
+  trustSignals?: string[];
+  composition?: string;
+  typography?: string;
+  colorStrategy?: string;
+  framework?: 'before-after' | 'social-proof' | 'problem-agitation' | 'lifestyle' | 'direct-offer' | 'demo' | 'awareness';
+  alternativeCopies?: Array<{ headline: string; subheadline: string; cta: string }>;
+};
+
 export async function POST(req: NextRequest) {
   const ssr = await createSupabaseServerClient();
   const { data: { user } } = await ssr.auth.getUser();
-  if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  if (!user) {
+    return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  }
 
   const parsed = BodySchema.safeParse(await req.json().catch(() => ({})));
   if (!parsed.success) {
     return NextResponse.json({ error: 'Invalid body', details: parsed.error.flatten() }, { status: 400 });
   }
   const body = parsed.data;
+
+  const acceptHeader = req.headers.get('accept') ?? '';
+  const wantsStream = acceptHeader.includes('text/event-stream');
 
   const origin = new URL(req.url).origin;
   const cookieHeader = req.headers.get('cookie') ?? '';
@@ -77,6 +112,181 @@ export async function POST(req: NextRequest) {
     return res.json() as Promise<T>;
   }
 
+  // ═══════════════════════════════════════════════
+  // STREAMING MODE (Accept: text/event-stream)
+  // ═══════════════════════════════════════════════
+  if (wantsStream) {
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream({
+      async start(controller) {
+        const send = (event: string, data: unknown) => {
+          try {
+            controller.enqueue(encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`));
+          } catch {
+            // Connection closed
+          }
+        };
+
+        try {
+          send('stage', { stage: 'analysis', message: 'Analizando tu petición' });
+
+          // Paralelizamos analyze + brief
+          const [assetAnalysis, brief] = await Promise.all([
+            body.images && body.images.length > 0
+              ? internalPost('/api/ads/analyze-assets', { images: body.images }).catch(() => undefined)
+              : Promise.resolve(undefined),
+            internalPost<BriefResponse>('/api/ads/brief', {
+              userPrompt: body.userPrompt,
+              brandContext: body.brandContext,
+            }),
+          ]);
+
+          send('stage', { stage: 'brief', message: 'Definiendo el concepto creativo' });
+
+          const effectivePreset = (body.presetOverride ?? brief.preset) as AdPreset;
+          const effectiveAspectRatio = body.aspectRatioOverride ?? brief.aspectRatio;
+          const formats = body.formats && body.formats.length > 0 ? body.formats : [effectiveAspectRatio];
+
+          // Filter logos out
+          type AssetAnalysisShape = { assets?: Array<{ type?: string }> };
+          const _analysis = assetAnalysis as AssetAnalysisShape | undefined;
+          const refImages: Array<{ data: string; mimeType: string }> = [];
+          if (body.images && body.images.length > 0) {
+            body.images.forEach((img, i) => {
+              const detected = _analysis?.assets?.[i]?.type;
+              if (detected !== 'logo') {
+                refImages.push({ data: img.base64, mimeType: img.mimeType });
+              }
+            });
+          }
+          const hasReference = refImages.length > 0;
+          console.log('[ads/create:stream] images received:', body.images?.length ?? 0, '| refs (no logos):', refImages.length);
+
+          send('stage', { stage: 'prompt', message: 'Eligiendo dirección creativa' });
+
+          const { prompt: visualPrompt } = buildAdVisualPrompt({
+            preset: effectivePreset,
+            aspectRatio: effectiveAspectRatio as '9:16' | '1:1' | '4:5' | '16:9',
+            copy: brief.copy,
+            microCopy: brief.microCopy,
+            featureIcons: brief.featureIcons,
+            trustSignals: brief.trustSignals,
+            hasReference,
+            brandName: body.brandContext?.brand_name,
+            composition: brief.composition,
+            typography: brief.typography,
+            colorStrategy: brief.colorStrategy,
+            framework: brief.framework,
+          });
+
+          send('stage', { stage: 'image', message: 'Generando el visual' });
+
+          const refUrls = refImages.map((r) => `data:${r.mimeType};base64,${r.data}`);
+
+          let finalB64: string | undefined;
+          let finalFormat = 'jpeg';
+
+          for await (const evt of streamGenerateGptImage({
+            prompt: visualPrompt,
+            aspectRatio: effectiveAspectRatio === '16:9' ? '1:1' : (effectiveAspectRatio as '1:1' | '9:16' | '4:5'),
+            quality: 'medium',
+            referenceUrls: refUrls.length > 0 ? refUrls : undefined,
+            partialImages: body.partialImages,
+          })) {
+            if (evt.type === 'partial' && evt.b64) {
+              send('partial', { index: evt.partialIndex, b64: evt.b64, format: evt.format });
+            } else if (evt.type === 'completed' && evt.b64) {
+              finalB64 = evt.b64;
+              finalFormat = evt.format ?? 'jpeg';
+              send('stage', { stage: 'finalize', message: 'Subiendo a tu workspace' });
+            } else if (evt.type === 'error') {
+              send('error', { message: evt.error ?? 'Streaming failed' });
+              controller.close();
+              return;
+            }
+          }
+
+          if (!finalB64) {
+            send('error', { message: 'No se generó imagen final' });
+            controller.close();
+            return;
+          }
+
+          // Upload final
+          const svc = createSupabaseServiceClient();
+          const fileName = `ads/${user.id}/${Date.now()}.${finalFormat}`;
+          const buf = Buffer.from(finalB64, 'base64');
+          const { error: upErr } = await svc.storage
+            .from('generated-images')
+            .upload(fileName, new Uint8Array(buf), {
+              contentType: `image/${finalFormat}`,
+              upsert: false,
+            });
+          if (upErr) {
+            send('error', { message: `Storage upload failed: ${upErr.message}` });
+            controller.close();
+            return;
+          }
+
+          const { data: pub } = svc.storage.from('generated-images').getPublicUrl(fileName);
+          const finalUrl = pub.publicUrl;
+
+          send('result', {
+            url: finalUrl,
+            format: formats[0],
+            brief: {
+              ...brief,
+              preset: effectivePreset,
+              aspectRatio: effectiveAspectRatio,
+            },
+          });
+
+          // Audit en background (NO bloquea respuesta SSE)
+          if (body.enableAudit) {
+            waitUntil((async () => {
+              try {
+                await fetch(`${origin}/api/ads/audit`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json', cookie: cookieHeader },
+                  body: JSON.stringify({
+                    adImageUrl: finalUrl,
+                    brief: {
+                      copy: brief.copy,
+                      preset: effectivePreset,
+                      aspectRatio: formats[0],
+                    },
+                  }),
+                });
+              } catch (e) {
+                console.warn('[ads/create:stream] audit (bg) failed:', e);
+              }
+            })());
+          }
+
+          send('done', { ok: true });
+          controller.close();
+        } catch (err) {
+          const message = err instanceof Error ? err.message : 'Pipeline failed';
+          console.error('[ads/create:stream] error:', err);
+          send('error', { message });
+          controller.close();
+        }
+      },
+    });
+
+    return new Response(stream, {
+      headers: {
+        'Content-Type': 'text/event-stream; charset=utf-8',
+        'Cache-Control': 'no-cache, no-transform',
+        'Connection': 'keep-alive',
+        'X-Accel-Buffering': 'no',
+      },
+    });
+  }
+
+  // ═══════════════════════════════════════════════
+  // JSON MODE (default — tool calling, batch)
+  // ═══════════════════════════════════════════════
   const stages: PipelineStage[] = [];
   const totalStart = Date.now();
 
@@ -94,25 +304,12 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    // ── CAPA 1: Analyze assets (optional)
     let assetAnalysis: unknown = undefined;
     if (body.images && body.images.length > 0) {
       assetAnalysis = await runStage('analyze-assets', () =>
         internalPost('/api/ads/analyze-assets', { images: body.images }),
       );
     }
-
-    // ── CAPA 2: Generate brief
-    type BriefResponse = {
-      objective: string;
-      audience: string;
-      pain: string;
-      concept: string;
-      preset: AdPreset;
-      aspectRatio: string;
-      copy: { headline: string; subheadline: string; cta: string };
-      visualPrompt: string;
-    };
 
     const brief = await runStage('brief', () =>
       internalPost<BriefResponse>('/api/ads/brief', {
@@ -122,11 +319,9 @@ export async function POST(req: NextRequest) {
       }),
     );
 
-    // Apply overrides if provided
     const effectivePreset = (body.presetOverride ?? brief.preset) as AdPreset;
     const effectiveAspectRatio = body.aspectRatioOverride ?? brief.aspectRatio;
 
-    // ── Filtrado por tipo (CAPA 1): logos NO van como reference (van a overlay)
     type AssetAnalysisShape = { assets?: Array<{ type?: string }> };
     const _analysis = assetAnalysis as AssetAnalysisShape | undefined;
     const _refImages: Array<{ data: string; mimeType: string }> = [];
@@ -139,41 +334,24 @@ export async function POST(req: NextRequest) {
       });
     }
     const _hasReference = _refImages.length > 0;
-    console.log('[ads/create] images received:', body.images?.length ?? 0, '| refs (no logos):', _refImages.length);
+    console.log('[ads/create:json] images received:', body.images?.length ?? 0, '| refs (no logos):', _refImages.length);
 
-    // ── CAPA 3: Mega-Prompt Composer (todo dentro de la imagen, sin Satori)
-    type ExtendedBrief = typeof brief & {
-      microCopy?: string;
-      featureIcons?: Array<{ icon: string; label: string }>;
-      trustSignals?: string[];
-      composition?: string;
-      typography?: string;
-      colorStrategy?: string;
-      framework?: 'before-after' | 'social-proof' | 'problem-agitation' | 'lifestyle' | 'direct-offer' | 'demo' | 'awareness';
-    };
-    const eb = brief as ExtendedBrief;
     const { prompt: visualPrompt } = buildAdVisualPrompt({
       preset: effectivePreset,
       aspectRatio: effectiveAspectRatio as '9:16' | '1:1' | '4:5' | '16:9',
       copy: brief.copy,
-      microCopy: eb.microCopy,
-      featureIcons: eb.featureIcons,
-      trustSignals: eb.trustSignals,
+      microCopy: brief.microCopy,
+      featureIcons: brief.featureIcons,
+      trustSignals: brief.trustSignals,
       hasReference: _hasReference,
       brandName: body.brandContext?.brand_name,
-      composition: eb.composition,
-      typography: eb.typography,
-      colorStrategy: eb.colorStrategy,
-      framework: eb.framework,
+      composition: brief.composition,
+      typography: brief.typography,
+      colorStrategy: brief.colorStrategy,
+      framework: brief.framework,
     });
-    console.log('[ads/create] mega-prompt length:', visualPrompt.length, '| preset:', effectivePreset);
 
-    // ── Image generation
-    type ImageGenResponse = {
-      id: string;
-      url?: string;
-      urls?: string[];
-    };
+    type ImageGenResponse = { id: string; url?: string; urls?: string[] };
 
     const imageGen = await runStage('image-gen', () =>
       internalPost<ImageGenResponse>('/api/images/generate', {
@@ -188,23 +366,18 @@ export async function POST(req: NextRequest) {
     const baseImageUrl = imageGen.url ?? imageGen.urls?.[0];
     if (!baseImageUrl) throw new Error('No image URL returned from image generation');
 
-    // ── CAPA 4: Skipped — gpt-image-1 already rendered the complete ad with mega-prompt.
-    // The image returned from /api/images/generate IS the final ad (text, CTA, icons, all baked in).
-    // No need for Satori overlay composition.
     const formats = body.formats && body.formats.length > 0
       ? body.formats
       : [effectiveAspectRatio as '9:16' | '1:1' | '4:5' | '16:9'];
 
     const formatOutputs: FormatOutput[] = [];
 
-    // Use the gpt-image-1 output directly as the primary format
     formatOutputs.push({
       format: formats[0],
       url: baseImageUrl,
       storagePath: undefined,
     });
 
-    // For additional formats, regenerate via gpt-image-1 with the same mega-prompt at different aspect
     if (formats.length > 1) {
       type ImageGenResp = { url?: string; urls?: string[] };
       const extraStart = Date.now();
@@ -214,15 +387,15 @@ export async function POST(req: NextRequest) {
             preset: effectivePreset,
             aspectRatio: fmt as '9:16' | '1:1' | '4:5' | '16:9',
             copy: brief.copy,
-            microCopy: eb.microCopy,
-            featureIcons: eb.featureIcons,
-            trustSignals: eb.trustSignals,
+            microCopy: brief.microCopy,
+            featureIcons: brief.featureIcons,
+            trustSignals: brief.trustSignals,
             hasReference: _hasReference,
             brandName: body.brandContext?.brand_name,
-            composition: eb.composition,
-            typography: eb.typography,
-            colorStrategy: eb.colorStrategy,
-            framework: eb.framework,
+            composition: brief.composition,
+            typography: brief.typography,
+            colorStrategy: brief.colorStrategy,
+            framework: brief.framework,
           });
           const r = await internalPost<ImageGenResp>('/api/images/generate', {
             prompt: extraPrompt,
@@ -241,8 +414,7 @@ export async function POST(req: NextRequest) {
       stages.push({ stage: 'extra-formats', ok: true, latencyMs: Date.now() - extraStart });
     }
 
-    // ── CAPA 7: Audit MOVIDO a after() — corre en background, no bloquea respuesta
-    // El usuario recibe la imagen YA. El audit se persiste para analítica posterior.
+    // Audit en background con waitUntil
     if (body.enableAudit) {
       waitUntil((async () => {
         try {
@@ -258,16 +430,15 @@ export async function POST(req: NextRequest) {
                 },
               });
             } catch (err) {
-              console.warn('[ads/create] audit failed (background):', err instanceof Error ? err.message : err);
+              console.warn('[ads/create:json] audit (bg) failed:', err instanceof Error ? err.message : err);
             }
           });
           await Promise.all(auditPromises);
-          console.log('[ads/create] audit completed in background');
         } catch (e) {
-          console.warn('[ads/create] background audit error:', e);
+          console.warn('[ads/create:json] background audit error:', e);
         }
       })());
-      stages.push({ stage: 'audit', ok: true, latencyMs: 0 }); // 0 porque ya no bloquea
+      stages.push({ stage: 'audit', ok: true, latencyMs: 0 });
     }
 
     return NextResponse.json({
@@ -283,7 +454,7 @@ export async function POST(req: NextRequest) {
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Pipeline failed';
-    console.error('[ads/create] failed:', err);
+    console.error('[ads/create:json] failed:', err);
     return NextResponse.json(
       {
         error: message,
