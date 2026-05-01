@@ -1,5 +1,5 @@
 // Operator AI Service Worker v5 — Push + Background + Cache
-const CACHE_NAME = 'operator-v5';
+const CACHE_NAME = 'operator-v6';
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -69,6 +69,9 @@ self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
 
   event.respondWith(
-    caches.match(event.request).then((cached) => cached || fetch(event.request).catch(() => cached))
+    caches.match(event.request).then((cached) => {
+      if (cached) return cached;
+      return fetch(event.request).catch(() => new Response('', { status: 503 }));
+    })
   );
 });
