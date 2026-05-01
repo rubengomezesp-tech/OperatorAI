@@ -149,7 +149,7 @@ export async function POST(req: NextRequest) {
             return await generateWithGptImage({
               prompt: fullPrompt,
               aspectRatio: gptAspect,
-              quality: (process.env.GPT_IMAGE_QUALITY as 'low'|'medium'|'high'|'auto'|undefined) ?? 'high',
+              quality: (process.env.GPT_IMAGE_QUALITY as 'low'|'medium'|'high'|'auto'|undefined) ?? 'medium',
               referenceUrls: allRefUrls.length > 0 ? allRefUrls : undefined,
               mask: body.mask,
               model,
