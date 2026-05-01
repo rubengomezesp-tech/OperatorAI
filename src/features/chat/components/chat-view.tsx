@@ -155,7 +155,9 @@ export function ChatView({ initialConversationId, initialMessages = [], initialT
   const handleSend = useCallback(
     (text: string, attachment?: { base64: string; mimeType: string; fileName: string }) => {
       const isAd = /\b(publicidad|anuncio|advertisement|advert)\b/i.test(text);
+      console.log('[chat] handleSend text:', text, 'isAd:', isAd, 'attachment:', !!attachment);
       if (isAd) {
+        console.log('[chat] → routing to AdLiveGenerator');
         setAdStreamPayload({
           userPrompt: text,
           images: attachment ? [{ base64: attachment.base64, mimeType: attachment.mimeType }] : undefined,
