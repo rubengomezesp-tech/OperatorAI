@@ -14,7 +14,6 @@ import { detectsCampaignGenerationIntent } from '@/lib/agents/action-detector';
 import { useChatStore, MODEL_OPTIONS } from '../stores/chat-store';
 import type { UiMessage } from '@/lib/chat/types';
 import { OperatorBg } from '@/components/layout/operator-bg';
-import { AdLiveGenerator } from './ad-live-generator';
 import type { ToolPart } from './tool-result';
 
 interface Props {
@@ -146,24 +145,9 @@ export function ChatView({ initialConversationId, initialMessages = [], initialT
     [conversationId, providerForModel, selectedModel, send, router],
   );
 
-  // Streaming de ads (bypass chat normal)
-  const [adStreamPayload, setAdStreamPayload] = useState<null | {
-    userPrompt: string;
-    images?: Array<{ base64: string; mimeType: string }>;
-  }>(null);
-
   const handleSend = useCallback(
-    (text: string, attachment?: { base64: string; mimeType: string; fileName: string }) => {
-      const isAd = /\b(publicidad|anuncio|advertisement|advert)\b/i.test(text);
-      if (isAd) {
-        setAdStreamPayload({
-          userPrompt: text,
-          images: attachment ? [{ base64: attachment.base64, mimeType: attachment.mimeType }] : undefined,
-        });
-        return;
-      }
-      streamInto(text, null, attachment);
-    },
+    (text: string, attachment?: { base64: string; mimeType: string; fileName: string }) =>
+      streamInto(text, null, attachment),
     [streamInto],
   );
 
@@ -244,18 +228,6 @@ export function ChatView({ initialConversationId, initialMessages = [], initialT
           )}
         </div>
         <div className="flex-shrink-0 border-t border-border bg-bg/80 backdrop-blur-md">
-          {adStreamPayload && (
-            <div className="px-4 pt-3">
-              <AdLiveGenerator
-                payload={adStreamPayload}
-                onComplete={(url) => {
-                  setAdStreamPayload(null);
-                  streamInto(`![Ad](${url})`, null);
-                }}
-                onCancel={() => setAdStreamPayload(null)}
-              />
-            </div>
-          )}
           <Composer onSend={handleSend} onCancel={cancel} loading={loading} />
         </div>
       </div>
