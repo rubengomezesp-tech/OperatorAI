@@ -312,7 +312,8 @@ export async function POST(req: NextRequest) {
         { role: 'system', content: SYSTEM_PROMPT },
         { role: 'user', content: ctx.join('\n') },
       ],
-      temperature: 0.9, // high creativity
+      temperature: 0.9,
+      response_format: { type: 'json_object' }, // forzar JSON estricto
     });
 
     const raw = response.choices[0]?.message?.content ?? '';
