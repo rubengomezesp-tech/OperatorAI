@@ -1,4 +1,4 @@
-import { NextResponse, type NextRequest } from 'next/server';
+import { NextResponse, type NextRequest, after } from 'next/server';
 import { z } from 'zod';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { buildAdVisualPrompt, type AdPreset } from '@/lib/ads/visual-prompt';
@@ -240,27 +240,33 @@ export async function POST(req: NextRequest) {
       stages.push({ stage: 'extra-formats', ok: true, latencyMs: Date.now() - extraStart });
     }
 
-    // ── CAPA 7: Audit (per format, parallel)
+    // ── CAPA 7: Audit MOVIDO a after() — corre en background, no bloquea respuesta
+    // El usuario recibe la imagen YA. El audit se persiste para analítica posterior.
     if (body.enableAudit) {
-      const auditStart = Date.now();
-      const auditPromises = formatOutputs.map(async (output) => {
-        if (!output.url) return;
+      after(async () => {
         try {
-          const audit = await internalPost('/api/ads/audit', {
-            adImageUrl: output.url,
-            brief: {
-              copy: brief.copy,
-              preset: effectivePreset,
-              aspectRatio: output.format,
-            },
+          const auditPromises = formatOutputs.map(async (output) => {
+            if (!output.url) return;
+            try {
+              await internalPost('/api/ads/audit', {
+                adImageUrl: output.url,
+                brief: {
+                  copy: brief.copy,
+                  preset: effectivePreset,
+                  aspectRatio: output.format,
+                },
+              });
+            } catch (err) {
+              console.warn('[ads/create] audit failed (background):', err instanceof Error ? err.message : err);
+            }
           });
-          output.audit = audit;
-        } catch (err) {
-          output.audit = { error: err instanceof Error ? err.message : 'Audit failed' };
+          await Promise.all(auditPromises);
+          console.log('[ads/create] audit completed in background');
+        } catch (e) {
+          console.warn('[ads/create] background audit error:', e);
         }
       });
-      await Promise.all(auditPromises);
-      stages.push({ stage: 'audit', ok: true, latencyMs: Date.now() - auditStart });
+      stages.push({ stage: 'audit', ok: true, latencyMs: 0 }); // 0 porque ya no bloquea
     }
 
     return NextResponse.json({

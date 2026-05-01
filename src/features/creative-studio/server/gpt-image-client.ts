@@ -214,6 +214,8 @@ export async function generateWithGptImage(
           n: 1,
           size,
           quality,
+          output_format: 'jpeg',
+          output_compression: 85,
           output_format: 'png',
         }),
         signal: controller.signal,
