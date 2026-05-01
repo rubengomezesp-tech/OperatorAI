@@ -126,6 +126,7 @@ export async function POST(req: NextRequest) {
         const effectiveAspectRatio = body.aspectRatioOverride ?? brief.aspectRatio;
         const formats = body.formats && body.formats.length > 0 ? body.formats : [effectiveAspectRatio];
 
+        console.log('[create-stream] body.images:', body.images?.length ?? 0, '| analysis assets:', (assetAnalysis as { assets?: unknown[] } | undefined)?.assets?.length ?? 0);
         // Filter logos out, keep other refs
         type AssetAnalysisShape = { assets?: Array<{ type?: string }> };
         const _analysis = assetAnalysis as AssetAnalysisShape | undefined;
