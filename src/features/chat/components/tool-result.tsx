@@ -584,7 +584,7 @@ function ImageEditModal({ open, onClose, imageUrl }: { open: boolean; onClose: (
                   'max-w-full max-h-full rounded-2xl shadow-2xl transition-opacity block',
                   generating && 'opacity-40',
                 )}
-                style={{ maxHeight: 'calc(100vh - 240px)' }}
+                style={{ maxHeight: 'calc(var(--vvh) - 240px)' }}
                 crossOrigin="anonymous"
               />
 

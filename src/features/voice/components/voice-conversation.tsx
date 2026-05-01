@@ -156,7 +156,7 @@ export function VoiceConversation() {
   const isActive = phase !== 'idle';
 
   return (
-    <div className="min-h-[calc(100vh-56px)] flex flex-col">
+    <div className="min-h-[calc(var(--vvh)-56px)] flex flex-col">
       <div className="px-6 lg:px-10 pt-6 pb-2 flex items-center justify-between">
         <div>
           <div className="text-[11px] uppercase tracking-[0.18em] text-gold mb-0.5">Voice mode</div>

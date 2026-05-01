@@ -119,6 +119,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             `,
           }}
         />
+              {/* Mobile keyboard fix: track visible viewport height */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){function setVVH(){var h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight;document.documentElement.style.setProperty('--vvh',Math.round(h)+'px');}setVVH();if(window.visualViewport){window.visualViewport.addEventListener('resize',setVVH);window.visualViewport.addEventListener('scroll',setVVH);}window.addEventListener('resize',setVVH);window.addEventListener('orientationchange',setVVH);})();`,
+          }}
+        />
       </body>
     </html>
   );

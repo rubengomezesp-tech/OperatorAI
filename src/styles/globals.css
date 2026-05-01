@@ -300,3 +300,21 @@ html, body {
     transition-duration: 200ms;
   }
 }
+
+/* ========================================== */
+/* MOBILE VIEWPORT FIX (keyboard-safe layouts) */
+/* ========================================== */
+
+:root {
+  --vvh: 100vh;
+}
+
+.h-vvh { height: var(--vvh); }
+.min-h-vvh { min-height: var(--vvh); }
+.max-h-vvh { max-height: var(--vvh); }
+
+.sticky-bottom-safe {
+  position: sticky;
+  bottom: 0;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
