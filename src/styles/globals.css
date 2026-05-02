@@ -317,4 +317,18 @@ html, body {
   position: sticky;
   bottom: 0;
   padding-bottom: env(safe-area-inset-bottom, 0px);
+  z-index: 50;
+}
+
+/* Mobile: composer fijo en el bottom del visual viewport
+   El input se queda pegado al teclado cuando aparece. */
+@media (max-width: 768px) {
+  .sticky-bottom-safe {
+    position: -webkit-sticky;
+    position: sticky;
+    bottom: 0;
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+    will-change: transform;
+  }
 }
