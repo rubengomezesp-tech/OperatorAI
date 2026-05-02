@@ -150,53 +150,20 @@ export function ChatView({ initialConversationId, initialMessages = [], initialT
   const [adStreamPayload, setAdStreamPayload] = useState<null | {
     userPrompt: string;
     images?: Array<{ base64: string; mimeType: string }>;
-    logoUrl?: string;
-    brandContext?: {
-      brand_name?: string;
-      description?: string;
-      vibe?: string;
-    };
   }>(null);
 
-  const fetchBrandPayload = async () => {
-    try {
-      const res = await fetch('/api/brand/get', { cache: 'no-store' });
-      const json = await res.json();
-      const bp = json?.data ?? json?.brandProfile ?? json;
-
-      return {
-        logoUrl: bp?.logo_url || bp?.logoUrl || undefined,
-        brandContext: {
-          brand_name: bp?.name || bp?.brand_name || 'Operator AI',
-          description: bp?.description || '',
-          vibe: bp?.vibe || bp?.tone || '',
-        },
-      };
-    } catch (e) {
-      console.error('[chat] brand profile fetch failed', e);
-      return {};
-    }
-  };
-
   const handleSend = useCallback(
-    async (text: string, attachment?: { base64: string; mimeType: string; fileName: string }) => {
+    (text: string, attachment?: { base64: string; mimeType: string; fileName: string }) => {
       const isAd = /\b(publicidad|anuncio|advertisement|advert)\b/i.test(text);
       console.log('[chat] handleSend text:', text, 'isAd:', isAd, 'attachment:', !!attachment);
-
       if (isAd) {
         console.log('[chat] → routing to AdLiveGenerator');
-
-        const brandPayload = await fetchBrandPayload();
-
         setAdStreamPayload({
           userPrompt: text,
           images: attachment ? [{ base64: attachment.base64, mimeType: attachment.mimeType }] : undefined,
-          ...brandPayload,
         });
-
         return;
       }
-
       streamInto(text, null, attachment);
     },
     [streamInto],

@@ -14,6 +14,7 @@ import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { createSupabaseServiceClient } from '@/lib/supabase/service';
 import { buildAdVisualPrompt, type AdPreset } from '@/lib/ads/visual-prompt';
 import { streamGenerateGptImage } from '@/features/creative-studio/server/gpt-image-client';
+import { resolveOrgContext } from '@/features/chat/server/resolve-org-context';
 
 export const runtime = 'nodejs';
 export const maxDuration = 300;
@@ -96,6 +97,38 @@ export async function POST(req: NextRequest) {
   const acceptHeader = req.headers.get('accept') ?? '';
   const wantsStream = acceptHeader.includes('text/event-stream');
 
+  // ── Auto-cargar brand_profile si no viene en el body ──
+  // Esto asegura que el brief SIEMPRE tenga contexto de marca real,
+  // independientemente del cliente (chat tools, AdLiveGenerator, etc.)
+  let resolvedBrandContext = body.brandContext;
+  let resolvedLogoUrl = body.logoUrl;
+  if (!resolvedBrandContext || !resolvedBrandContext.brand_name) {
+    try {
+      const svc = createSupabaseServiceClient();
+      const { orgId } = await resolveOrgContext(svc, user.id);
+      if (orgId) {
+        const { data: bp } = await svc.from('brand_profile')
+          .select('brand_name, description, vibe, logo_url')
+          .eq('org_id', orgId)
+          .maybeSingle();
+        if (bp) {
+          const b = bp as Record<string, unknown>;
+          resolvedBrandContext = {
+            brand_name: b.brand_name ? String(b.brand_name) : undefined,
+            description: b.description ? String(b.description) : undefined,
+            vibe: b.vibe ? String(b.vibe) : undefined,
+          };
+          if (!resolvedLogoUrl && b.logo_url) {
+            resolvedLogoUrl = String(b.logo_url);
+          }
+          console.log('[ads/create] auto-loaded brand_profile:', resolvedBrandContext.brand_name ?? 'unnamed');
+        }
+      }
+    } catch (e) {
+      console.warn('[ads/create] auto-load brand_profile failed (non-fatal):', e);
+    }
+  }
+
   const origin = new URL(req.url).origin;
   const cookieHeader = req.headers.get('cookie') ?? '';
 
@@ -137,7 +170,7 @@ export async function POST(req: NextRequest) {
               : Promise.resolve(undefined),
             internalPost<BriefResponse>('/api/ads/brief', {
               userPrompt: body.userPrompt,
-              brandContext: body.brandContext,
+              brandContext: resolvedBrandContext,
             }),
           ]);
 
@@ -172,7 +205,7 @@ export async function POST(req: NextRequest) {
             featureIcons: brief.featureIcons,
             trustSignals: brief.trustSignals,
             hasReference,
-            brandName: body.brandContext?.brand_name,
+            brandName: resolvedBrandContext?.brand_name,
             composition: brief.composition,
             typography: brief.typography,
             colorStrategy: brief.colorStrategy,
@@ -315,7 +348,7 @@ export async function POST(req: NextRequest) {
       internalPost<BriefResponse>('/api/ads/brief', {
         userPrompt: body.userPrompt,
         assetAnalysis,
-        brandContext: body.brandContext,
+        brandContext: resolvedBrandContext,
       }),
     );
 
@@ -344,7 +377,7 @@ export async function POST(req: NextRequest) {
       featureIcons: brief.featureIcons,
       trustSignals: brief.trustSignals,
       hasReference: _hasReference,
-      brandName: body.brandContext?.brand_name,
+      brandName: resolvedBrandContext?.brand_name,
       composition: brief.composition,
       typography: brief.typography,
       colorStrategy: brief.colorStrategy,
@@ -391,7 +424,7 @@ export async function POST(req: NextRequest) {
             featureIcons: brief.featureIcons,
             trustSignals: brief.trustSignals,
             hasReference: _hasReference,
-            brandName: body.brandContext?.brand_name,
+            brandName: resolvedBrandContext?.brand_name,
             composition: brief.composition,
             typography: brief.typography,
             colorStrategy: brief.colorStrategy,
