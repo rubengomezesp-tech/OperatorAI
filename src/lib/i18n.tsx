@@ -574,7 +574,7 @@ export function LanguageToggle() {
       title={locale === 'en' ? 'Cambiar a español' : 'Switch to English'}
       aria-label={locale === 'en' ? 'Cambiar a español' : 'Switch to English'}
     >
-      {locale === 'en' ? '🇪🇸 ES' : '🇬🇧 EN'}
+      {locale === 'es' ? '🇪🇸 ES' : '🇬🇧 EN'}
     </button>
   );
 }
