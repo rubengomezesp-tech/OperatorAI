@@ -278,7 +278,7 @@ export function ChatView({ initialConversationId, initialMessages = [], initialT
             <MessageList messages={messages} onRegenerate={handleRegenerate} regenDisabled={loading}  userAvatarUrl={currentUserAvatarUrl} userInitial={userInitial} />
           )}
         </div>
-        <div className="flex-shrink-0 border-t border-border bg-bg/80 backdrop-blur-md">
+        <div className="flex-shrink-0 border-t border-border bg-bg/95 backdrop-blur-md sticky-bottom-safe">
           {adStreamPayload && (
             <div className="px-4 pt-3">
               <AdLiveGenerator
