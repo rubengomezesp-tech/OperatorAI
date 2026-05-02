@@ -9,7 +9,7 @@ export default async function AdminPage() {
   const ssr = await createSupabaseServerClient();
   const { data: { user } } = await ssr.auth.getUser();
   if (!user) redirect('/login');
-  if (!isAdmin(user.email ?? '')) redirect('/dashboard');
+  if (!isAdmin(user.email ?? '')) redirect('/chat');
 
   return <AdminDashboard />;
 }

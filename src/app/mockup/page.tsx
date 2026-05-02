@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 
 export default function MockupPage() {
   if (process.env.MOCKUP_ENGINE_ENABLED !== 'true') {
-    redirect('/dashboard');
+    redirect('/chat');
   }
   return <MockupStudioView />;
 }
