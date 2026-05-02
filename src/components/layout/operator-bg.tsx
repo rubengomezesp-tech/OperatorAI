@@ -55,7 +55,7 @@ export function OperatorBg({ variant = 'chat', className }: Props) {
             'h-full w-auto max-w-none object-contain object-bottom',
             isLanding
               ? 'opacity-40'
-              : 'opacity-18 blur-[1px]',
+              : 'opacity-10 blur-[2px]',
           )}
           style={{ transform: 'translateY(8%)' }}
         />
@@ -67,7 +67,7 @@ export function OperatorBg({ variant = 'chat', className }: Props) {
           'absolute inset-0',
           isLanding
             ? 'bg-gradient-to-t from-bg/95 via-bg/40 to-bg/10'
-            : 'bg-gradient-to-t from-bg/90 via-bg/60 to-bg/40',
+            : 'bg-gradient-to-t from-bg/97 via-bg/85 to-bg/70',
         )}
       />
 
