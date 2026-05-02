@@ -67,9 +67,9 @@ export default function SignupPage() {
   }
 
   return (
-    <main className="min-h-screen flex bg-bg overflow-hidden">
+    <main className="min-h-vvh flex bg-bg">
       {/* Left: form */}
-      <div className="w-full lg:w-1/2 relative flex flex-col px-6 sm:px-12 py-8">
+      <div className="w-full lg:w-1/2 relative flex flex-col px-6 sm:px-12 py-8 pb-32">
         <div className="flex items-center justify-between mb-12">
           <Link href="/" className="text-[13.5px] text-fg-muted hover:text-fg transition-colors">
             {t('back')}
@@ -103,6 +103,7 @@ export default function SignupPage() {
               </label>
               <input
                 type="email"
+                autoComplete="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -117,6 +118,7 @@ export default function SignupPage() {
               </label>
               <input
                 type="password"
+                autoComplete="new-password"
                 required
                 minLength={8}
                 value={password}
