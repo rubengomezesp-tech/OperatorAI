@@ -1,5 +1,5 @@
 'use client';
-import { useState, useRef, useEffect, type KeyboardEvent, type ChangeEvent } from 'react';
+import { useState, useRef, useEffect, useMemo, type KeyboardEvent, type ChangeEvent } from 'react';
 import { ArrowUp, Square, Paperclip, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useI18n } from '@/lib/i18n';
@@ -19,9 +19,43 @@ interface Props {
   disabled?: boolean;
 }
 
+const ROTATING_PLACEHOLDERS = {
+  es: [
+    'Pídeme lo que necesites. Estrategia, anuncios, ideas...',
+    'Dame una idea. La convierto en un anuncio que vende.',
+    '¿Qué lanzamos hoy?',
+    'Habla. Yo me encargo del resto.',
+    'Sube una foto, dime el objetivo. Lo demás es mío.',
+    '¿Campaña, contenido, copy? Dime por dónde empezamos.',
+    'Cuéntame tu marca. Te devuelvo la estrategia.',
+    'Dispara. Yo construyo.',
+    'Una idea, un brief. ¿Qué creamos?',
+    'Convierto tus ideas en campañas que venden.',
+  ],
+  en: [
+    'Ask me anything. Strategy, ads, ideas...',
+    'Give me an idea. I turn it into an ad that sells.',
+    "What are we launching today?",
+    'Just talk. I handle the rest.',
+    'Drop a photo, tell me the goal. The rest is mine.',
+    'Campaign, content, copy? Tell me where to start.',
+    'Tell me about your brand. I bring the strategy.',
+    'Fire away. I build.',
+    'One idea, one brief. What do we create?',
+    'I turn your ideas into campaigns that convert.',
+  ],
+};
+
+function pickPlaceholder(locale: 'es' | 'en'): string {
+  const list = ROTATING_PLACEHOLDERS[locale === 'es' ? 'es' : 'en'];
+  return list[Math.floor(Math.random() * list.length)];
+}
+
+
 export function Composer({ onSend, onCancel, loading, disabled }: Props) {
   const { locale } = useI18n();
   const [value, setValue] = useState('');
+  const placeholderText = useMemo(() => pickPlaceholder(locale as 'es' | 'en'), [locale]);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const ref = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -132,7 +166,7 @@ export function Composer({ onSend, onCancel, loading, disabled }: Props) {
             value={value}
             onChange={(e) => setValue(e.target.value)}
             onKeyDown={onKeyDown}
-            placeholder={locale === "es" ? "Escribe tu idea, sube imagenes, pide lo que necesites..." : "Type your idea, upload images, ask for anything..."}
+            placeholder={placeholderText}
             rows={2}
             disabled={disabled}
             className={cn(
