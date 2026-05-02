@@ -21,6 +21,7 @@ const BodySchema = z.object({
     recommendedPreset: z.string().optional(),
     overallStyle: z.string().optional(),
   }).optional(),
+  creativeDirection: z.string().optional(),
   brandContext: z.object({
     brand_name: z.string().optional(),
     description: z.string().optional(),
@@ -305,6 +306,10 @@ export async function POST(req: NextRequest) {
   const client = new OpenAI({ apiKey: serverEnv.OPENAI_API_KEY });
 
   try {
+    if (parsed.data.creativeDirection) {
+      ctx.unshift(parsed.data.creativeDirection);
+    }
+
     const response = await client.chat.completions.create({
       model: 'gpt-4o',
       max_tokens: 2500,

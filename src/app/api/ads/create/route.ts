@@ -15,6 +15,12 @@ import { createSupabaseServiceClient } from '@/lib/supabase/service';
 import { buildAdVisualPrompt, type AdPreset } from '@/lib/ads/visual-prompt';
 import { streamGenerateGptImage } from '@/features/creative-studio/server/gpt-image-client';
 import { resolveOrgContext } from '@/features/chat/server/resolve-org-context';
+import {
+  generateCreativeDirection,
+  detectIntentHints,
+  detectVertical,
+  buildDirectionBlock,
+} from '@/lib/ads/creative-randomizer';
 
 export const runtime = 'nodejs';
 export const maxDuration = 300;
@@ -163,6 +169,13 @@ export async function POST(req: NextRequest) {
         try {
           send('stage', { stage: 'analysis', message: 'Analizando tu petición' });
 
+          // ── DNA randomizer: generar dirección creativa ANTES del brief ──
+          const intentHints = detectIntentHints(body.userPrompt);
+          const detectedVertical = detectVertical(body.userPrompt, resolvedBrandContext?.description);
+          const direction = generateCreativeDirection([], intentHints, detectedVertical);
+          const directionBlock = buildDirectionBlock(direction);
+          console.log('[ads/create:stream] direction:', direction.seedNote);
+
           // Paralelizamos analyze + brief
           const [assetAnalysis, brief] = await Promise.all([
             body.images && body.images.length > 0
@@ -171,6 +184,7 @@ export async function POST(req: NextRequest) {
             internalPost<BriefResponse>('/api/ads/brief', {
               userPrompt: body.userPrompt,
               brandContext: resolvedBrandContext,
+              creativeDirection: directionBlock,
             }),
           ]);
 
@@ -344,11 +358,19 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // ── DNA randomizer: generar dirección creativa ANTES del brief ──
+    const intentHints = detectIntentHints(body.userPrompt);
+    const detectedVertical = detectVertical(body.userPrompt, resolvedBrandContext?.description);
+    const direction = generateCreativeDirection([], intentHints, detectedVertical);
+    const directionBlock = buildDirectionBlock(direction);
+    console.log('[ads/create:json] direction:', direction.seedNote);
+
     const brief = await runStage('brief', () =>
       internalPost<BriefResponse>('/api/ads/brief', {
         userPrompt: body.userPrompt,
         assetAnalysis,
         brandContext: resolvedBrandContext,
+        creativeDirection: directionBlock,
       }),
     );
 
