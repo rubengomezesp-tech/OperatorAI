@@ -1,5 +1,5 @@
 // Operator AI Service Worker v5 — Push + Background + Cache
-const CACHE_NAME = 'operator-v6';
+const CACHE_NAME = 'operator-v7';
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -67,6 +67,15 @@ self.addEventListener('fetch', (event) => {
   if (event.request.url.includes('/api/')) return;
   // NO interceptar non-GET (POSTs, PUTs, etc.)
   if (event.request.method !== 'GET') return;
+  // NO interceptar navegación HTML (Safari iOS rompe con redirects server-side)
+  if (event.request.mode === 'navigate') return;
+  // NO interceptar peticiones que NO son same-origin
+  const url = new URL(event.request.url);
+  if (url.origin !== self.location.origin) return;
+
+  // Solo cachear assets estáticos (imágenes, fonts, JS, CSS)
+  const isStaticAsset = /\.(png|jpg|jpeg|webp|svg|ico|woff2?|ttf|js|css)$/i.test(url.pathname);
+  if (!isStaticAsset) return;
 
   event.respondWith(
     caches.match(event.request).then((cached) => {
