@@ -218,7 +218,7 @@ export function ChatView({ initialConversationId, initialMessages = [], initialT
   }
 
   return (
-    <div className="h-[100dvh] flex overflow-hidden relative">
+    <div className="h-vvh flex overflow-hidden relative">
       <OperatorBg variant="chat" />
       <div className="flex-1 flex flex-col min-w-0">
         <div className="flex items-center gap-2 px-4 py-2 border-b border-border">
