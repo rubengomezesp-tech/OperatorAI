@@ -122,7 +122,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               {/* Mobile keyboard fix: track visible viewport height */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){function setVVH(){var h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight;document.documentElement.style.setProperty('--vvh',Math.round(h)+'px');}setVVH();if(window.visualViewport){window.visualViewport.addEventListener('resize',setVVH);window.visualViewport.addEventListener('scroll',setVVH);}window.addEventListener('resize',setVVH);window.addEventListener('orientationchange',setVVH);})();`,
+            __html: `(function(){function setVV(){var vv=window.visualViewport;var h=(vv&&vv.height)||window.innerHeight;var offsetTop=(vv&&vv.offsetTop)||0;var keyboardH=Math.max(0,window.innerHeight-h-offsetTop);var d=document.documentElement.style;d.setProperty('--vvh',Math.round(h)+'px');d.setProperty('--kbh',Math.round(keyboardH)+'px');}setVV();if(window.visualViewport){window.visualViewport.addEventListener('resize',setVV);window.visualViewport.addEventListener('scroll',setVV);}window.addEventListener('resize',setVV);window.addEventListener('orientationchange',setVV);})();`,
           }}
         />
       </body>
