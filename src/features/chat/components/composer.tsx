@@ -1,5 +1,4 @@
 'use client';
-import { AgentPicker } from '@/features/agents/components/agent-picker';
 import { useState, useRef, useEffect, type KeyboardEvent, type ChangeEvent } from 'react';
 import { ArrowUp, Square, Paperclip, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -23,7 +22,6 @@ interface Props {
 export function Composer({ onSend, onCancel, loading, disabled }: Props) {
   const { locale } = useI18n();
   const [value, setValue] = useState('');
-  const [agentType, setAgentType] = useState<'creative' | 'brand' | 'copy' | 'research' | 'analyst' | 'social'>('creative');
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const ref = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -96,10 +94,6 @@ export function Composer({ onSend, onCancel, loading, disabled }: Props) {
   return (
     <div className="border-t border-border glass">
       <div className="w-full px-4 sm:px-6 lg:px-8 py-3 space-y-2.5">
-        <div className="flex items-center gap-2">
-          <AgentPicker value={agentType} onChange={setAgentType} />
-        </div>
-
         {/* Attachment preview */}
         {attachments.length > 0 && (
           <div className="flex flex-wrap gap-2 p-2 rounded-lg border border-border bg-surface-2">
@@ -201,8 +195,6 @@ export function Composer({ onSend, onCancel, loading, disabled }: Props) {
             )}
           </div>
         </div>
-        <div className="mt-2 text-[10.5px] uppercase tracking-[0.14em] text-fg-subtle text-center">
-Operator AI — Enter to send, Shift+Enter for new line        </div>
       </div>
     </div>
   );
