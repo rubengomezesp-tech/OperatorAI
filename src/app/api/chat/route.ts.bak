@@ -18,8 +18,6 @@ import { webSearch, formatWebContext, shouldSearch } from '@/features/web-browse
 import type { ChatMessage } from '@/lib/providers';
 import { buildCreativeAgentPrompt } from '@/lib/agents/creative-agent-prompt';
 import { detectsCampaignGenerationIntent, detectLocale } from '@/lib/agents/action-detector';
-import { extractFactsFromMessage, saveNewFacts, loadUserFacts, buildFactsBlock } from '@/features/memory/server/user-facts';
-import { waitUntil } from '@vercel/functions';
 
 export const runtime = 'nodejs';
 export const maxDuration = 300;
@@ -201,18 +199,6 @@ export async function POST(req: NextRequest) {
     }
   } catch { /* non-fatal */ }
 
-  // ── User Facts: memoria conversacional persistente ──
-  try {
-    const userFacts = await loadUserFacts(svc, user.id);
-    const factsBlock = buildFactsBlock(userFacts);
-    if (factsBlock) {
-      systemAdditions.push({ role: 'system', content: factsBlock });
-      console.log('[chat] injected', userFacts.length, 'user facts');
-    }
-  } catch (e) {
-    console.warn('[chat] loadUserFacts failed:', e instanceof Error ? e.message : e);
-  }
-
   if (selectedAgent && selectedAgent.systemPromptAddition) {
     systemAdditions.push({ role: 'system', content: selectedAgent.systemPromptAddition });
   }
@@ -240,24 +226,6 @@ export async function POST(req: NextRequest) {
       });
     }
   } catch { /* optional */ }
-
-  // ── Extractor en background: hechos del mensaje del usuario ──
-  if (body.message && body.message.length >= 15) {
-    const userMsg = body.message;
-    const userId = user.id;
-    const orgIdForExtract = orgId;
-    waitUntil((async () => {
-      try {
-        const facts = await extractFactsFromMessage(userMsg);
-        if (facts.length > 0) {
-          const saved = await saveNewFacts(svc, userId, orgIdForExtract, facts, { conversationId });
-          if (saved > 0) console.log('[chat:bg] saved', saved, 'new user facts');
-        }
-      } catch (err) {
-        console.warn('[chat:bg] fact extraction failed:', err instanceof Error ? err.message : err);
-      }
-    })());
-  }
 
   const messages: ChatMessage[] = [...systemAdditions, ...baseMessages];
 
