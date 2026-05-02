@@ -18,6 +18,7 @@ import { webSearch, formatWebContext, shouldSearch } from '@/features/web-browse
 import type { ChatMessage } from '@/lib/providers';
 import { buildCreativeAgentPrompt } from '@/lib/agents/creative-agent-prompt';
 import { detectsCampaignGenerationIntent, detectLocale } from '@/lib/agents/action-detector';
+import { waitUntil } from '@vercel/functions';
 
 export const runtime = 'nodejs';
 export const maxDuration = 300;
@@ -722,31 +723,39 @@ export async function POST(req: NextRequest) {
           p_cost: costUsd,
         });
 
+        // Memoria en background — no bloquea respuesta al usuario
         if (!failed && queryText) {
-          try {
-            const mode: 'explicit' | 'auto' = isExplicitMemoryRequest(queryText) ? 'explicit' : 'auto';
-            const extracted = await extractMemoryFromTurn({
-              userMessage: queryText,
-              assistantReply: fullText,
-              mode,
-            });
-            if (extracted.length > 0) {
-              await svc.from('memories').insert(
-                extracted.map((m) => ({
-                  org_id: orgId,
-                  user_id: user.id,
-                  content: m.content,
-                  category: m.category,
-                  importance: m.importance,
-                  source: mode,
-                  source_conversation_id: conversationId,
-                })) as never
-              );
-              controller.enqueue(sseEncode('memory_saved', { count: extracted.length, memories: extracted.map(m => m.content) }));
+          const userId = user.id;
+          const orgIdLocal = orgId;
+          const conversationIdLocal = conversationId;
+          const queryTextLocal = queryText;
+          const fullTextLocal = fullText;
+          waitUntil((async () => {
+            try {
+              const mode: 'explicit' | 'auto' = isExplicitMemoryRequest(queryTextLocal) ? 'explicit' : 'auto';
+              const extracted = await extractMemoryFromTurn({
+                userMessage: queryTextLocal,
+                assistantReply: fullTextLocal,
+                mode,
+              });
+              if (extracted.length > 0) {
+                await svc.from('memories').insert(
+                  extracted.map((m) => ({
+                    org_id: orgIdLocal,
+                    user_id: userId,
+                    content: m.content,
+                    category: m.category,
+                    importance: m.importance,
+                    source: mode,
+                    source_conversation_id: conversationIdLocal,
+                  })) as never
+                );
+                console.log('[memory:bg] saved', extracted.length, 'memories');
+              }
+            } catch (e) {
+              console.error('[memory:bg] failed:', e);
             }
-          } catch (e) {
-            console.error('[memory.extract] failed:', e);
-          }
+          })());
         }
 
         controller.enqueue(sseEncode('done', { latencyMs, inputTokens, outputTokens, costUsd }));
