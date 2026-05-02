@@ -1,4 +1,5 @@
 'use client';
+
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { nanoid } from 'nanoid';
 import { useRouter } from 'next/navigation';
@@ -9,8 +10,6 @@ import { ChatTopbar } from './chat-topbar';
 import { ChatDrawer } from './chat-drawer';
 import { useSendMessage } from '../hooks/use-send-message';
 import { EmptyState } from './empty-state';
-import { ActionCard } from './action-card';
-import { detectsCampaignGenerationIntent } from '@/lib/agents/action-detector';
 import { useChatStore, MODEL_OPTIONS } from '../stores/chat-store';
 import type { UiMessage } from '@/lib/chat/types';
 import { OperatorBg } from '@/components/layout/operator-bg';
@@ -25,20 +24,25 @@ interface Props {
   currentUserAvatarUrl?: string | null;
 }
 
-export function ChatView({ initialConversationId, initialMessages = [], initialTitle = null, currentUserName, currentUserAvatarUrl }: Props) {
+export function ChatView({
+  initialConversationId,
+  initialMessages = [],
+  initialTitle = null,
+  currentUserName,
+  currentUserAvatarUrl,
+}: Props) {
   const router = useRouter();
-  
+
   const [conversationId, setConversationId] = useState<string | null>(initialConversationId);
   const userInitial = (currentUserName || 'U').trim().charAt(0).toUpperCase() || 'U';
-  const [title, setTitle] = useState<string | null>(initialTitle);
   const [messages, setMessages] = useState<UiMessage[]>(initialMessages);
   const [recoveryDismissed, setRecoveryDismissed] = useState(false);
   const { send, cancel, loading, consecutiveFailures } = useSendMessage();
 
-  // Reset dismiss when chat starts working again
   useEffect(() => {
     if (consecutiveFailures === 0) setRecoveryDismissed(false);
   }, [consecutiveFailures]);
+
   const selectedModel = useChatStore((s) => s.selectedModel);
 
   const providerForModel = useMemo(() => {
@@ -47,36 +51,63 @@ export function ChatView({ initialConversationId, initialMessages = [], initialT
   }, [selectedModel]);
 
   const streamInto = useCallback(
-    (userText: string | null, regenOfAssistantId: string | null, attachment?: { base64: string; mimeType: string; fileName: string }) => {
+    (
+      userText: string | null,
+      regenOfAssistantId: string | null,
+      attachment?: { base64: string; mimeType: string; fileName: string },
+    ) => {
       const assistantPlaceholderId = nanoid();
 
       setMessages((prev) => {
         let next = prev;
+
         if (regenOfAssistantId) {
           next = prev.map((m) =>
             m.id === regenOfAssistantId
-              ? { ...m, id: assistantPlaceholderId, content: '', status: 'streaming' as const, error: undefined, toolParts: [] }
+              ? {
+                  ...m,
+                  id: assistantPlaceholderId,
+                  content: '',
+                  status: 'streaming' as const,
+                  error: undefined,
+                  toolParts: [],
+                }
               : m,
           );
         } else {
           if (userText) {
-            const displayText = userText;
-            // Get all attachment preview URLs
             const allUrls = (window as any).__pendingAttachmentUrls as string[] | undefined;
             delete (window as any).__pendingAttachmentUrls;
+
             const userMsg: UiMessage = {
               id: nanoid(),
               role: 'user',
-              content: displayText,
+              content: userText,
               createdAt: new Date().toISOString(),
               status: 'complete',
-              attachmentUrls: allUrls && allUrls.length > 0 ? allUrls : (attachment ? ['data:' + attachment.mimeType + ';base64,' + attachment.base64] : undefined),
+              attachmentUrls:
+                allUrls && allUrls.length > 0
+                  ? allUrls
+                  : attachment
+                    ? [`data:${attachment.mimeType};base64,${attachment.base64}`]
+                    : undefined,
             };
+
             next = [...prev, userMsg];
           }
-          const assistantMsg: UiMessage = { id: assistantPlaceholderId, role: 'assistant', content: '', createdAt: new Date().toISOString(), status: 'streaming', toolParts: [] };
+
+          const assistantMsg: UiMessage = {
+            id: assistantPlaceholderId,
+            role: 'assistant',
+            content: '',
+            createdAt: new Date().toISOString(),
+            status: 'streaming',
+            toolParts: [],
+          };
+
           next = [...next, assistantMsg];
         }
+
         return next;
       });
 
@@ -89,11 +120,14 @@ export function ChatView({ initialConversationId, initialMessages = [], initialT
         imageMimeType: attachment?.mimeType,
         onAssistantStart: (meta) => {
           setMessages((prev) =>
-            prev.map((m) => (m.id === assistantPlaceholderId ? { ...m, id: meta.assistantMessageId } : m)),
+            prev.map((m) =>
+              m.id === assistantPlaceholderId ? { ...m, id: meta.assistantMessageId } : m,
+            ),
           );
+
           if (meta.isNewConversation) {
             setConversationId(meta.conversationId);
-            window.history.replaceState(null, '', '/chat/' + meta.conversationId);
+            window.history.replaceState(null, '', `/chat/${meta.conversationId}`);
           }
         },
         onDelta: (chunk) => {
@@ -118,11 +152,18 @@ export function ChatView({ initialConversationId, initialMessages = [], initialT
           setMessages((prev) =>
             prev.map((m) => {
               if (m.role !== 'assistant' || m.status !== 'streaming') return m;
+
               const parts = (m.toolParts ?? []).map((p) =>
                 p.id === update.toolUseId
-                  ? { ...p, status: update.ok ? ('done' as const) : ('failed' as const), result: update.result, error: update.error }
+                  ? {
+                      ...p,
+                      status: update.ok ? ('done' as const) : ('failed' as const),
+                      result: update.result,
+                      error: update.error,
+                    }
                   : p,
               );
+
               return { ...m, toolParts: parts };
             }),
           );
@@ -135,9 +176,7 @@ export function ChatView({ initialConversationId, initialMessages = [], initialT
         },
         onError: (msg) => {
           setMessages((prev) =>
-            prev.map((m) =>
-              m.status === 'streaming' ? { ...m, status: 'failed', error: msg } : m,
-            ),
+            prev.map((m) => (m.status === 'streaming' ? { ...m, status: 'failed', error: msg } : m)),
           );
           toast.error(msg);
         },
@@ -146,7 +185,6 @@ export function ChatView({ initialConversationId, initialMessages = [], initialT
     [conversationId, providerForModel, selectedModel, send, router],
   );
 
-  // Streaming de ads (bypass chat normal)
   const [adStreamPayload, setAdStreamPayload] = useState<null | {
     userPrompt: string;
     images?: Array<{ base64: string; mimeType: string }>;
@@ -208,25 +246,21 @@ export function ChatView({ initialConversationId, initialMessages = [], initialT
     streamInto(null, lastAssistant.id);
   }, [messages, streamInto]);
 
-  void title;
-  void setTitle;
-
-
   function handleChatSelect(id: string) {
     if (id === 'new') router.push('/chat');
-    else router.push('/chat/' + id);
+    else router.push(`/chat/${id}`);
   }
 
   return (
-    <div className="h-vvh flex overflow-hidden relative">
+    <div className="h-[100dvh] flex overflow-hidden relative">
       <OperatorBg variant="chat" />
+
       <div className="flex-1 flex flex-col min-w-0">
         <div className="flex items-center gap-2 px-4 py-2 border-b border-border">
           <ChatDrawer currentId={conversationId} onSelect={handleChatSelect} />
           <ChatTopbar title={initialTitle} conversationId={conversationId} />
         </div>
 
-        {/* Recovery banner — when chat fails 2+ times in a row */}
         {consecutiveFailures >= 2 && !recoveryDismissed && (
           <div className="mx-4 mt-3 mb-1 p-3 rounded-xl glass border border-amber-500/30 flex items-start gap-3">
             <div className="h-2 w-2 rounded-full bg-amber-400 animate-pulse-dot mt-1.5 flex-shrink-0" />
@@ -237,6 +271,7 @@ export function ChatView({ initialConversationId, initialMessages = [], initialT
                   Tu conversación está guardada. Reportado al equipo.
                 </span>
               </p>
+
               <div className="flex items-center gap-2 mt-2">
                 <button
                   type="button"
@@ -245,6 +280,7 @@ export function ChatView({ initialConversationId, initialMessages = [], initialT
                 >
                   Reintentar
                 </button>
+
                 <button
                   type="button"
                   onClick={() => router.push('/chat')}
@@ -252,6 +288,7 @@ export function ChatView({ initialConversationId, initialMessages = [], initialT
                 >
                   Nueva conversación
                 </button>
+
                 <button
                   type="button"
                   onClick={() => setRecoveryDismissed(true)}
@@ -264,20 +301,38 @@ export function ChatView({ initialConversationId, initialMessages = [], initialT
             </div>
           </div>
         )}
+
         <div className="flex-1 overflow-y-auto overscroll-contain min-h-0">
           {messages.length === 0 ? (
-            <EmptyState onSuggestion={(prompt) => {
-              const composer = document.querySelector('textarea[data-composer]') as HTMLTextAreaElement | null;
-              if (composer) {
+            <EmptyState
+              onSuggestion={(prompt) => {
+                const composer = document.querySelector(
+                  'textarea[data-composer]',
+                ) as HTMLTextAreaElement | null;
+
+                if (!composer) return;
+
                 composer.value = prompt;
-                composer.focus();
                 composer.dispatchEvent(new Event('input', { bubbles: true }));
-              }
-            }} />
+
+                // iOS Safari jumps when focusing a textarea while the visual viewport is changing.
+                // Keep auto-focus only for desktop/tablet wide screens.
+                if (window.innerWidth >= 768) {
+                  composer.focus();
+                }
+              }}
+            />
           ) : (
-            <MessageList messages={messages} onRegenerate={handleRegenerate} regenDisabled={loading}  userAvatarUrl={currentUserAvatarUrl} userInitial={userInitial} />
+            <MessageList
+              messages={messages}
+              onRegenerate={handleRegenerate}
+              regenDisabled={loading}
+              userAvatarUrl={currentUserAvatarUrl}
+              userInitial={userInitial}
+            />
           )}
         </div>
+
         <div className="flex-shrink-0 border-t border-border bg-bg/95 backdrop-blur-md sticky-bottom-safe">
           {adStreamPayload && (
             <div className="px-4 pt-3">
@@ -291,6 +346,7 @@ export function ChatView({ initialConversationId, initialMessages = [], initialT
               />
             </div>
           )}
+
           <Composer onSend={handleSend} onCancel={cancel} loading={loading} />
         </div>
       </div>
