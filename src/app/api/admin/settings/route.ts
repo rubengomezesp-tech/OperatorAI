@@ -39,6 +39,7 @@ export async function POST(req: NextRequest) {
       max_free_messages: body.max_free_messages ?? 50,
       max_free_images: body.max_free_images ?? 5,
       welcome_message: body.welcome_message || null,
+      extra: body.extra ?? {},
       updated_at: new Date().toISOString(),
     }, { onConflict: 'id' });
 
