@@ -11,9 +11,17 @@ export interface BrandAssets {
   navCampaignsUrl: string | null;
   navBrandUrl: string | null;
   navSettingsUrl: string | null;
+  logoHomeUrl: string | null;
+  logoLoginUrl: string | null;
+  logoTopbarUrl: string | null;
+  faviconUrl: string | null;
+  pwaIconUrl: string | null;
+  ogImageUrl: string | null;
+  bgHomeUrl: string | null;
+  bgOnboardingUrl: string | null;
 }
 
-const BrandAssetsContext = createContext<BrandAssets>({
+const DEFAULT_ASSETS: BrandAssets = {
   logoUrl: null,
   iconUrl: null,
   avatarUrl: null,
@@ -22,14 +30,25 @@ const BrandAssetsContext = createContext<BrandAssets>({
   navCampaignsUrl: null,
   navBrandUrl: null,
   navSettingsUrl: null,
-});
+  logoHomeUrl: null,
+  logoLoginUrl: null,
+  logoTopbarUrl: null,
+  faviconUrl: null,
+  pwaIconUrl: null,
+  ogImageUrl: null,
+  bgHomeUrl: null,
+  bgOnboardingUrl: null,
+};
+
+const BrandAssetsContext = createContext<BrandAssets>(DEFAULT_ASSETS);
 
 export function BrandAssetsProvider({
   children,
   ...assets
-}: BrandAssets & { children: React.ReactNode }) {
+}: Partial<BrandAssets> & { children: React.ReactNode }) {
+  const value: BrandAssets = { ...DEFAULT_ASSETS, ...assets };
   return (
-    <BrandAssetsContext.Provider value={assets}>
+    <BrandAssetsContext.Provider value={value}>
       {children}
     </BrandAssetsContext.Provider>
   );
