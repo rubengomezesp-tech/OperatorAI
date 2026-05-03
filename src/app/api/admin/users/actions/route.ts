@@ -4,6 +4,7 @@ import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { createSupabaseServiceClient } from '@/lib/supabase/service';
 import { isAdmin } from '@/lib/admin';
 import { getStripe } from '@/features/billing/server/stripe-client';
+import { logAudit } from '@/lib/admin/audit';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -57,6 +58,14 @@ export async function POST(req: NextRequest) {
         }, { onConflict: 'org_id' });
 
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      await logAudit({
+        adminId: admin.id,
+        adminEmail: admin.email ?? '',
+        action: 'users.grant_plan',
+        entityType: 'user',
+        entityId: body.userId,
+        details: body as Record<string, unknown>,
+      });
       return NextResponse.json({ ok: true });
     }
 
@@ -77,6 +86,14 @@ export async function POST(req: NextRequest) {
       const lastCharge = charges.data[0];
       const refund = await stripe.refunds.create({ charge: lastCharge.id });
 
+      await logAudit({
+        adminId: admin.id,
+        adminEmail: admin.email ?? '',
+        action: 'users.refund_last',
+        entityType: 'user',
+        entityId: body.userId,
+        details: body as Record<string, unknown>,
+      });
       return NextResponse.json({ ok: true, refundId: refund.id, amount: refund.amount });
     }
 
@@ -88,6 +105,14 @@ export async function POST(req: NextRequest) {
         .eq('id', body.userId);
 
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      await logAudit({
+        adminId: admin.id,
+        adminEmail: admin.email ?? '',
+        action: 'users.ban',
+        entityType: 'user',
+        entityId: body.userId,
+        details: body as Record<string, unknown>,
+      });
       return NextResponse.json({ ok: true });
     }
 
@@ -97,6 +122,14 @@ export async function POST(req: NextRequest) {
         .update({ banned: false, banned_at: null, banned_by: null, ban_reason: null })
         .eq('id', body.userId);
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      await logAudit({
+        adminId: admin.id,
+        adminEmail: admin.email ?? '',
+        action: 'users.unban',
+        entityType: 'user',
+        entityId: body.userId,
+        details: body as Record<string, unknown>,
+      });
       return NextResponse.json({ ok: true });
     }
 

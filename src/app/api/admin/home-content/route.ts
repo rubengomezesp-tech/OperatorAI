@@ -4,6 +4,7 @@ import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { createSupabaseServiceClient } from '@/lib/supabase/service';
 import { isAdmin } from '@/lib/admin';
 import { DEFAULT_HOME_CONTENT, type HomeContent } from '@/lib/home-content/defaults';
+import { logAudit } from '@/lib/admin/audit';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -68,6 +69,14 @@ export async function POST(req: NextRequest) {
     }, { onConflict: 'id' });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  await logAudit({
+    adminId: user.id,
+    adminEmail: user.email ?? '',
+    action: 'home_content.update',
+    entityType: 'app_settings',
+    entityId: 'global',
+  });
 
   return NextResponse.json({ ok: true });
 }
