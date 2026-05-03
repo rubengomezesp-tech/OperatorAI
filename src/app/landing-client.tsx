@@ -23,6 +23,7 @@ import { Magnetic } from '@/components/ui/magnetic';
 import { fadeUp, staggerContainer } from '@/lib/motion';
 import { BrandLogo } from '@/components/brand/brand-logo';
 import type { HomeContent } from '@/lib/home-content/defaults';
+import { PublicChat, type PublicChatHandle } from '@/components/public-chat/public-chat';
 
 interface Props {
   content: HomeContent;
@@ -36,6 +37,7 @@ export function LandingPageClient({ content }: Props) {
   // Vertical activo en el demo
   const [activeVerticalKey, setActiveVerticalKey] = useState(content.verticals[0]?.key ?? 'fitness');
   const [demoNonce, setDemoNonce] = useState(0); // fuerza re-mount del demo al cambiar
+  const chatRef = useRef<PublicChatHandle>(null);
   const demoRef = useRef<HTMLDivElement>(null);
 
   const activeVertical = content.verticals.find((v) => v.key === activeVerticalKey) ?? content.verticals[0];
@@ -43,11 +45,14 @@ export function LandingPageClient({ content }: Props) {
   const handleVerticalClick = useCallback((key: string) => {
     setActiveVerticalKey(key);
     setDemoNonce((n) => n + 1);
-    // scroll al demo
+    const v = content.verticals.find((x) => x.key === key);
+    if (v && chatRef.current) {
+      chatRef.current.setInput(isEs ? v.demo.user.es : v.demo.user.en);
+    }
     setTimeout(() => {
       demoRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }, 100);
-  }, []);
+  }, [content.verticals, isEs]);
 
   const heroRef = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({ target: heroRef, offset: ['start start', 'end start'] });
@@ -194,7 +199,7 @@ export function LandingPageClient({ content }: Props) {
               </div>
             </div>
 
-            <ChatDemo key={demoNonce} vertical={activeVertical} isEs={isEs} />
+            <PublicChat ref={chatRef} />
           </motion.div>
 
           <motion.div
