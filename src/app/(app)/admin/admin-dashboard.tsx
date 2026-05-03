@@ -100,7 +100,7 @@ export function AdminDashboard() {
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
       />
-      <div className="flex-1 px-4 lg:px-10 py-8 max-w-[1100px] w-full mx-auto space-y-6 lg:ml-0">
+      <div className="flex-1 px-4 lg:px-10 py-8 space-y-6 min-w-0">
         {/* Mobile header */}
         <div className="lg:hidden flex items-center justify-between mb-2">
           <AdminMenuButton onClick={() => setSidebarOpen(true)} />
