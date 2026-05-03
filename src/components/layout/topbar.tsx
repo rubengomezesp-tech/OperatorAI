@@ -2,11 +2,9 @@
 
 import { useState } from 'react';
 import { usePathname } from 'next/navigation';
-import { Sparkles } from 'lucide-react';
-import { UserMenu } from './user-menu';
 import { useI18n } from '@/lib/i18n';
+import { UserMenu } from './user-menu';
 import { MobileMenu, MobileMenuButton } from './mobile-menu';
-import { useBrandAssets } from '@/lib/brand-assets-context';
 
 const TITLES: Record<string, string> = {
   '/chat': 'Creative Agent',
@@ -20,40 +18,35 @@ const TITLES: Record<string, string> = {
 };
 
 export function Topbar({ email, fullName }: { email: string; fullName: string | null }) {
-  const { iconUrl, logoTopbarUrl } = useBrandAssets();
-  const displayLogo = logoTopbarUrl ?? iconUrl;
   const pathname = usePathname();
   const { t } = useI18n();
   const [menuOpen, setMenuOpen] = useState(false);
 
   const key = Object.keys(TITLES).find((k) => pathname === k || pathname.startsWith(k + '/'));
   const titleKey = key ? TITLES[key] : '';
-  // Fall back to the literal key if i18n doesn't have a translation
   const resolved = titleKey ? t(titleKey) : '';
   const title = resolved && resolved !== titleKey ? resolved : '';
 
   return (
     <>
-      <header className="sticky top-0 z-20 glass border-b border-border glass">
-        <div className="flex items-center justify-between h-14 px-4 lg:px-8 min-w-0">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="lg:hidden">
-              <MobileMenuButton onClick={() => setMenuOpen(true)} />
-            </div>
-
-            {/* Mobile-only icon (sidebar shows full logo on desktop) */}
-            {displayLogo && (
-              <div className="lg:hidden h-7 w-7 rounded-md overflow-hidden flex items-center justify-center">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={displayLogo} alt="Operator AI" className="h-full w-full object-contain" />
-              </div>
-            )}
-
-            {/* Title only — brand 'Operator AI' lives in sidebar */}
-            <h1 className="font-display text-[18px] truncate text-fg">{title}</h1>
+      <header className="sticky top-0 z-20">
+        <div className="flex items-center justify-between px-3 pt-3 pb-2 min-w-0">
+          {/* Left: hamburguesa flotante */}
+          <div className="lg:hidden">
+            <MobileMenuButton onClick={() => setMenuOpen(true)} />
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
+          {/* Center: pill OperatorAI */}
+          <div className="flex-1 flex items-center justify-center min-w-0">
+            <div className="px-4 h-9 rounded-full bg-surface-2/80 backdrop-blur-md border border-border/50 flex items-center gap-2 max-w-[60vw]">
+              <span className="font-display text-[14px] tracking-tight text-fg truncate">
+                {title || 'OperatorAI'}
+              </span>
+            </div>
+          </div>
+
+          {/* Right: avatar */}
+          <div className="shrink-0">
             <UserMenu email={email} fullName={fullName} />
           </div>
         </div>

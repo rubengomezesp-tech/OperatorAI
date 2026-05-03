@@ -330,7 +330,7 @@ export function ChatView({
           )}
         </div>
 
-        <div className="flex-shrink-0 border-t border-border bg-bg/95 backdrop-blur-md sticky-bottom-safe">
+        <div className="flex-shrink-0 sticky-bottom-safe">
           {adStreamPayload && (
             <div className="px-4 pt-3">
               <AdLiveGenerator
