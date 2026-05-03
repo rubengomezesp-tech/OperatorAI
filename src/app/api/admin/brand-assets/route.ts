@@ -8,7 +8,13 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
-const ALLOWED_KEYS = ['logo-operator', 'logo-icon', 'operator-avatar', 'operator-bg', 'nav-chat', 'nav-campaigns', 'nav-brand', 'nav-settings'];
+const ALLOWED_KEYS = [
+  'logo-operator', 'logo-icon', 'operator-avatar', 'operator-bg',
+  'nav-chat', 'nav-campaigns', 'nav-brand', 'nav-settings',
+  'logo-home', 'logo-login', 'logo-topbar', 'logo-footer',
+  'favicon', 'pwa-icon', 'og-image', 'bg-home', 'bg-onboarding',
+  'demo-fitness-1', 'demo-fitness-2', 'demo-fitness-3', 'demo-beauty-1', 'demo-beauty-2', 'demo-beauty-3', 'demo-real-estate-1', 'demo-real-estate-2', 'demo-real-estate-3', 'demo-restaurants-1', 'demo-restaurants-2', 'demo-restaurants-3', 'demo-ecommerce-1', 'demo-ecommerce-2', 'demo-ecommerce-3', 'demo-jewelry-1', 'demo-jewelry-2', 'demo-jewelry-3', 'demo-saas-1', 'demo-saas-2', 'demo-saas-3', 'demo-health-1', 'demo-health-2', 'demo-health-3', 'demo-travel-1', 'demo-travel-2', 'demo-travel-3',
+];
 
 async function checkAdmin() {
   const ssr = await createSupabaseServerClient();
