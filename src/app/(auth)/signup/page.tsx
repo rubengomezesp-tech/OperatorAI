@@ -18,7 +18,7 @@ import { BrandLogo } from '@/components/brand/brand-logo';
 const tx: Record<string, Record<string, string>> = {
   back: { en: '← Home', es: '← Inicio' },
   h1: { en: 'Get your AI agency.', es: 'Tu agencia AI te espera.' },
-  sub: { en: '7 days free. No card required.', es: '7 días gratis. Sin tarjeta.' },
+  sub: { en: '3 days free. Card required.', es: '3 días gratis. Con tarjeta.' },
   email: { en: 'Email', es: 'Email' },
   password: { en: 'Password', es: 'Contraseña' },
   password_hint: { en: 'Minimum 8 characters', es: 'Mínimo 8 caracteres' },
@@ -173,7 +173,7 @@ export default function SignupPage() {
             transition={{ duration: 0.7, delay: 0.3 }}
           >
             <div className="text-[11px] uppercase tracking-[0.18em] text-gold mb-4">
-              7 days free
+              3 days free
             </div>
             <h2 className="font-display text-[32px] leading-[1.1] tracking-tight mb-6">
               {t('hero_h2')}
