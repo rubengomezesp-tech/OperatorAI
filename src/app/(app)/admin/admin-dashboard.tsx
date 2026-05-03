@@ -6,6 +6,8 @@ import { toast } from 'sonner';
 import { BrandAssetsManager } from './brand-assets/manager';
 import { AdminSidebar, AdminMenuButton, type AdminTabId } from './admin-sidebar';
 import { SubscriptionsPanel } from './subscriptions/panel';
+import { HomeContentEditor } from './home-content/editor';
+import { SupportPanel } from './support/panel';
 
 interface Stats { users: number; conversations: number; images: number }
 interface FeedbackItem { id: string; feedback_type: string; message_preview: string | null; comment: string | null; created_at: string }
@@ -139,36 +141,8 @@ export function AdminDashboard() {
       )}
 
       {/* Feedback */}
-      {tab === 'feedback' && (
-        <div className="space-y-4">
-          <div className="flex gap-2 flex-wrap">
-            {['all', 'up', 'down', 'heart', 'report'].map(f => (
-              <button key={f} onClick={() => setFf(f)} className={cn('h-8 px-3 rounded-md text-[12px] border flex items-center gap-1.5', ff === f ? 'border-gold/40 bg-gold/10 text-gold' : 'border-border bg-surface-2 text-fg-muted')}>
-                <span>{f === 'all' ? 'All' : f === 'up' ? 'Good' : f === 'down' ? 'Bad' : f === 'heart' ? 'Loved' : 'Reports'}</span>
-                <span className="text-[10px]">({fc[f as keyof typeof fc]})</span>
-              </button>
-            ))}
-          </div>
-          {filtered.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-border py-12 text-center text-[13px] text-fg-muted">No feedback yet</div>
-          ) : (
-            <div className="space-y-2">{filtered.map(f => (
-              <div key={f.id} className={cn('rounded-lg border p-4', f.feedback_type === 'report' ? 'border-orange-500/20 bg-orange-500/5' : f.feedback_type === 'up' ? 'border-emerald-500/20 bg-emerald-500/5' : f.feedback_type === 'down' ? 'border-red-500/20 bg-red-500/5' : 'border-border bg-surface')}>
-                <div className="flex items-start gap-3">
-                  <span className="text-[16px]">{f.feedback_type === 'up' ? '👍' : f.feedback_type === 'down' ? '👎' : f.feedback_type === 'heart' ? '❤️' : '🚩'}</span>
-                  <div className="flex-1 min-w-0">
-                    {f.message_preview && <p className="text-[13px] text-fg-soft line-clamp-3">{f.message_preview}</p>}
-                    {f.comment && <div className="mt-2 rounded-md bg-surface-2 border border-border px-3 py-2"><p className="text-[12.5px] text-fg-muted italic">{f.comment}</p></div>}
-                    <span className="text-[10.5px] text-fg-subtle mt-2 block">{new Date(f.created_at).toLocaleString()}</span>
-                  </div>
-                </div>
-              </div>
-            ))}</div>
-          )}
-        </div>
-      )}
+      {tab === 'feedback' && <SupportPanel />}
 
-      {/* Users */}
       {tab === 'users' && (
         <div className="space-y-2">
           <div className="text-[12px] text-fg-muted mb-2">{users.length} users total</div>

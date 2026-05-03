@@ -53,7 +53,7 @@ const SECTIONS: NavSection[] = [
     title: 'CONTENT',
     items: [
       { id: 'brand', label: 'Brand Assets', icon: ImageIcon },
-      { id: 'home-content', label: 'Home Content', icon: FileText, comingSoon: true },
+      { id: 'home-content', label: 'Home Content', icon: FileText },
       { id: 'dna-cards', label: 'DNA Cards', icon: Palette, comingSoon: true },
     ],
   },
