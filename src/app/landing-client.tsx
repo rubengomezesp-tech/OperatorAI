@@ -551,10 +551,10 @@ function StepCard({ number, title, desc, timing, delay }: { number: number; titl
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: '-50px' }}
       transition={{ duration: 0.6, delay }}
-      className="group relative flex flex-col sm:flex-row gap-5 p-6 sm:p-8 rounded-2xl border border-border/60 bg-surface-2/40 backdrop-blur-md hover:border-gold/30 hover:bg-surface-2/60 transition-all"
+      className="relative flex flex-col sm:flex-row gap-5 p-6 sm:p-8 rounded-2xl border border-border/40 bg-surface-2/30 backdrop-blur-md"
     >
       <div className="flex-shrink-0">
-        <div className="h-14 w-14 rounded-xl border border-gold/30 bg-gold/[0.06] flex items-center justify-center font-display text-[22px] text-gold group-hover:bg-gold/10 group-hover:scale-105 transition-all">
+        <div className="h-14 w-14 rounded-xl border border-gold/25 bg-gold/[0.04] flex items-center justify-center font-display text-[22px] text-gold">
           {number}
         </div>
       </div>
@@ -616,9 +616,8 @@ function CapabilityCard({ icon: Icon, title, desc, delay }: { icon: React.Compon
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: '-30px' }}
       transition={{ duration: 0.6, delay }}
-      className="group relative p-6 sm:p-7 rounded-2xl border border-border/60 bg-surface-2/40 backdrop-blur-md hover:border-gold/30 transition-all overflow-hidden"
+      className="relative p-6 sm:p-7 rounded-2xl border border-border/40 bg-surface-2/30 backdrop-blur-md overflow-hidden"
     >
-      <div className="absolute -top-20 -right-20 h-40 w-40 rounded-full bg-gold/5 blur-3xl opacity-0 group-hover:opacity-100 transition-opacity" />
       <div className="relative">
         <div className="h-11 w-11 rounded-xl gold-grad flex items-center justify-center mb-5 shadow-[0_8px_20px_rgb(201_168_99_/_0.25)]">
           <Icon className="h-4 w-4 text-bg" />
