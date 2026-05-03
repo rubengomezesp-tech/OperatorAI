@@ -61,6 +61,54 @@ const ASSETS: BrandAsset[] = [
     description: 'Icono custom para Ajustes en el menú móvil.',
     recommendedSize: 'PNG cuadrado, 64x64px',
   },
+  {
+    key: 'logo-home',
+    label: 'Logo Home (landing)',
+    description: 'Logo que aparece en la página principal/landing pública.',
+    recommendedSize: 'PNG transparente, mín 600x200px',
+  },
+  {
+    key: 'logo-login',
+    label: 'Logo Login',
+    description: 'Logo que aparece en las pantallas de login y registro.',
+    recommendedSize: 'PNG transparente, mín 400x150px',
+  },
+  {
+    key: 'logo-topbar',
+    label: 'Logo Topbar (app)',
+    description: 'Logo que aparece arriba dentro de la app (chat, settings).',
+    recommendedSize: 'PNG transparente, mín 200x60px',
+  },
+  {
+    key: 'favicon',
+    label: 'Favicon',
+    description: 'Icono pequeño que aparece en la pestaña del navegador.',
+    recommendedSize: 'ICO o PNG cuadrado, 32x32px o 64x64px',
+  },
+  {
+    key: 'pwa-icon',
+    label: 'iOS App Icon / PWA',
+    description: 'Icono cuando el user instala la app en su teléfono.',
+    recommendedSize: 'PNG cuadrado sólido (sin transparencia), 1024x1024px',
+  },
+  {
+    key: 'og-image',
+    label: 'Open Graph (compartir)',
+    description: 'Imagen que aparece cuando alguien comparte el link en redes sociales o WhatsApp.',
+    recommendedSize: 'PNG/JPG horizontal, 1200x630px',
+  },
+  {
+    key: 'bg-home',
+    label: 'Fondo Home',
+    description: 'Imagen de fondo de la página principal/landing.',
+    recommendedSize: 'PNG/JPG, mín 1920x1080px',
+  },
+  {
+    key: 'bg-onboarding',
+    label: 'Fondo Onboarding',
+    description: 'Imagen de fondo durante el flujo de onboarding/welcome.',
+    recommendedSize: 'PNG/JPG, mín 1920x1080px',
+  },
 ];
 
 export function BrandAssetsManager() {
