@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { BrandAssetsManager } from './brand-assets/manager';
 import { AdminSidebar, AdminMenuButton, type AdminTabId } from './admin-sidebar';
+import { SubscriptionsPanel } from './subscriptions/panel';
 
 interface Stats { users: number; conversations: number; images: number }
 interface FeedbackItem { id: string; feedback_type: string; message_preview: string | null; comment: string | null; created_at: string }

@@ -45,7 +45,7 @@ const SECTIONS: NavSection[] = [
     title: 'USERS & BILLING',
     items: [
       { id: 'users', label: 'Users', icon: Users },
-      { id: 'subscriptions', label: 'Subscriptions', icon: CreditCard, comingSoon: true },
+      { id: 'subscriptions', label: 'Subscriptions', icon: CreditCard },
       { id: 'feedback', label: 'Feedback', icon: MessageSquare },
     ],
   },
