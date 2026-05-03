@@ -21,7 +21,8 @@ const TITLES: Record<string, string> = {
 };
 
 export function Topbar({ email, fullName }: { email: string; fullName: string | null }) {
-  const { iconUrl } = useBrandAssets();
+  const { iconUrl, logoTopbarUrl } = useBrandAssets();
+  const displayLogo = logoTopbarUrl ?? iconUrl;
   const pathname = usePathname();
   const { t } = useI18n();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -42,10 +43,10 @@ export function Topbar({ email, fullName }: { email: string; fullName: string | 
             </div>
 
             {/* Mobile-only icon (sidebar shows full logo on desktop) */}
-            {iconUrl && (
+            {displayLogo && (
               <div className="lg:hidden h-7 w-7 rounded-md overflow-hidden flex items-center justify-center">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={iconUrl} alt="Operator AI" className="h-full w-full object-contain" />
+                <img src={displayLogo} alt="Operator AI" className="h-full w-full object-contain" />
               </div>
             )}
 

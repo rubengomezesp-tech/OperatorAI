@@ -4,6 +4,7 @@ import { Inter, Playfair_Display, JetBrains_Mono } from 'next/font/google';
 import { SplashScreen } from '@/components/splash-screen';
 import { RootProviders } from '@/components/providers/root-providers';
 import '@/styles/globals.css';
+import { getBrandAssets } from '@/lib/brand-assets-server';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter', display: 'swap' });
 const serif = Playfair_Display({ weight: ['400', '500', '600', '700'], subsets: ['latin'], variable: '--font-serif', display: 'swap' });
@@ -83,7 +84,8 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const brand = await getBrandAssets();
   return (
     <html
       lang="en"
@@ -94,10 +96,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="apple-mobile-web-app-title" content="Operator AI" />
-        <link rel="apple-touch-icon" href="/icons/icon-180x180.png" />
-        <link rel="apple-touch-icon" sizes="152x152" href="/icons/icon-152x152.png" />
-        <link rel="apple-touch-icon" sizes="167x167" href="/icons/icon-167x167.png" />
-        <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-180x180.png" />
+        <link rel="icon" type="image/png" href={brand.faviconUrl ?? '/icons/icon-192x192.png'} />
+        <link rel="apple-touch-icon" href={brand.pwaIconUrl ?? '/icons/icon-180x180.png'} />
+        <link rel="apple-touch-icon" sizes="152x152" href={brand.pwaIconUrl ?? '/icons/icon-152x152.png'} />
+        <link rel="apple-touch-icon" sizes="167x167" href={brand.pwaIconUrl ?? '/icons/icon-167x167.png'} />
+        <link rel="apple-touch-icon" sizes="180x180" href={brand.pwaIconUrl ?? '/icons/icon-180x180.png'} />
         <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#C9A863" />
       </head>
