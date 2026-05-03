@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { User, CreditCard, Settings, LogOut, Brain, Plug, Shield, Bell, HelpCircle, Palette } from 'lucide-react';
+import { User, CreditCard, Settings, LogOut, Brain, Plug, Shield, Bell, HelpCircle, Palette, Globe } from 'lucide-react';
 import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
 import { cn } from '@/lib/utils';
 import { useI18n } from '@/lib/i18n';
@@ -14,7 +14,7 @@ interface Props {
 }
 
 export function UserMenu({ email, fullName }: Props) {
-  const { locale } = useI18n();
+  const { locale, setLocale } = useI18n();
   const [open, setOpen] = useState(false);
   const [plan, setPlan] = useState<string>('Free');
   const ref = useRef<HTMLDivElement>(null);
@@ -89,6 +89,32 @@ export function UserMenu({ email, fullName }: Props) {
             <MLink href="/settings" icon={Settings} onClick={() => setOpen(false)}>{t('Settings', 'Ajustes')}</MLink>
             <MLink href="/support" icon={HelpCircle} onClick={() => setOpen(false)}>{t('Support', 'Soporte')}</MLink>
           </nav>
+
+          {/* Language toggle */}
+          <div className="border-t border-border p-1.5">
+            <div className="flex items-center justify-between px-3 h-9 text-[13px] text-fg-muted">
+              <div className="flex items-center gap-3">
+                <Globe className="h-4 w-4" />
+                <span>{locale === 'es' ? 'Idioma' : 'Language'}</span>
+              </div>
+              <div className="flex gap-1">
+                <button
+                  onClick={() => setLocale('es')}
+                  className={cn(
+                    'h-7 px-2 rounded text-[11px] uppercase tracking-wider transition-colors',
+                    locale === 'es' ? 'bg-gold text-bg font-medium' : 'text-fg-muted hover:text-fg hover:bg-surface-2'
+                  )}
+                >ES</button>
+                <button
+                  onClick={() => setLocale('en')}
+                  className={cn(
+                    'h-7 px-2 rounded text-[11px] uppercase tracking-wider transition-colors',
+                    locale === 'en' ? 'bg-gold text-bg font-medium' : 'text-fg-muted hover:text-fg hover:bg-surface-2'
+                  )}
+                >EN</button>
+              </div>
+            </div>
+          </div>
 
           {/* Admin — only for CEO */}
           {isAdmin && (
