@@ -1,595 +1,607 @@
 'use client';
 
 /**
- * Landing V3 — Premium hero + cinematic sections
+ * Operator AI — Premium Landing
  *
- * Inspired by: Anthropic, Linear, Vercel, Lovable, Cursor
- *
- * Key principles:
- *   - Aurora intense as background (sets premium tone)
- *   - Display font for impact (Instrument Serif)
- *   - Magnetic CTAs (subtle but felt)
- *   - Scroll-triggered reveals
- *   - Animated chat mockup (the hero of the page)
- *   - Mobile-perfect
+ * Sections:
+ *   1. Hero (magnetic CTAs + animated chat demo)
+ *   2. How it works (3 steps with timeline)
+ *   3. Live chat demo extended
+ *   4. Verticals (marquee + grid)
+ *   5. Capabilities (your marketing team)
+ *   6. CTA final
+ *   7. Footer
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { motion, useScroll, useTransform } from 'framer-motion';
+import { motion, useScroll, useTransform, useInView, AnimatePresence } from 'framer-motion';
 import {
-  ArrowRight,
-  Sparkles,
-  Zap,
-  Target,
-  Palette,
-  Check,
-  Star,
-  MessageSquare,
+  ArrowRight, Sparkles, Target, Palette, Video, Brain, Zap,
+  Check, MessageSquare, Lightbulb, Rocket,
+  Dumbbell, Shirt, Building2, UtensilsCrossed, ShoppingBag, Gem,
+  Code2, HeartPulse, Plane,
 } from 'lucide-react';
 import { useI18n, LanguageToggle } from '@/lib/i18n';
 import { Aurora } from '@/components/ui/aurora';
-import { OperatorBg } from '@/components/layout/operator-bg';
 import { Magnetic } from '@/components/ui/magnetic';
-import { fadeUp, staggerContainer, scaleIn } from '@/lib/motion';
-import dynamic from 'next/dynamic';
+import { fadeUp, staggerContainer } from '@/lib/motion';
 import { BrandLogo } from '@/components/brand/brand-logo';
+import type { HomeContent } from '@/lib/home-content/defaults';
 
-const GuestChat = dynamic(() => import('@/features/landing/components/guest-chat').then(m => m.GuestChat), {
-  ssr: false,
-  loading: () => <div className="h-[420px] rounded-2xl glass-subtle animate-pulse" />,
-});
+interface Props {
+  content: HomeContent;
+}
 
-
-// ─────────────────────────────────────────────────────────────────
-// i18n
-// ─────────────────────────────────────────────────────────────────
-
-const tx: Record<string, Record<string, string>> = {
-  // Nav
-  nav_pricing: { en: 'Pricing', es: 'Precios' },
-  nav_login: { en: 'Log in', es: 'Entrar' },
-  nav_signup: { en: 'Get started', es: 'Empezar' },
-
-  // Badge
-  hero_badge: { en: 'New · AI Operator for marketing', es: 'Nuevo · AI Operator para marketing' },
-
-  // Hero
-  hero_h1_a: { en: 'Stop creating campaigns.', es: 'Deja de crear campañas.' },
-  hero_h1_b: { en: 'Start launching them.', es: 'Empieza a lanzarlas.' },
-  hero_p: {
-    en: 'Operator is your creative director, strategist, and designer — in one conversation. From idea to publish-ready in 5 minutes.',
-    es: 'Operator es tu director creativo, estratega y diseñador — en una sola conversación. De idea a publicar en 5 minutos.',
-  },
-  hero_cta_primary: { en: 'Start free trial', es: 'Empezar gratis' },
-  hero_cta_secondary: { en: 'See it in action', es: 'Ver demo' },
-  hero_no_card: { en: 'No card required · 7-day trial', es: 'Sin tarjeta · 7 días gratis' },
-
-  guest_section_kicker: { en: 'Try it now', es: 'Pruébalo ya' },
-  guest_section_h2_a: { en: 'Talk to Operator. ', es: 'Habla con Operator. ' },
-  guest_section_h2_b: { en: 'No signup needed.', es: 'Sin cuenta.' },
-  guest_section_p: { en: '3 free messages. See how the agent thinks before you commit.', es: '3 mensajes gratis. Mira cómo piensa el agente antes de comprometerte.' },
-
-
-  // Mockup chat
-  mockup_user_msg: { en: 'I want to launch a fitness campaign for my new program', es: 'Quiero lanzar una campaña fitness para mi nuevo programa' },
-  mockup_agent_typing: { en: 'Operator is thinking...', es: 'Operator está pensando...' },
-  mockup_agent_msg: { en: 'Got it. Authority-led angle works best for fitness — show real transformation. I can build the full campaign with strategy + 4 visuals in ~5 min.', es: 'Entendido. El ángulo de autoridad funciona mejor en fitness — muestra transformación real. Puedo construir la campaña completa con estrategia + 4 visuales en ~5 min.' },
-  mockup_action_card: { en: 'Generate full campaign · ~5 min', es: 'Generar campaña completa · ~5 min' },
-
-  // Power section
-  power_kicker: { en: 'Why Operator', es: 'Por qué Operator' },
-  power_h2_a: { en: 'A creative team that ', es: 'Un equipo creativo que ' },
-  power_h2_b: { en: 'never sleeps', es: 'nunca duerme' },
-  power_1_t: { en: '5 minutes vs 5 days', es: '5 minutos vs 5 días' },
-  power_1_d: { en: 'From brief to publish-ready assets in the time it takes to make coffee.', es: 'De brief a assets listos en lo que tardas en hacerte un café.' },
-  power_2_t: { en: '17 industries · real DNA', es: '17 industrias · DNA real' },
-  power_2_d: { en: 'Hotel campaigns look like hotels. Jewelry like jewelry. Fitness like fitness. Real visual language per industry.', es: 'Campañas de hotel parecen hoteles. Joyería como joyería. Fitness como fitness. Lenguaje visual real por industria.' },
-  power_3_t: { en: 'Agency quality, instant', es: 'Calidad agencia, instante' },
-  power_3_d: { en: 'AI vision critic iterates until quality passes. No more uncanny outputs.', es: 'AI vision critic itera hasta pasar calidad. Sin outputs raros.' },
-
-  // How
-  how_kicker: { en: 'How it works', es: 'Cómo funciona' },
-  how_h2_a: { en: 'Three steps. ', es: 'Tres pasos. ' },
-  how_h2_b: { en: 'No design skills.', es: 'Sin habilidades de diseño.' },
-  how_1_t: { en: 'Chat naturally', es: 'Habla normal' },
-  how_1_d: { en: 'Tell Operator what you need — like talking to your CMO.', es: 'Cuéntale qué necesitas — como hablar con tu CMO.' },
-  how_2_t: { en: 'Approve direction', es: 'Aprueba dirección' },
-  how_2_d: { en: 'Operator proposes strategy. You confirm. It executes.', es: 'Operator propone estrategia. Confirmas. Ejecuta.' },
-  how_3_t: { en: 'Refine & launch', es: 'Refina & lanza' },
-  how_3_d: { en: 'Edit details in our pro editor. Export ready for any platform.', es: 'Edita detalles en el editor pro. Exporta listo para cualquier plataforma.' },
-
-  // Verticals
-  verticals_kicker: { en: 'Built for your industry', es: 'Hecho para tu industria' },
-  verticals_h2_a: { en: 'Real visual DNA per ', es: 'DNA visual real por ' },
-  verticals_h2_b: { en: 'vertical', es: 'vertical' },
-
-  // Final CTA
-  final_h2_a: { en: 'Ready to ', es: '¿Listo para tener tu ' },
-  final_h2_b: { en: 'have your AI agency inside?', es: 'agencia AI dentro?' },
-  final_p: { en: 'Start free for 7 days. Plans from $29/month. Cancel anytime.', es: 'Empieza gratis 7 días. Planes desde 29 $/mes. Cancela cuando quieras.' },
-  final_cta: { en: 'Start free trial', es: 'Empezar gratis' },
-  final_pricing: { en: 'See pricing', es: 'Ver precios' },
-
-  // Footer
-  footer_privacy: { en: 'Privacy', es: 'Privacidad' },
-  footer_terms: { en: 'Terms', es: 'Términos' },
-  footer_support: { en: 'Support', es: 'Soporte' },
-  footer_made: { en: 'Made with intention.', es: 'Hecho con intención.' },
-};
-
-// ─────────────────────────────────────────────────────────────────
-// Page
-// ─────────────────────────────────────────────────────────────────
-
-export function LandingPageClient() {
+export function LandingPageClient({ content }: Props) {
   const { locale } = useI18n();
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const isEs = locale === 'es';
+  const tx = (k: { es: string; en: string }) => (isEs ? k.es : k.en);
 
-  useEffect(() => {
-    const hasSession = document.cookie.split(';').some(c => c.trim().startsWith('sb-'));
-    setIsAuthenticated(hasSession);
-  }, []);
-  const t = (key: string) => tx[key]?.[locale] ?? tx[key]?.en ?? key;
+  const heroRef = useRef<HTMLDivElement>(null);
+  const { scrollYProgress } = useScroll({ target: heroRef, offset: ['start start', 'end start'] });
+  const heroOpacity = useTransform(scrollYProgress, [0, 1], [1, 0.3]);
+  const heroScale = useTransform(scrollYProgress, [0, 1], [1, 0.95]);
 
   return (
-    <main className="relative overflow-hidden bg-bg">
-      {/* Aurora as fixed background — stays as you scroll */}
-      <div className="fixed inset-0 -z-10 pointer-events-none">
-        <Aurora intensity="medium" />
-      <OperatorBg variant="landing" />
-      </div>
+    <main className="relative min-h-screen bg-bg text-fg overflow-x-hidden">
+      <Aurora intensity="medium" />
 
-      {/* Top nav */}
-      <nav className="relative z-20 max-w-7xl mx-auto px-6 sm:px-8 py-5 flex items-center justify-between">
-        <Link href="/" className="flex items-center gap-2 text-fg hover:opacity-80 transition-opacity">
-          <BrandLogo slot="home" size={32} />
-          <span className="font-display text-[18px] tracking-tight">Operator</span>
-        </Link>
-
-        <div className="flex items-center gap-2 sm:gap-4">
-          <LanguageToggle />
-          <Link
-            href="/pricing"
-            className="hidden sm:inline-flex text-[13.5px] text-fg-muted hover:text-fg transition-colors px-3 py-1.5"
-          >
-            {t('nav_pricing')}
-          </Link>
-          <Link
-            href="/login"
-            className="text-[13.5px] text-fg-muted hover:text-fg transition-colors px-3 py-1.5"
-          >
-            {t('nav_login')}
-          </Link>
-          <Link
-            href={isAuthenticated ? "/chat" : "/signup"}
-            className="text-[13.5px] gold-grad text-bg px-3.5 py-1.5 rounded-md font-medium hover:brightness-110 transition-all shadow-[0_4px_20px_-4px_rgb(201_168_99_/_0.4)]"
-          >
-            {isAuthenticated ? (locale === 'es' ? 'Abrir app' : 'Open app') : t('nav_signup')}
-          </Link>
-        </div>
-      </nav>
-
-      {/* HERO */}
-      <section className="relative z-10 max-w-6xl mx-auto px-6 sm:px-8 pt-12 sm:pt-20 pb-24 sm:pb-32">
-        <motion.div
-          initial="hidden"
-          animate="visible"
-          variants={staggerContainer}
-          className="text-center max-w-4xl mx-auto"
-        >
-          {/* Badge */}
-          <motion.div variants={fadeUp} className="mb-6">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-2/80 border border-border text-[11.5px] text-fg-muted backdrop-blur-sm">
-              <span className="h-1.5 w-1.5 rounded-full bg-gold animate-pulse-dot" />
-              {t('hero_badge')}
+      {/* ───────────────────────── NAV ───────────────────────── */}
+      <header className="sticky top-0 z-50 backdrop-blur-xl bg-bg/70 border-b border-border/50">
+        <div className="max-w-7xl mx-auto px-5 sm:px-8 h-16 flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-2.5 group">
+            <BrandLogo slot="home" size={32} />
+            <span className="font-display text-[19px] tracking-tight group-hover:text-gold transition-colors">
+              Operator
             </span>
+          </Link>
+          <div className="flex items-center gap-2 sm:gap-3">
+            <LanguageToggle />
+            <Link
+              href="/login"
+              className="hidden sm:inline-flex h-9 px-4 items-center text-[13.5px] text-fg-muted hover:text-fg transition-colors"
+            >
+              {isEs ? 'Entrar' : 'Log in'}
+            </Link>
+            <Link
+              href="/signup"
+              className="h-9 px-4 inline-flex items-center rounded-md gold-grad text-bg font-medium text-[13.5px] hover:scale-[1.02] transition-transform"
+            >
+              {tx(content.cta_primary)}
+            </Link>
+          </div>
+        </div>
+      </header>
+
+      {/* ───────────────────────── HERO ───────────────────────── */}
+      <motion.section
+        ref={heroRef}
+        style={{ opacity: heroOpacity, scale: heroScale }}
+        className="relative pt-20 sm:pt-32 pb-24 sm:pb-40 px-5 sm:px-8"
+      >
+        <div className="max-w-6xl mx-auto">
+          <motion.div
+            initial="hidden"
+            animate="visible"
+            variants={staggerContainer}
+            className="text-center"
+          >
+            {/* Badge */}
+            <motion.div variants={fadeUp} className="mb-8 flex justify-center">
+              <div className="inline-flex items-center gap-2 h-8 px-4 rounded-full border border-gold/30 bg-gold/[0.04] backdrop-blur-md">
+                <span className="h-1.5 w-1.5 rounded-full bg-gold animate-pulse-dot" />
+                <span className="text-[12px] uppercase tracking-[0.16em] text-gold-soft">
+                  {tx(content.badge)}
+                </span>
+              </div>
+            </motion.div>
+
+            {/* Title — magnético */}
+            <motion.h1
+              variants={fadeUp}
+              className="font-display text-[44px] sm:text-[80px] lg:text-[100px] leading-[0.95] tracking-tight mb-2"
+            >
+              {tx(content.hero_title)}
+            </motion.h1>
+            <motion.h1
+              variants={fadeUp}
+              className="font-display text-[44px] sm:text-[80px] lg:text-[100px] leading-[0.95] tracking-tight mb-8"
+            >
+              <span className="gold-grad-text">{tx(content.hero_title_accent)}</span>
+            </motion.h1>
+
+            {/* Subtitle */}
+            <motion.p
+              variants={fadeUp}
+              className="text-[16px] sm:text-[20px] text-fg-muted max-w-2xl mx-auto mb-10 leading-relaxed"
+            >
+              {tx(content.hero_subtitle)}
+            </motion.p>
+
+            {/* CTAs */}
+            <motion.div
+              variants={fadeUp}
+              className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-6"
+            >
+              <Magnetic>
+                <Link
+                  href="/signup"
+                  className="group h-13 px-8 inline-flex items-center justify-center gap-2 rounded-lg gold-grad text-bg font-medium text-[15px] shadow-[0_8px_30px_rgb(201_168_99_/_0.4)] hover:shadow-[0_12px_40px_rgb(201_168_99_/_0.55)] transition-all w-full sm:w-auto"
+                  style={{ height: '52px' }}
+                >
+                  {tx(content.cta_primary)}
+                  <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                </Link>
+              </Magnetic>
+
+              <Link
+                href="#demo"
+                className="h-13 px-6 inline-flex items-center justify-center gap-2 rounded-lg border border-border bg-surface-2/60 backdrop-blur-md text-fg text-[14.5px] hover:bg-surface-3 hover:border-gold/30 transition-colors w-full sm:w-auto"
+                style={{ height: '52px' }}
+              >
+                {tx(content.cta_secondary)}
+              </Link>
+            </motion.div>
+
+            {/* Trial badge */}
+            <motion.div
+              variants={fadeUp}
+              className="flex items-center justify-center gap-2 text-[12.5px] text-fg-subtle"
+            >
+              <Check className="h-3.5 w-3.5 text-gold/70" />
+              <span>{tx(content.trial_badge)}</span>
+            </motion.div>
           </motion.div>
 
-          {/* H1 */}
-          <motion.h1
-            variants={fadeUp}
-            className="font-display text-[44px] sm:text-[64px] lg:text-[80px] leading-[0.95] tracking-tight text-fg mb-5"
+          {/* Animated chat demo */}
+          <motion.div
+            initial={{ opacity: 0, y: 50 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.6, duration: 0.8, ease: 'easeOut' }}
+            className="mt-20 sm:mt-28 max-w-3xl mx-auto"
           >
-            {t('hero_h1_a')}
-            <br />
-            <span className="text-gold-grad">{t('hero_h1_b')}</span>
-          </motion.h1>
+            <AnimatedChatDemo content={content} />
+          </motion.div>
 
-          {/* Subhead */}
-          <motion.p
-            variants={fadeUp}
-            className="text-[15px] sm:text-[17px] text-fg-muted max-w-2xl mx-auto leading-relaxed mb-9"
-          >
-            {t('hero_p')}
-          </motion.p>
-
-          {/* CTAs */}
+          {/* Manifesto */}
           <motion.div
             variants={fadeUp}
-            className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-5"
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true }}
+            className="mt-20 text-center"
           >
-            <Magnetic strength={0.25}>
-              <Link
-                href="/signup"
-                className="group flex items-center gap-2 h-12 px-6 rounded-md gold-grad text-bg font-medium text-[14.5px] hover:brightness-110 transition-all shadow-[0_8px_32px_-8px_rgb(201_168_99_/_0.5)]"
-              >
-                {t('hero_cta_primary')}
-                <ArrowRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
-              </Link>
-            </Magnetic>
-            <Link
-              href="#how"
-              className="flex items-center gap-2 h-12 px-5 text-[14px] text-fg-soft hover:text-fg transition-colors"
-            >
-              <span className="border-b border-fg-soft/30 hover:border-fg/50 pb-0.5">
-                {t('hero_cta_secondary')}
-              </span>
-            </Link>
+            <p className="text-[13px] uppercase tracking-[0.18em] text-fg-subtle">
+              {tx(content.manifesto)}
+            </p>
           </motion.div>
+        </div>
+      </motion.section>
 
-          {/* No card */}
-          <motion.p
-            variants={fadeUp}
-            className="text-[12.5px] text-fg-subtle"
-          >
-            {t('hero_no_card')}
-          </motion.p>
-        </motion.div>
-
-        {/* Animated chat mockup */}
-        <motion.div
-          initial={{ opacity: 0, y: 40, scale: 0.96 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          transition={{ duration: 0.9, delay: 0.5, ease: [0.16, 1, 0.3, 1] }}
-          className="mt-16 sm:mt-20 max-w-3xl mx-auto"
-        >
-          <ChatMockup t={t} />
-        </motion.div>
-      </section>
-
-      {/* GUEST CHAT — Try Operator now (no signup) */}
-      <section className="relative z-10 max-w-5xl mx-auto px-6 sm:px-8 py-20 sm:py-28 border-t border-border">
-        <motion.div
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: '-80px' }}
-          variants={staggerContainer}
-          className="text-center mb-10"
-        >
-          <motion.div variants={fadeUp} className="text-[11px] uppercase tracking-[0.18em] text-gold mb-3">
-            {t('guest_section_kicker')}
-          </motion.div>
-          <motion.h2
-            variants={fadeUp}
-            className="font-display text-[36px] sm:text-[48px] leading-[1.05] tracking-tight mb-3"
-          >
-            {t('guest_section_h2_a')}
-            <span className="text-gold-grad">{t('guest_section_h2_b')}</span>
-          </motion.h2>
-          <motion.p
-            variants={fadeUp}
-            className="text-[14.5px] text-fg-muted max-w-xl mx-auto"
-          >
-            {t('guest_section_p')}
-          </motion.p>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: '-80px' }}
-          transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-        >
-          <GuestChat />
-        </motion.div>
-      </section>
-
-      {/* POWER SECTION */}
-      <section className="relative z-10 max-w-6xl mx-auto px-6 sm:px-8 py-24 sm:py-32 border-t border-border">
-        <motion.div
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: '-80px' }}
-          variants={staggerContainer}
-          className="text-center max-w-3xl mx-auto mb-14"
-        >
-          <motion.div variants={fadeUp} className="text-[11px] uppercase tracking-[0.18em] text-gold mb-3">
-            {t('power_kicker')}
-          </motion.div>
-          <motion.h2 variants={fadeUp} className="font-display text-[36px] sm:text-[48px] leading-[1.05] tracking-tight">
-            {t('power_h2_a')}
-            <span className="text-gold-grad">{t('power_h2_b')}</span>
-          </motion.h2>
-        </motion.div>
-
-        <motion.div
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: '-80px' }}
-          variants={staggerContainer}
-          className="grid grid-cols-1 md:grid-cols-3 gap-4"
-        >
-          <PowerCard variants={fadeUp} icon={Zap} title={t('power_1_t')} desc={t('power_1_d')} />
-          <PowerCard variants={fadeUp} icon={Target} title={t('power_2_t')} desc={t('power_2_d')} />
-          <PowerCard variants={fadeUp} icon={Sparkles} title={t('power_3_t')} desc={t('power_3_d')} />
-        </motion.div>
-      </section>
-
-      {/* HOW IT WORKS */}
-      <section id="how" className="relative z-10 max-w-6xl mx-auto px-6 sm:px-8 py-24 sm:py-32 border-t border-border">
-        <motion.div
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: '-80px' }}
-          variants={staggerContainer}
-          className="text-center max-w-3xl mx-auto mb-16"
-        >
-          <motion.div variants={fadeUp} className="text-[11px] uppercase tracking-[0.18em] text-gold mb-3">
-            {t('how_kicker')}
-          </motion.div>
-          <motion.h2 variants={fadeUp} className="font-display text-[36px] sm:text-[48px] leading-[1.05] tracking-tight">
-            {t('how_h2_a')}
-            <br />
-            <span className="text-gold-grad">{t('how_h2_b')}</span>
-          </motion.h2>
-        </motion.div>
-
-        <motion.div
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: '-80px' }}
-          variants={staggerContainer}
-          className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6"
-        >
-          <HowStep variants={fadeUp} num="01" title={t('how_1_t')} desc={t('how_1_d')} icon={MessageSquare} />
-          <HowStep variants={fadeUp} num="02" title={t('how_2_t')} desc={t('how_2_d')} icon={Sparkles} />
-          <HowStep variants={fadeUp} num="03" title={t('how_3_t')} desc={t('how_3_d')} icon={Palette} />
-        </motion.div>
-      </section>
-
-      {/* VERTICALS */}
-      <section className="relative z-10 max-w-6xl mx-auto px-6 sm:px-8 py-24 sm:py-32 border-t border-border">
-        <motion.div
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: '-80px' }}
-          variants={staggerContainer}
-          className="text-center max-w-3xl mx-auto mb-14"
-        >
-          <motion.div variants={fadeUp} className="text-[11px] uppercase tracking-[0.18em] text-gold mb-3">
-            {t('verticals_kicker')}
-          </motion.div>
-          <motion.h2 variants={fadeUp} className="font-display text-[36px] sm:text-[48px] leading-[1.05] tracking-tight">
-            {t('verticals_h2_a')}
-            <span className="text-gold-grad">{t('verticals_h2_b')}</span>
-          </motion.h2>
-        </motion.div>
-
-        <motion.div
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: '-80px' }}
-          variants={staggerContainer}
-          className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5"
-        >
-          {[
-            { en: 'Hotels & Travel', es: 'Hoteles y Viajes', emoji: '🏨' },
-            { en: 'Jewelry & Luxury', es: 'Joyería y Lujo', emoji: '💎' },
-            { en: 'Restaurants', es: 'Restaurantes', emoji: '🍽️' },
-            { en: 'Fitness', es: 'Fitness', emoji: '💪' },
-            { en: 'Beauty', es: 'Beauty', emoji: '✨' },
-            { en: 'Fashion', es: 'Moda', emoji: '👗' },
-            { en: 'Tech & SaaS', es: 'Tech y SaaS', emoji: '⚡' },
-            { en: 'Real Estate', es: 'Inmobiliaria', emoji: '🏛️' },
-            { en: 'Home Decor', es: 'Decoración', emoji: '🛋️' },
-            { en: 'Health', es: 'Salud', emoji: '🩺' },
-            { en: 'Education', es: 'Educación', emoji: '📚' },
-            { en: 'Automotive', es: 'Automoción', emoji: '🚗' },
-          ].map((v, i) => (
-            <motion.div
-              key={i}
-              variants={fadeUp}
-              className="px-4 py-3 rounded-md bg-surface-2 border border-border text-[13px] text-fg-soft hover:border-gold/40 transition-colors flex items-center gap-2"
-            >
-              <span className="text-lg">{v.emoji}</span>
-              <span className="truncate">{locale === 'es' ? v.es : v.en}</span>
-            </motion.div>
+      {/* ───────────────────────── HOW IT WORKS ───────────────────────── */}
+      <Section>
+        <SectionHeader
+          kicker={tx(content.how_kicker)}
+          title={tx(content.how_title)}
+          subtitle={tx(content.how_subtitle)}
+        />
+        <div className="mt-16 max-w-4xl mx-auto space-y-6">
+          {content.steps.map((step, i) => (
+            <StepCard
+              key={step.number}
+              number={step.number}
+              title={tx(step.title)}
+              desc={tx(step.desc)}
+              timing={tx(step.timing)}
+              delay={i * 0.1}
+            />
           ))}
+        </div>
+      </Section>
+
+      {/* ───────────────────────── VERTICALS ───────────────────────── */}
+      <Section>
+        <SectionHeader
+          kicker={tx(content.verticals_kicker)}
+          title={tx(content.verticals_title)}
+          subtitle={tx(content.verticals_subtitle)}
+        />
+
+        <div className="mt-14 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-w-5xl mx-auto">
+          {content.verticals.map((v, i) => (
+            <VerticalCard
+              key={v.key}
+              icon={VERTICAL_ICONS[v.key] ?? Sparkles}
+              label={tx(v.label)}
+              pitch={tx(v.pitch)}
+              delay={i * 0.05}
+            />
+          ))}
+        </div>
+      </Section>
+
+      {/* ───────────────────────── CAPABILITIES ───────────────────────── */}
+      <Section>
+        <SectionHeader
+          kicker={tx(content.capabilities_kicker)}
+          title={tx(content.capabilities_title)}
+          subtitle={tx(content.capabilities_subtitle)}
+        />
+
+        <div className="mt-14 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 max-w-5xl mx-auto">
+          {content.capabilities.map((cap, i) => (
+            <CapabilityCard
+              key={cap.title.es}
+              icon={CAPABILITY_ICONS[cap.icon]}
+              title={tx(cap.title)}
+              desc={tx(cap.desc)}
+              delay={i * 0.07}
+            />
+          ))}
+        </div>
+      </Section>
+
+      {/* ───────────────────────── FINAL CTA ───────────────────────── */}
+      <section className="relative py-32 px-5 sm:px-8 overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-gold/[0.04] to-transparent" />
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.7 }}
+          className="relative max-w-3xl mx-auto text-center"
+        >
+          <div className="text-[12px] uppercase tracking-[0.2em] text-gold mb-6">
+            {tx(content.final_kicker)}
+          </div>
+          <h2 className="font-display text-[40px] sm:text-[64px] leading-[1.05] tracking-tight mb-6">
+            {tx(content.final_title)}
+          </h2>
+          <p className="text-[16px] sm:text-[18px] text-fg-muted mb-10 max-w-xl mx-auto">
+            {tx(content.final_subtitle)}
+          </p>
+          <Magnetic>
+            <Link
+              href="/signup"
+              className="inline-flex items-center gap-2 px-10 rounded-lg gold-grad text-bg font-medium text-[15.5px] shadow-[0_12px_40px_rgb(201_168_99_/_0.5)] hover:shadow-[0_18px_60px_rgb(201_168_99_/_0.65)] transition-all"
+              style={{ height: '56px' }}
+            >
+              {tx(content.final_cta)}
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </Magnetic>
+          <p className="mt-5 text-[12.5px] text-fg-subtle">{tx(content.final_note)}</p>
         </motion.div>
       </section>
 
-      {/* FINAL CTA */}
-      <section className="relative z-10 max-w-4xl mx-auto px-6 sm:px-8 py-24 sm:py-32 border-t border-border">
-        <motion.div
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: '-80px' }}
-          variants={staggerContainer}
-          className="text-center"
-        >
-          <motion.h2 variants={fadeUp} className="font-display text-[36px] sm:text-[56px] leading-[1.05] tracking-tight mb-6">
-            {t('final_h2_a')}
-            <span className="text-gold-grad">{t('final_h2_b')}</span>
-          </motion.h2>
-          <motion.p variants={fadeUp} className="text-fg-muted max-w-xl mx-auto mb-10 text-[15px]">
-            {t('final_p')}
-          </motion.p>
-          <motion.div variants={fadeUp} className="flex flex-col sm:flex-row gap-3 justify-center">
-            <Magnetic strength={0.25}>
-              <Link
-                href="/signup"
-                className="flex items-center justify-center gap-2 h-12 px-7 rounded-md gold-grad text-bg font-medium text-[14.5px] hover:brightness-110 transition-all shadow-[0_8px_32px_-8px_rgb(201_168_99_/_0.5)]"
-              >
-                {t('final_cta')}
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-            </Magnetic>
-            <Link
-              href="/pricing"
-              className="flex items-center justify-center gap-2 h-12 px-6 rounded-md bg-transparent text-fg border border-border-strong hover:border-gold transition-colors text-[14px]"
-            >
-              {t('final_pricing')}
+      {/* ───────────────────────── FOOTER ───────────────────────── */}
+      <footer className="border-t border-border/50 py-10 px-5 sm:px-8">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-[12.5px] text-fg-subtle">
+          <div className="flex items-center gap-2">
+            <BrandLogo slot="home" size={20} />
+            <span>© {new Date().getFullYear()} Operator AI</span>
+          </div>
+          <div className="flex items-center gap-5">
+            <Link href="/privacy" className="hover:text-fg-muted transition-colors">
+              {isEs ? 'Privacidad' : 'Privacy'}
             </Link>
-          </motion.div>
-        </motion.div>
-      </section>
+            <Link href="/terms" className="hover:text-fg-muted transition-colors">
+              {isEs ? 'Términos' : 'Terms'}
+            </Link>
+            <Link href="/support" className="hover:text-fg-muted transition-colors">
+              {isEs ? 'Soporte' : 'Support'}
+            </Link>
+          </div>
+        </div>
+      </footer>
     </main>
   );
 }
 
-// ─────────────────────────────────────────────────────────────────
-// Reusable parts
-// ─────────────────────────────────────────────────────────────────
+// ════════════════════════════════════════════════════════════════════════════
+// Animated chat demo
+// ════════════════════════════════════════════════════════════════════════════
 
-function PowerCard({
-  icon: Icon,
-  title,
-  desc,
-  variants,
-}: {
-  icon: typeof Zap;
-  title: string;
-  desc: string;
-  variants: any;
-}) {
-  return (
-    <motion.div
-      variants={variants}
-      className="group relative p-6 rounded-lg bg-surface-2/60 backdrop-blur-sm border border-border hover:border-gold/40 transition-all"
-    >
-      <div className="h-10 w-10 rounded-md bg-gold/10 border border-gold/20 flex items-center justify-center mb-4">
-        <Icon className="h-4.5 w-4.5 text-gold" />
-      </div>
-      <h3 className="text-[15.5px] font-medium text-fg mb-1.5 leading-tight">{title}</h3>
-      <p className="text-[13.5px] text-fg-muted leading-relaxed">{desc}</p>
-    </motion.div>
-  );
-}
+function AnimatedChatDemo({ content }: { content: HomeContent }) {
+  const { locale } = useI18n();
+  const isEs = locale === 'es';
+  const ref = useRef<HTMLDivElement>(null);
+  const isInView = useInView(ref, { once: true, margin: '-100px' });
 
-function HowStep({
-  num,
-  title,
-  desc,
-  icon: Icon,
-  variants,
-}: {
-  num: string;
-  title: string;
-  desc: string;
-  icon: typeof Zap;
-  variants: any;
-}) {
-  return (
-    <motion.div
-      variants={variants}
-      className="relative p-6 rounded-lg bg-surface-2/40 backdrop-blur-sm border border-border"
-    >
-      <div className="flex items-start justify-between mb-5">
-        <div className="text-[11px] uppercase tracking-[0.18em] text-gold font-mono">{num}</div>
-        <Icon className="h-4 w-4 text-fg-muted" />
-      </div>
-      <h3 className="text-[16px] font-medium text-fg mb-2 leading-tight">{title}</h3>
-      <p className="text-[13.5px] text-fg-muted leading-relaxed">{desc}</p>
-    </motion.div>
-  );
-}
+  const userMsg = isEs
+    ? 'Quiero lanzar una campaña fitness para mi nuevo programa'
+    : 'I want to launch a fitness campaign for my new program';
 
-// ─────────────────────────────────────────────────────────────────
-// Animated chat mockup
-// ─────────────────────────────────────────────────────────────────
+  const operatorReplyParts = isEs
+    ? [
+        'Perfecto. Vamos.',
+        'He preparado tu campaña completa:',
+      ]
+    : [
+        'Got it. Here we go.',
+        "I've prepared your full campaign:",
+      ];
 
-function ChatMockup({ t }: { t: (k: string) => string }) {
-  const [step, setStep] = useState(0);
-
-  useEffect(() => {
-    const timers = [
-      setTimeout(() => setStep(1), 1500),
-      setTimeout(() => setStep(2), 3500),
-      setTimeout(() => setStep(3), 6500),
-    ];
-    return () => timers.forEach(clearTimeout);
-  }, []);
+  const items = isEs
+    ? ['Estrategia de campaña', 'Copy y ángulos', '3 anuncios diseñados', 'CTA y segmentación']
+    : ['Campaign strategy', 'Copy and angles', '3 designed ads', 'CTA and segmentation'];
 
   return (
-    <div className="rounded-2xl bg-surface-2/80 backdrop-blur-md border border-border shadow-2xl overflow-hidden">
-      {/* Mock header */}
-      <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-surface/50">
-        <div className="flex gap-1.5">
-          <div className="h-2.5 w-2.5 rounded-full bg-red-500/70" />
-          <div className="h-2.5 w-2.5 rounded-full bg-yellow-500/70" />
-          <div className="h-2.5 w-2.5 rounded-full bg-green-500/70" />
+    <div ref={ref} id="demo" className="relative">
+      {/* Glow */}
+      <div className="absolute -inset-6 bg-gradient-to-r from-gold/10 via-gold/[0.08] to-gold/10 blur-3xl rounded-3xl pointer-events-none" />
+
+      <div className="relative rounded-2xl border border-gold/15 bg-surface-2/40 backdrop-blur-xl shadow-[0_30px_80px_rgb(0_0_0_/_0.4)] overflow-hidden">
+        {/* Window header */}
+        <div className="flex items-center gap-2 px-4 h-10 border-b border-border/40 bg-bg/40">
+          <div className="flex gap-1.5">
+            <span className="h-2.5 w-2.5 rounded-full bg-red-500/60" />
+            <span className="h-2.5 w-2.5 rounded-full bg-yellow-500/60" />
+            <span className="h-2.5 w-2.5 rounded-full bg-green-500/60" />
+          </div>
+          <span className="ml-3 text-[11.5px] text-fg-muted">Operator · Creative Agent</span>
         </div>
-        <div className="ml-3 text-[11.5px] text-fg-muted">Operator · Creative Agent</div>
-      </div>
 
-      {/* Mock conversation */}
-      <div className="px-5 sm:px-7 py-7 space-y-4 min-h-[280px]">
-        {/* User message */}
-        {step >= 1 && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4 }}
-            className="flex justify-end"
-          >
-            <div className="max-w-[85%] rounded-xl px-4 py-2.5 bg-gold/15 border border-gold/20 text-[13.5px] text-fg">
-              {t('mockup_user_msg')}
-            </div>
-          </motion.div>
-        )}
-
-        {/* Agent typing */}
-        {step >= 2 && step < 3 && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="flex items-center gap-2 text-[12px] text-fg-muted"
-          >
-            <div className="flex gap-1">
-              <span className="h-1.5 w-1.5 rounded-full bg-gold animate-pulse-dot" />
-              <span className="h-1.5 w-1.5 rounded-full bg-gold animate-pulse-dot" style={{ animationDelay: '0.2s' }} />
-              <span className="h-1.5 w-1.5 rounded-full bg-gold animate-pulse-dot" style={{ animationDelay: '0.4s' }} />
-            </div>
-            <span>{t('mockup_agent_typing')}</span>
-          </motion.div>
-        )}
-
-        {/* Agent message + action card */}
-        {step >= 3 && (
-          <>
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4 }}
-              className="flex justify-start"
-            >
-              <div className="max-w-[88%] rounded-xl px-4 py-3 bg-surface border border-border text-[13.5px] text-fg leading-relaxed">
-                {t('mockup_agent_msg')}
-              </div>
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, delay: 0.4 }}
-              className="flex"
-            >
-              <button className="flex items-center gap-3 p-3 rounded-lg bg-gradient-to-br from-gold/15 via-surface-2 to-surface-2 border border-gold/40 hover:border-gold/60 transition-colors">
-                <div className="h-8 w-8 rounded-md bg-gold/20 flex items-center justify-center">
-                  <Sparkles className="h-4 w-4 text-gold" />
+        <div className="p-5 sm:p-7 space-y-4 min-h-[320px]">
+          {/* User msg */}
+          <AnimatePresence>
+            {isInView && (
+              <motion.div
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.4 }}
+                className="flex justify-end"
+              >
+                <div className="max-w-[85%] px-4 py-2.5 rounded-2xl rounded-br-sm bg-gold/10 border border-gold/20 text-fg text-[14px]">
+                  {userMsg}
                 </div>
-                <div className="text-left">
-                  <div className="text-[13px] font-medium text-fg">
-                    {t('mockup_action_card')}
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Typing indicator → reply */}
+          <AnimatePresence>
+            {isInView && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 1.5 }}
+                className="flex gap-3"
+              >
+                <div className="flex-shrink-0">
+                  <BrandLogo slot="logo" size={28} />
+                </div>
+                <div className="flex-1 max-w-[90%]">
+                  <div className="px-4 py-3 rounded-2xl rounded-bl-sm bg-surface-3/80 border border-border text-[14px] text-fg-soft leading-relaxed">
+                    <Typewriter texts={operatorReplyParts} startDelay={1.7} />
+
+                    {/* Animated checklist */}
+                    <motion.ul
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ delay: 3.5, duration: 0.5 }}
+                      className="mt-3 space-y-1.5"
+                    >
+                      {items.map((item, i) => (
+                        <motion.li
+                          key={item}
+                          initial={{ opacity: 0, x: -10 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: 3.7 + i * 0.15 }}
+                          className="flex items-center gap-2 text-[13.5px]"
+                        >
+                          <Check className="h-3.5 w-3.5 text-gold flex-shrink-0" />
+                          <span>{item}</span>
+                        </motion.li>
+                      ))}
+                    </motion.ul>
                   </div>
                 </div>
-                <ArrowRight className="h-3.5 w-3.5 text-fg-muted" />
-              </button>
-            </motion.div>
-          </>
-        )}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       </div>
     </div>
   );
 }
+
+function Typewriter({ texts, startDelay = 0 }: { texts: string[]; startDelay?: number }) {
+  const [shown, setShown] = useState<string[]>(texts.map(() => ''));
+
+  useEffect(() => {
+    let cancelled = false;
+    const run = async () => {
+      await new Promise((r) => setTimeout(r, startDelay * 1000));
+      for (let t = 0; t < texts.length && !cancelled; t++) {
+        const target = texts[t];
+        for (let i = 1; i <= target.length && !cancelled; i++) {
+          setShown((prev) => {
+            const copy = [...prev];
+            copy[t] = target.slice(0, i);
+            return copy;
+          });
+          await new Promise((r) => setTimeout(r, 18));
+        }
+      }
+    };
+    run();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return (
+    <>
+      {shown.map((line, i) => (
+        <p key={i} className={i > 0 ? 'mt-1' : ''}>
+          {line}
+        </p>
+      ))}
+    </>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// Reusable components
+// ════════════════════════════════════════════════════════════════════════════
+
+function Section({ children }: { children: React.ReactNode }) {
+  return (
+    <section className="relative py-24 sm:py-32 px-5 sm:px-8">
+      <div className="max-w-7xl mx-auto">{children}</div>
+    </section>
+  );
+}
+
+function SectionHeader({
+  kicker,
+  title,
+  subtitle,
+}: {
+  kicker: string;
+  title: string;
+  subtitle: string;
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: '-50px' }}
+      transition={{ duration: 0.6 }}
+      className="text-center max-w-3xl mx-auto"
+    >
+      <div className="inline-flex items-center gap-2 mb-5">
+        <Sparkles className="h-3.5 w-3.5 text-gold" />
+        <span className="text-[11.5px] uppercase tracking-[0.2em] text-gold-soft">{kicker}</span>
+      </div>
+      <h2 className="font-display text-[36px] sm:text-[56px] lg:text-[64px] leading-[1.05] tracking-tight mb-5">
+        {title}
+      </h2>
+      <p className="text-[15.5px] sm:text-[17px] text-fg-muted leading-relaxed">{subtitle}</p>
+    </motion.div>
+  );
+}
+
+function StepCard({
+  number,
+  title,
+  desc,
+  timing,
+  delay,
+}: {
+  number: number;
+  title: string;
+  desc: string;
+  timing: string;
+  delay: number;
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 30 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: '-50px' }}
+      transition={{ duration: 0.6, delay }}
+      className="group relative flex flex-col sm:flex-row gap-5 p-6 sm:p-8 rounded-2xl border border-border/60 bg-surface-2/40 backdrop-blur-md hover:border-gold/30 hover:bg-surface-2/60 transition-all"
+    >
+      <div className="flex-shrink-0">
+        <div className="h-14 w-14 rounded-xl border border-gold/30 bg-gold/[0.06] flex items-center justify-center font-display text-[22px] text-gold group-hover:bg-gold/10 group-hover:scale-105 transition-all">
+          {number}
+        </div>
+      </div>
+      <div className="flex-1">
+        <h3 className="font-display text-[22px] sm:text-[26px] mb-2 tracking-tight">{title}</h3>
+        <p className="text-[15px] text-fg-muted leading-relaxed mb-3">{desc}</p>
+        <div className="inline-flex items-center gap-1.5 text-[12px] text-gold-soft">
+          <Zap className="h-3 w-3" />
+          <span className="uppercase tracking-wider">{timing}</span>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+function VerticalCard({
+  icon: Icon,
+  label,
+  pitch,
+  delay,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  pitch: string;
+  delay: number;
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: '-30px' }}
+      transition={{ duration: 0.5, delay }}
+      whileHover={{ y: -4 }}
+      className="group relative p-5 rounded-xl border border-border/60 bg-surface-2/40 backdrop-blur-md hover:border-gold/40 hover:bg-surface-2/70 transition-colors"
+    >
+      <div className="h-10 w-10 rounded-lg border border-gold/25 bg-gold/[0.05] flex items-center justify-center mb-4 group-hover:bg-gold/10 transition-colors">
+        <Icon className="h-4 w-4 text-gold" />
+      </div>
+      <h4 className="font-display text-[18px] mb-1.5 tracking-tight">{label}</h4>
+      <p className="text-[13.5px] text-fg-muted leading-relaxed">{pitch}</p>
+    </motion.div>
+  );
+}
+
+function CapabilityCard({
+  icon: Icon,
+  title,
+  desc,
+  delay,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  title: string;
+  desc: string;
+  delay: number;
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: '-30px' }}
+      transition={{ duration: 0.6, delay }}
+      className="group relative p-6 sm:p-7 rounded-2xl border border-border/60 bg-surface-2/40 backdrop-blur-md hover:border-gold/30 transition-all overflow-hidden"
+    >
+      <div className="absolute -top-20 -right-20 h-40 w-40 rounded-full bg-gold/5 blur-3xl opacity-0 group-hover:opacity-100 transition-opacity" />
+      <div className="relative">
+        <div className="h-11 w-11 rounded-xl gold-grad flex items-center justify-center mb-5 shadow-[0_8px_20px_rgb(201_168_99_/_0.25)]">
+          <Icon className="h-4.5 w-4.5 text-bg" />
+        </div>
+        <h3 className="font-display text-[20px] sm:text-[22px] mb-2 tracking-tight">{title}</h3>
+        <p className="text-[14px] text-fg-muted leading-relaxed">{desc}</p>
+      </div>
+    </motion.div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// Icon maps
+// ════════════════════════════════════════════════════════════════════════════
+
+const VERTICAL_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
+  fitness: Dumbbell,
+  beauty: Sparkles,
+  'real-estate': Building2,
+  restaurants: UtensilsCrossed,
+  ecommerce: ShoppingBag,
+  jewelry: Gem,
+  saas: Code2,
+  health: HeartPulse,
+  travel: Plane,
+};
+
+const CAPABILITY_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
+  sparkles: Sparkles,
+  target: Target,
+  palette: Palette,
+  video: Video,
+  brain: Brain,
+  zap: Zap,
+};
