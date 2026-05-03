@@ -1,238 +1,360 @@
 'use client';
-import { useState, useEffect } from 'react';
-import { Check, Sparkles, Zap, Crown, Gem, Loader2, ExternalLink } from 'lucide-react';
+
+import { useState, useEffect, useMemo } from 'react';
+import { Check, Loader2, ExternalLink, AlertCircle, Sparkles, Zap, Crown, Gem } from 'lucide-react';
 import { toast } from 'sonner';
 import { useI18n } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
+import { PLANS, type PlanDefinition } from '@/features/billing/data/plans';
 
-interface CurrentPlan {
-  planId: string | null;
-  status: string | null;
-  cancelAtPeriodEnd: boolean;
-  currentPeriodEnd: string | null;
+interface UsageData {
+  plan: { id: string; name: string; priceDisplay: string; quotas: PlanDefinition['quotas'] } | null;
+  subscription: {
+    status: string;
+    cancelAtPeriodEnd: boolean;
+    currentPeriodEnd: string | null;
+    trialEnd: string | null;
+  } | null;
+  usage: {
+    chat_messages: number;
+    image_generations: number;
+    video_generations: number;
+  };
 }
 
-const plans = [
-  {
-    id: 'starter',
-    icon: Sparkles,
-    color: 'text-blue-400',
-    price_en: '$29 / month', price_es: '29 $ / mes',
-    name_en: 'Starter', name_es: 'Starter',
-    tagline_en: 'For individuals', tagline_es: 'Para particulares',
-    features_en: ['AI Creative Agent', '500 messages/mo', '50 AI images/mo', 'Voice mode', '1 project', 'Memory + Brand OS', 'Email support'],
-    features_es: ['Agente Creativo IA', '500 mensajes/mes', '50 imágenes IA/mes', 'Modo voz', '1 proyecto', 'Memoria + Brand OS', 'Soporte email'],
-  },
-  {
-    id: 'pro',
-    icon: Zap,
-    color: 'text-gold',
-    popular: true,
-    price_en: '$99 / month', price_es: '99 $ / mes',
-    name_en: 'Pro', name_es: 'Pro',
-    tagline_en: 'For brands and pros', tagline_es: 'Para marcas y profesionales',
-    features_en: ['Everything in Starter', '3,000 messages/mo', '300 AI images/mo', '5 projects', 'Image Studio (11 presets)', 'Brand OS', 'Priority support'],
-    features_es: ['Todo en Starter', '3.000 mensajes/mes', '300 imágenes IA/mes', 'Brand OS', '5 proyectos', 'Image Studio (11 presets)', 'Brand OS', 'Soporte prioritario'],
-  },
-  {
-    id: 'studio',
-    icon: Crown,
-    color: 'text-purple-400',
-    price_en: '$299 / month', price_es: '299 $ / mes',
-    name_en: 'Studio', name_es: 'Studio',
-    tagline_en: 'For studios with multiple brands', tagline_es: 'Para estudios con varias marcas',
-    features_en: ['Everything in Pro', '15,000 messages/mo', '1,500 AI images/mo', '25 projects', 'Reference images', 'Priority support'],
-    features_es: ['Todo en Pro', '15.000 mensajes/mes', '1.500 imágenes IA/mes', 'Soporte prioritario', '25 proyectos', 'Imágenes de referencia', 'Soporte prioritario', ],
-  },
-  {
-    id: 'agency',
-    icon: Gem,
-    color: 'text-emerald-400',
-    price_en: '$999 / month', price_es: '999 $ / mes',
-    name_en: 'Agency', name_es: 'Agency',
-    tagline_en: 'White-label for agencies', tagline_es: 'White-label para agencias',
-    features_en: ['Everything in Studio', '50,000 messages/mo', '5,000 AI images/mo', 'Unlimited projects', 'White-label (coming soon)', 'Dedicated support'],
-    features_es: ['Todo en Studio', '50.000 mensajes/mes', '5.000 imágenes IA/mes', 'Proyectos ilimitados', 'Proyectos ilimitados', 'Soporte dedicado', 'White-label (próximamente)', 'Soporte dedicado'],
-  },
-];
+const PLAN_ICONS: Record<string, typeof Sparkles> = {
+  starter: Sparkles,
+  pro: Zap,
+  studio: Crown,
+  agency: Gem,
+};
 
-const labels: Record<string, Record<string, string>> = {
-  title: { en: 'Choose your plan', es: 'Elige tu plan' },
-  subtitle: { en: 'All plans include a 7-day free trial. Cancel anytime.', es: 'Todos los planes incluyen 7 días de prueba gratis. Cancela cuando quieras.' },
-  current: { en: 'Current plan', es: 'Plan actual' },
-  upgrade: { en: 'Upgrade', es: 'Mejorar' },
-  contact: { en: 'Talk to sales', es: 'Hablar con ventas' },
-  popular: { en: 'Most popular', es: 'Más popular' },
-  manage: { en: 'Manage subscription', es: 'Gestionar suscripción' },
-  manage_desc: { en: 'Update payment method, download invoices, or cancel.', es: 'Actualiza método de pago, descarga facturas o cancela.' },
-  open_portal: { en: 'Open billing portal', es: 'Abrir portal de facturación' },
-  cancel_note: { en: 'Cancel or change your plan anytime. No hidden fees.', es: 'Cancela o cambia tu plan cuando quieras. Sin costes ocultos.' },
-  active: { en: 'Active', es: 'Activo' },
-  canceling: { en: 'Canceling at period end', es: 'Se cancela al final del periodo' },
-  no_plan: { en: 'No active plan', es: 'Sin plan activo' },
+const PLAN_COLORS: Record<string, string> = {
+  starter: 'text-blue-400',
+  pro: 'text-gold',
+  studio: 'text-purple-400',
+  agency: 'text-rose-400',
 };
 
 export default function BillingPage() {
   const { locale } = useI18n();
-  const l = (key: string) => labels[key]?.[locale] ?? labels[key]?.en ?? key;
-  const [current, setCurrent] = useState<CurrentPlan | null>(null);
-  const [loading, setLoading] = useState<string | null>(null);
-  const [portalLoading, setPortalLoading] = useState(false);
+  const isEs = locale === 'es';
+  const [data, setData] = useState<UsageData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [interval, setInterval] = useState<'monthly' | 'yearly'>('monthly');
+  const [checkingOut, setCheckingOut] = useState<string | null>(null);
+  const [openingPortal, setOpeningPortal] = useState(false);
 
   useEffect(() => {
-    fetch('/api/billing/current').then(r => r.json()).then(data => {
-      if (data.planId) setCurrent(data);
-    }).catch(() => {});
+    fetch('/api/billing/usage')
+      .then((r) => r.json())
+      .then((d) => { setData(d); setLoading(false); })
+      .catch(() => setLoading(false));
   }, []);
 
+  const trialDaysRemaining = useMemo(() => {
+    if (!data?.subscription?.trialEnd) return null;
+    if (data.subscription.status !== 'trialing') return null;
+    const end = new Date(data.subscription.trialEnd).getTime();
+    const ms = end - Date.now();
+    if (ms <= 0) return 0;
+    return Math.ceil(ms / (1000 * 60 * 60 * 24));
+  }, [data]);
+
   async function handleCheckout(planId: string) {
-    setLoading(planId);
+    setCheckingOut(planId);
     try {
       const res = await fetch('/api/billing/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ planId }),
+        body: JSON.stringify({ planId, interval }),
       });
-      const body = await res.json();
-      if (!res.ok) throw new Error(body?.error ?? 'Failed');
-      if (body.url) window.location.href = body.url;
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Failed');
+      const json = await res.json();
+      if (json.url) {
+        window.location.href = json.url;
+      } else {
+        toast.error(json.error ?? 'Error');
+      }
+    } catch {
+      toast.error(isEs ? 'Error al iniciar checkout' : 'Checkout error');
     } finally {
-      setLoading(null);
+      setCheckingOut(null);
     }
   }
 
   async function handlePortal() {
-    setPortalLoading(true);
+    setOpeningPortal(true);
     try {
       const res = await fetch('/api/billing/portal', { method: 'POST' });
-      const body = await res.json();
-      if (!res.ok) throw new Error(body?.error ?? 'Failed');
-      if (body.url) window.location.href = body.url;
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Failed');
+      const json = await res.json();
+      if (json.url) {
+        window.location.href = json.url;
+      } else {
+        toast.error(json.error ?? 'Error');
+      }
+    } catch {
+      toast.error(isEs ? 'Error abriendo portal' : 'Portal error');
     } finally {
-      setPortalLoading(false);
+      setOpeningPortal(false);
     }
   }
 
-  const currentPlanId = current?.planId;
+  if (loading) {
+    return (
+      <div className="px-4 sm:px-6 lg:px-8 py-12 max-w-5xl mx-auto">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <Loader2 className="h-6 w-6 animate-spin text-fg-muted" />
+        </div>
+      </div>
+    );
+  }
+
+  const hasPlan = !!data?.plan;
+  const sub = data?.subscription;
+  const plan = data?.plan;
+  const usage = data?.usage ?? { chat_messages: 0, image_generations: 0, video_generations: 0 };
 
   return (
-    <div className="px-6 lg:px-10 py-8 max-w-[1080px] mx-auto space-y-8">
-      <div className="text-center">
-        <div className="text-[11px] uppercase tracking-[0.18em] text-gold mb-1">Operator AI</div>
-        <h1 className="font-display text-[32px]">{l('title')}</h1>
-        <p className="text-[13.5px] text-fg-muted mt-1.5">{l('subtitle')}</p>
+    <div className="px-4 sm:px-6 lg:px-8 py-10 max-w-5xl mx-auto pb-24">
+      <div className="mb-10">
+        <div className="text-[11px] uppercase tracking-[0.18em] text-gold mb-2">
+          {isEs ? 'Cuenta · Facturación' : 'Account · Billing'}
+        </div>
+        <h1 className="font-display text-[34px] sm:text-[42px] tracking-tight mb-2">
+          {isEs ? 'Plan y facturación' : 'Plan and billing'}
+        </h1>
+        <p className="text-[14.5px] text-fg-muted max-w-2xl">
+          {isEs
+            ? 'Gestiona tu plan, ve tu uso del mes y administra el método de pago.'
+            : 'Manage your plan, see this month usage and update your payment method.'}
+        </p>
       </div>
 
-      {/* Current plan status */}
-      {current && (
-        <div className="rounded-lg border border-gold/30 bg-gold/5 p-4 flex items-center justify-between flex-wrap gap-3">
-          <div>
-            <span className="text-[12px] text-gold font-medium uppercase tracking-[0.12em]">
-              {current.cancelAtPeriodEnd ? l('canceling') : l('active')}
-            </span>
-            <span className="text-[14px] text-fg ml-2 font-display">
-              {plans.find(p => p.id === currentPlanId)?.name_en ?? currentPlanId}
-            </span>
+      {/* Trial alert */}
+      {trialDaysRemaining !== null && trialDaysRemaining > 0 && (
+        <div className="mb-8 p-4 rounded-xl border border-gold/30 bg-gold/[0.05]">
+          <div className="flex items-center gap-3">
+            <AlertCircle className="h-5 w-5 text-gold flex-shrink-0" />
+            <div className="flex-1">
+              <div className="text-[14.5px] text-fg font-medium">
+                {isEs
+                  ? `Estás en periodo de prueba — ${trialDaysRemaining} ${trialDaysRemaining === 1 ? 'día restante' : 'días restantes'}`
+                  : `Trial period active — ${trialDaysRemaining} ${trialDaysRemaining === 1 ? 'day' : 'days'} left`}
+              </div>
+              <div className="text-[13px] text-fg-muted mt-0.5">
+                {isEs
+                  ? 'Cuando termine tu trial, se cobrará automáticamente. Cancela cuando quieras.'
+                  : 'When your trial ends you will be charged automatically. Cancel anytime.'}
+              </div>
+            </div>
           </div>
-          <button
-            onClick={handlePortal}
-            disabled={portalLoading}
-            className="h-8 px-3 rounded-md border border-gold/40 bg-gold/10 text-[12px] text-gold font-medium hover:bg-gold/20 transition-colors flex items-center gap-1.5 disabled:opacity-50"
-          >
-            {portalLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <ExternalLink className="h-3 w-3" />}
-            <span>{l('open_portal')}</span>
-          </button>
+        </div>
+      )}
+
+      {/* Current plan card */}
+      {hasPlan && plan && sub && (
+        <div className="mb-12 p-6 sm:p-8 rounded-2xl border border-border bg-surface-2">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+            <div>
+              <div className="text-[12px] uppercase tracking-wider text-fg-subtle mb-1">
+                {isEs ? 'Tu plan actual' : 'Your current plan'}
+              </div>
+              <div className="flex items-center gap-3">
+                <h2 className="font-display text-[28px] tracking-tight">{plan.name}</h2>
+                <span className="text-[14px] text-fg-muted">{plan.priceDisplay}/mo</span>
+                {sub.cancelAtPeriodEnd && (
+                  <span className="text-[12px] uppercase tracking-wider text-rose-400">
+                    {isEs ? 'Se cancelará' : 'Will cancel'}
+                  </span>
+                )}
+              </div>
+            </div>
+            <button
+              onClick={handlePortal}
+              disabled={openingPortal}
+              className="h-10 px-5 rounded-md border border-border bg-surface-3 text-[13.5px] hover:border-gold/30 transition-colors flex items-center gap-2"
+            >
+              {openingPortal ? <Loader2 className="h-4 w-4 animate-spin" /> : <ExternalLink className="h-4 w-4" />}
+              {isEs ? 'Gestionar facturación' : 'Manage billing'}
+            </button>
+          </div>
+
+          {/* Usage bars */}
+          <div className="space-y-4">
+            <UsageBar
+              label={isEs ? 'Mensajes de chat' : 'Chat messages'}
+              used={usage.chat_messages}
+              limit={plan.quotas.chatMessages}
+            />
+            <UsageBar
+              label={isEs ? 'Imágenes generadas' : 'Images generated'}
+              used={usage.image_generations}
+              limit={plan.quotas.imageGenerations}
+            />
+            <UsageBar
+              label={isEs ? 'Videos generados' : 'Videos generated'}
+              used={usage.video_generations}
+              limit={plan.quotas.videoGenerations}
+            />
+          </div>
+
+          {sub.currentPeriodEnd && (
+            <p className="mt-5 text-[12.5px] text-fg-subtle">
+              {isEs ? 'Próxima renovación: ' : 'Next renewal: '}
+              {new Date(sub.currentPeriodEnd).toLocaleDateString(isEs ? 'es-ES' : 'en-US')}
+            </p>
+          )}
         </div>
       )}
 
       {/* Plans grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-        {plans.map((plan) => {
-          const Icon = plan.icon;
-          const features = locale === 'es' ? plan.features_es : plan.features_en;
-          const name = locale === 'es' ? plan.name_es : plan.name_en;
-          const tagline = locale === 'es' ? plan.tagline_es : plan.tagline_en;
-          const price = locale === 'es' ? plan.price_es : plan.price_en;
-          const isCurrent = currentPlanId === plan.id;
-          const isAgency = plan.id === 'agency';
+      <div className="mb-6 flex items-center justify-between flex-wrap gap-4">
+        <h2 className="font-display text-[24px] tracking-tight">
+          {hasPlan
+            ? (isEs ? 'Cambia de plan' : 'Change plan')
+            : (isEs ? 'Elige tu plan' : 'Choose your plan')}
+        </h2>
+        <div className="flex items-center gap-1 p-1 rounded-md bg-surface-2 border border-border">
+          <button
+            onClick={() => setInterval('monthly')}
+            className={cn(
+              'h-8 px-4 rounded-sm text-[12.5px] transition-all',
+              interval === 'monthly' ? 'bg-surface-3 text-fg font-medium' : 'text-fg-muted hover:text-fg'
+            )}
+          >
+            {isEs ? 'Mensual' : 'Monthly'}
+          </button>
+          <button
+            onClick={() => setInterval('yearly')}
+            className={cn(
+              'h-8 px-4 rounded-sm text-[12.5px] transition-all flex items-center gap-1.5',
+              interval === 'yearly' ? 'bg-surface-3 text-fg font-medium' : 'text-fg-muted hover:text-fg'
+            )}
+          >
+            {isEs ? 'Anual' : 'Yearly'}
+            <span className="text-[10.5px] uppercase tracking-wider text-gold">-20%</span>
+          </button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {PLANS.map((p) => {
+          const Icon = PLAN_ICONS[p.id] ?? Sparkles;
+          const colorCls = PLAN_COLORS[p.id] ?? 'text-fg';
+          const isCurrent = plan?.id === p.id;
+          const yearlyPrice = Math.round((p.priceCents * 12 * 0.8) / 100);
+          const monthlyEquiv = Math.round((p.priceCents * 0.8) / 100);
 
           return (
             <div
-              key={plan.id}
+              key={p.id}
               className={cn(
-                'relative rounded-xl border p-5 space-y-4 transition-all flex flex-col',
-                plan.popular
-                  ? 'border-gold/50 bg-gold/5 shadow-[0_0_30px_-10px_rgb(201_168_99_/_0.15)]'
-                  : isCurrent
-                  ? 'border-gold/30 bg-surface'
-                  : 'border-border bg-surface hover:border-gold/30',
+                'relative p-5 rounded-xl border bg-surface-2 flex flex-col',
+                p.highlight ? 'border-gold/40' : 'border-border',
+                isCurrent && 'ring-2 ring-gold/60'
               )}
             >
-              {plan.popular && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2 text-[9px] uppercase tracking-[0.16em] px-3 py-1 rounded-full gold-grad text-bg font-bold">
-                  {l('popular')}
+              {p.highlight && (
+                <div className="absolute -top-2.5 right-4 px-2.5 py-0.5 rounded-full bg-gold text-bg text-[10px] uppercase tracking-wider font-medium">
+                  {isEs ? 'Recomendado' : 'Popular'}
                 </div>
               )}
-              <div>
-                <div className="flex items-center gap-2.5 mb-1">
-                  <Icon className={cn('h-5 w-5', plan.color)} />
-                  <span className="font-display text-[18px]">{name}</span>
+              {isCurrent && (
+                <div className="absolute -top-2.5 left-4 px-2.5 py-0.5 rounded-full bg-fg text-bg text-[10px] uppercase tracking-wider font-medium">
+                  {isEs ? 'Actual' : 'Current'}
                 </div>
-                <div className="text-[11px] text-fg-muted">{tagline}</div>
-                <div className="font-display text-[22px] mt-2">{price}</div>
+              )}
+
+              <div className="flex items-center gap-2 mb-3">
+                <Icon className={cn('h-4 w-4', colorCls)} />
+                <h3 className="font-display text-[18px] tracking-tight">{p.name}</h3>
               </div>
-              <div className="space-y-1.5 flex-1">
-                {features.map((f) => (
-                  <div key={f} className="flex items-start gap-2 text-[12.5px] text-fg-soft">
-                    <Check className={cn('h-3 w-3 mt-0.5 shrink-0', plan.popular ? 'text-gold' : 'text-fg-subtle')} />
+              <p className="text-[12.5px] text-fg-muted mb-4">{p.tagline}</p>
+
+              <div className="mb-5">
+                {interval === 'monthly' ? (
+                  <>
+                    <div className="text-[28px] font-display tracking-tight">{p.priceDisplay}</div>
+                    <div className="text-[11.5px] text-fg-subtle">/{isEs ? 'mes' : 'month'}</div>
+                  </>
+                ) : (
+                  <>
+                    <div className="text-[28px] font-display tracking-tight">${monthlyEquiv}</div>
+                    <div className="text-[11.5px] text-fg-subtle">
+                      /{isEs ? 'mes' : 'month'} · ${yearlyPrice}/{isEs ? 'año' : 'year'}
+                    </div>
+                  </>
+                )}
+              </div>
+
+              <ul className="space-y-2 mb-6 flex-1">
+                {p.features.slice(0, 5).map((f) => (
+                  <li key={f} className="flex items-start gap-2 text-[12.5px] text-fg-soft">
+                    <Check className="h-3 w-3 text-gold mt-1 flex-shrink-0" />
                     <span>{f}</span>
-                  </div>
+                  </li>
                 ))}
-              </div>
+              </ul>
+
               <button
-                onClick={() => isAgency ? window.open('mailto:sales@operatorai.app') : !isCurrent && handleCheckout(plan.id)}
-                disabled={isCurrent || loading === plan.id}
+                onClick={() => handleCheckout(p.id)}
+                disabled={isCurrent || checkingOut === p.id}
                 className={cn(
-                  'w-full h-10 rounded-md text-[13px] font-medium transition-all flex items-center justify-center gap-2',
+                  'h-10 w-full rounded-md text-[13px] font-medium transition-all flex items-center justify-center gap-2',
                   isCurrent
-                    ? 'bg-surface-2 border border-gold/30 text-gold cursor-default'
-                    : plan.popular
-                    ? 'gold-grad text-bg shadow-[0_6px_20px_-6px_rgb(201_168_99_/_0.5)] hover:brightness-110'
-                    : 'bg-surface-2 border border-border text-fg hover:border-gold/40 hover:text-gold',
-                  loading === plan.id && 'opacity-60',
+                    ? 'bg-surface-3 text-fg-muted cursor-default'
+                    : p.highlight
+                      ? 'gold-grad text-bg hover:scale-[1.02]'
+                      : 'border border-border bg-surface-3 hover:border-gold/40'
                 )}
               >
-                {loading === plan.id && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                {isCurrent ? l('current') : isAgency ? l('contact') : l('upgrade')}
+                {checkingOut === p.id && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                {isCurrent
+                  ? (isEs ? 'Plan actual' : 'Current plan')
+                  : (hasPlan
+                    ? (isEs ? 'Cambiar' : 'Switch')
+                    : (isEs ? 'Probar 3 días' : 'Try 3 days'))}
               </button>
             </div>
           );
         })}
       </div>
 
-      {/* Manage subscription */}
-      {current && (
-        <div className="rounded-lg border border-border bg-surface p-5 flex items-center justify-between flex-wrap gap-3">
-          <div>
-            <div className="font-display text-[15px]">{l('manage')}</div>
-            <div className="text-[12.5px] text-fg-muted mt-0.5">{l('manage_desc')}</div>
-          </div>
-          <button
-            onClick={handlePortal}
-            disabled={portalLoading}
-            className="h-9 px-4 rounded-md bg-surface-2 border border-border text-[13px] text-fg hover:border-gold/40 hover:text-gold transition-colors flex items-center gap-2 disabled:opacity-50"
-          >
-            {portalLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ExternalLink className="h-3.5 w-3.5" />}
-            <span>{l('open_portal')}</span>
-          </button>
-        </div>
-      )}
+      <p className="mt-8 text-center text-[12px] text-fg-subtle">
+        {isEs
+          ? '3 días gratis · Cancela cuando quieras · Soporte por email'
+          : '3 days free · Cancel anytime · Email support'}
+      </p>
+    </div>
+  );
+}
 
-      <p className="text-center text-[12px] text-fg-subtle">{l('cancel_note')}</p>
+function UsageBar({ label, used, limit }: { label: string; used: number; limit: number }) {
+  const isUnlimited = limit >= 999999;
+  const pct = isUnlimited ? 0 : Math.min(100, (used / limit) * 100);
+  const isHigh = pct >= 80;
+  const isFull = pct >= 100;
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-1.5">
+        <span className="text-[13px] text-fg-soft">{label}</span>
+        <span className={cn(
+          'text-[12px]',
+          isFull ? 'text-rose-400 font-medium' : isHigh ? 'text-amber-400' : 'text-fg-muted'
+        )}>
+          {used.toLocaleString()} / {isUnlimited ? '∞' : limit.toLocaleString()}
+        </span>
+      </div>
+      <div className="h-1.5 rounded-full bg-surface-3 overflow-hidden">
+        <div
+          className={cn(
+            'h-full rounded-full transition-all',
+            isFull ? 'bg-rose-400' : isHigh ? 'bg-amber-400' : 'bg-gold'
+          )}
+          style={{ width: `${isUnlimited ? 100 : pct}%`, opacity: isUnlimited ? 0.3 : 1 }}
+        />
+      </div>
     </div>
   );
 }
