@@ -7,6 +7,8 @@ import { User, CreditCard, Settings, LogOut, Brain, Plug, Shield, Bell, HelpCirc
 import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
 import { cn } from '@/lib/utils';
 import { useI18n } from '@/lib/i18n';
+import { MODEL_OPTIONS, useChatStore } from '@/features/chat/stores/chat-store';
+import { Cpu, Zap, Sparkles } from 'lucide-react';
 
 interface Props {
   email: string;
@@ -15,6 +17,8 @@ interface Props {
 
 export function UserMenu({ email, fullName }: Props) {
   const { locale, setLocale } = useI18n();
+  const selectedModel = useChatStore((s) => s.selectedModel);
+  const setModel = useChatStore((s) => s.setModel);
   const [open, setOpen] = useState(false);
   const [plan, setPlan] = useState<string>('Free');
   const ref = useRef<HTMLDivElement>(null);
@@ -89,6 +93,34 @@ export function UserMenu({ email, fullName }: Props) {
             <MLink href="/settings" icon={Settings} onClick={() => setOpen(false)}>{t('Settings', 'Ajustes')}</MLink>
             <MLink href="/support" icon={HelpCircle} onClick={() => setOpen(false)}>{t('Support', 'Soporte')}</MLink>
           </nav>
+
+          {/* AI Model selector */}
+          <div className="border-t border-border p-1.5">
+            <div className="px-3 pt-2 pb-1 text-[10px] uppercase tracking-[0.16em] text-fg-subtle flex items-center gap-2">
+              <Cpu className="h-3 w-3" />
+              {locale === 'es' ? 'Motor IA' : 'AI Engine'}
+            </div>
+            <div className="space-y-0.5">
+              {MODEL_OPTIONS.map((opt) => {
+                const Icon = opt.id === 'gpt-4o' ? Zap : opt.id.startsWith('claude') ? Brain : Sparkles;
+                const isActive = selectedModel === opt.id;
+                return (
+                  <button
+                    key={opt.id}
+                    onClick={() => setModel(opt.id)}
+                    className={cn(
+                      'w-full flex items-center gap-3 px-3 h-9 rounded-md text-[12.5px] transition-colors',
+                      isActive ? 'bg-gold/10 text-fg border border-gold/20' : 'text-fg-muted hover:bg-surface-2 hover:text-fg border border-transparent'
+                    )}
+                  >
+                    <Icon className={cn('h-3.5 w-3.5 flex-shrink-0', isActive ? 'text-gold' : 'text-fg-subtle')} />
+                    <span className="flex-1 text-left truncate">{opt.label}</span>
+                    {isActive && <span className="h-1.5 w-1.5 rounded-full bg-gold" />}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
 
           {/* Language toggle */}
           <div className="border-t border-border p-1.5">
