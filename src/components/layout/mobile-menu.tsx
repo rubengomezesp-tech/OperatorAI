@@ -1,183 +1,280 @@
 'use client';
 
 /**
- * Mobile Menu V3 — Synced with sidebar (Chat / Campaigns / Brand / Settings)
+ * Mobile Menu — ChatGPT-style with conversation history grouped by time
+ * Synced with desktop Sidebar
  */
 
 import Link from 'next/link';
-import { useState, useEffect } from 'react';
-import { usePathname } from 'next/navigation';
+import { useEffect, useState, useCallback } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
 import {
+  Plus,
   MessageSquare,
   Sparkles,
   Palette,
   Settings,
   Shield,
+  Trash2,
   X,
   Menu,
+  Loader2,
   type LucideIcon,
 } from 'lucide-react';
+import { useBrandAssets } from '@/lib/brand-assets-context';
 import { cn } from '@/lib/utils';
 import { useI18n } from '@/lib/i18n';
 
-interface NavItem {
+interface Conversation {
+  id: string;
+  title: string | null;
+  last_message_at: string | null;
+}
+
+interface SecondaryNavItem {
   href: string;
-  labelEn: string;
-  labelEs: string;
+  label: string;
   icon: LucideIcon;
-  primary?: boolean;
 }
 
-const NAV_ITEMS: NavItem[] = [
-  {
-    href: '/chat',
-    labelEn: 'Chat',
-    labelEs: 'Chat',
-    icon: MessageSquare,
-    primary: true,
-  },
-  {
-    href: '/campaigns',
-    labelEn: 'Campaigns',
-    labelEs: 'Campañas',
-    icon: Sparkles,
-  },
-  {
-    href: '/brand-os',
-    labelEn: 'Brand',
-    labelEs: 'Marca',
-    icon: Palette,
-  },
-  {
-    href: '/settings',
-    labelEn: 'Settings',
-    labelEs: 'Configuración',
-    icon: Settings,
-  },
-];
+type TimeGroup = 'today' | 'yesterday' | 'week' | 'older';
 
-interface MobileMenuProps {
-  open: boolean;
-  onClose: () => void;
-  isAdmin?: boolean;
+const MAX_CONVERSATIONS = 8;
+
+function groupByTime(convs: Conversation[]): Record<TimeGroup, Conversation[]> {
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const startOfYesterday = new Date(startOfToday);
+  startOfYesterday.setDate(startOfYesterday.getDate() - 1);
+  const startOfWeek = new Date(startOfToday);
+  startOfWeek.setDate(startOfWeek.getDate() - 7);
+
+  const groups: Record<TimeGroup, Conversation[]> = {
+    today: [], yesterday: [], week: [], older: [],
+  };
+
+  for (const c of convs) {
+    if (!c.last_message_at) { groups.older.push(c); continue; }
+    const t = new Date(c.last_message_at);
+    if (t >= startOfToday) groups.today.push(c);
+    else if (t >= startOfYesterday) groups.yesterday.push(c);
+    else if (t >= startOfWeek) groups.week.push(c);
+    else groups.older.push(c);
+  }
+  return groups;
 }
 
-export function MobileMenu({ open, onClose, isAdmin = false }: MobileMenuProps) {
+export function MobileMenuButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="h-9 w-9 rounded-full bg-surface-2 hover:bg-surface-3 flex items-center justify-center transition-colors"
+      aria-label="Open menu"
+    >
+      <Menu className="h-4 w-4 text-fg-soft" />
+    </button>
+  );
+}
+
+export function MobileMenu({ open, onClose, isAdmin = false }: { open: boolean; onClose: () => void; isAdmin?: boolean }) {
+  const { iconUrl, logoUrl } = useBrandAssets();
+  const router = useRouter();
   const pathname = usePathname();
   const { locale } = useI18n();
   const isEs = locale === 'es';
+  const [convs, setConvs] = useState<Conversation[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // Lock body scroll when open
+  const refresh = useCallback(async () => {
+    try {
+      const res = await fetch('/api/conversations/list', { credentials: 'include' });
+      if (!res.ok) return;
+      const data = await res.json();
+      setConvs(data.conversations ?? []);
+    } catch {} finally { setLoading(false); }
+  }, []);
+
+  useEffect(() => { if (open) refresh(); }, [open, refresh]);
+
+  // Body scroll lock
   useEffect(() => {
     if (open) {
       document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
+      return () => { document.body.style.overflow = ''; };
     }
-    return () => {
-      document.body.style.overflow = '';
-    };
   }, [open]);
+
+  function handleNewChat() {
+    router.push('/chat');
+    onClose();
+  }
+
+  async function handleDelete(id: string, e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!confirm(isEs ? '¿Borrar esta conversación?' : 'Delete this conversation?')) return;
+    try {
+      await fetch('/api/conversations/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ conversationId: id }),
+      });
+      setConvs((prev) => prev.filter((c) => c.id !== id));
+      if (pathname === `/chat/${id}`) router.push('/chat');
+    } catch {}
+  }
+
+  // Limit to top 8 most recent
+  const limitedConvs = convs.slice(0, MAX_CONVERSATIONS);
+  const grouped = groupByTime(limitedConvs);
+  const isOnChat = pathname?.startsWith('/chat');
+  const activeChatId = isOnChat ? pathname?.split('/')[2] : null;
+
+  const secondaryNav: SecondaryNavItem[] = [
+    { href: '/campaigns', label: isEs ? 'Campañas' : 'Campaigns', icon: Sparkles },
+    { href: '/brand-os', label: isEs ? 'Marca' : 'Brand', icon: Palette },
+    { href: '/settings', label: isEs ? 'Configuración' : 'Settings', icon: Settings },
+    ...(isAdmin ? [{ href: '/admin', label: 'Admin', icon: Shield }] : []),
+  ];
+
+  const groupLabels: Record<TimeGroup, string> = isEs
+    ? { today: 'Hoy', yesterday: 'Ayer', week: 'Últimos 7 días', older: 'Anteriores' }
+    : { today: 'Today', yesterday: 'Yesterday', week: 'Previous 7 days', older: 'Older' };
 
   if (!open) return null;
 
-  const items = isAdmin
-    ? [
-        ...NAV_ITEMS,
-        {
-          href: '/admin',
-          labelEn: 'Admin',
-          labelEs: 'Admin',
-          icon: Shield,
-        },
-      ]
-    : NAV_ITEMS;
-
   return (
-    <div
-      className="fixed inset-0 z-50 lg:hidden"
-      onClick={onClose}
-    >
-      {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+    <div className="lg:hidden fixed inset-0 z-50">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <aside className="relative h-full w-[280px] max-w-[80vw] bg-surface border-r border-border flex flex-col animate-slide-in-left">
+        {/* Brand + close */}
+        <div className="p-3 border-b border-border space-y-2">
+          <div className="flex items-center justify-between gap-2">
+            <Link href="/chat" onClick={onClose} className="flex items-center gap-2 px-2 py-1.5 hover:opacity-80 transition-opacity flex-1 min-w-0">
+              {iconUrl ? (
+                <div className="h-7 w-7 rounded-md overflow-hidden flex items-center justify-center bg-bg/40 flex-shrink-0">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={iconUrl} alt="Operator" className="h-full w-full object-contain" />
+                </div>
+              ) : (
+                <div className="h-7 w-7 rounded-md gold-grad flex items-center justify-center flex-shrink-0">
+                  <Sparkles className="h-3.5 w-3.5 text-bg" />
+                </div>
+              )}
+              {logoUrl ? (
+                <div className="h-6 max-w-[120px] flex items-center">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={logoUrl} alt="Operator" className="h-full w-auto object-contain" />
+                </div>
+              ) : (
+                <span className="font-display text-[15px] tracking-tight text-fg truncate">Operator</span>
+              )}
+            </Link>
+            <button onClick={onClose} className="h-8 w-8 rounded-md hover:bg-surface-2 flex items-center justify-center flex-shrink-0">
+              <X className="h-4 w-4 text-fg-muted" />
+            </button>
+          </div>
 
-      {/* Drawer */}
-      <div
-        className="absolute left-0 top-0 bottom-0 w-[280px] bg-surface border-r border-border flex flex-col"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="h-14 px-4 flex items-center justify-between border-b border-border">
-          <Link
-            href="/chat"
-            className="flex items-center gap-2 text-fg hover:opacity-80 transition-opacity"
-            onClick={onClose}
-          >
-            <div className="h-7 w-7 rounded-md gold-grad flex items-center justify-center">
-              <Sparkles className="h-3.5 w-3.5 text-bg" />
-            </div>
-            <span className="font-display text-[15px] tracking-tight">Operator</span>
-          </Link>
           <button
-            onClick={onClose}
-            className="p-2 -mr-2 text-fg-muted hover:text-fg"
+            onClick={handleNewChat}
+            className="w-full flex items-center gap-2 px-3 py-2 rounded-md border border-border hover:border-gold/40 bg-surface-2 hover:bg-surface-3 text-[13px] text-fg-soft hover:text-fg transition-colors"
           >
-            <X className="h-5 w-5" />
+            <Plus className="h-3.5 w-3.5" />
+            <span>{isEs ? 'Nueva conversación' : 'New chat'}</span>
           </button>
         </div>
 
-        {/* Nav items */}
-        <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
-          {items.map((item) => {
+        {/* Conversations */}
+        <div className="flex-1 overflow-y-auto px-2 py-3 space-y-4">
+          {loading && (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-4 w-4 animate-spin text-fg-subtle" />
+            </div>
+          )}
+
+          {!loading && limitedConvs.length === 0 && (
+            <div className="px-3 py-6 text-center">
+              <MessageSquare className="h-6 w-6 text-fg-subtle mx-auto mb-2" />
+              <p className="text-[12px] text-fg-subtle leading-snug">
+                {isEs ? 'Tus conversaciones aparecerán aquí' : 'Your conversations will appear here'}
+              </p>
+            </div>
+          )}
+
+          {!loading && (Object.keys(grouped) as TimeGroup[]).map((group) => {
+            const items = grouped[group];
+            if (items.length === 0) return null;
+            return (
+              <div key={group}>
+                <div className="px-2 mb-1.5 text-[10px] uppercase tracking-[0.16em] text-fg-subtle">
+                  {groupLabels[group]}
+                </div>
+                <div className="space-y-0.5">
+                  {items.map((c) => {
+                    const isActive = activeChatId === c.id;
+                    return (
+                      <Link
+                        key={c.id}
+                        href={`/chat/${c.id}`}
+                        onClick={onClose}
+                        className={cn(
+                          'group relative flex items-center gap-2 px-2.5 py-2 rounded-md text-[13px] transition-colors',
+                          isActive
+                            ? 'bg-gold/10 text-gold border border-gold/20'
+                            : 'text-fg-soft hover:bg-surface-2 hover:text-fg border border-transparent',
+                        )}
+                      >
+                        <span className="flex-1 truncate">
+                          {c.title?.trim() || (isEs ? 'Sin título' : 'Untitled')}
+                        </span>
+                        <button
+                          onClick={(e) => handleDelete(c.id, e)}
+                          className="p-0.5 rounded hover:bg-surface-3 text-fg-subtle hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+
+          {!loading && convs.length > MAX_CONVERSATIONS && (
+            <Link
+              href="/chat/history"
+              onClick={onClose}
+              className="block px-3 py-2 text-center text-[11px] text-fg-subtle hover:text-fg-muted"
+            >
+              {isEs ? 'Ver todas' : 'View all'} ({convs.length})
+            </Link>
+          )}
+        </div>
+
+        {/* Secondary nav */}
+        <div className="border-t border-border p-2 space-y-0.5">
+          {secondaryNav.map((item) => {
             const Icon = item.icon;
-            const active =
-              pathname === item.href || pathname?.startsWith(item.href + '/');
+            const active = pathname === item.href || pathname?.startsWith(item.href + '/');
             return (
               <Link
                 key={item.href}
                 href={item.href}
                 onClick={onClose}
                 className={cn(
-                  'flex items-center gap-3 px-3 py-3 rounded-md text-[14.5px] transition-colors',
-                  active
-                    ? 'bg-gold/10 text-gold border border-gold/20'
-                    : 'text-fg-soft hover:bg-surface-2 hover:text-fg border border-transparent',
-                  item.primary && !active && 'text-fg',
+                  'flex items-center gap-2.5 px-2.5 py-2 rounded-md text-[13px] transition-colors',
+                  active ? 'bg-surface-2 text-fg' : 'text-fg-muted hover:bg-surface-2 hover:text-fg',
                 )}
               >
-                <Icon className="h-4.5 w-4.5 shrink-0" />
-                <span className="flex-1">{isEs ? item.labelEs : item.labelEn}</span>
+                <Icon className="h-4 w-4 shrink-0" />
+                <span className="flex-1 truncate">{item.label}</span>
               </Link>
             );
           })}
-        </nav>
-
-        {/* Footer hint */}
-        <div className="p-4 border-t border-border">
-          <p className="text-[11.5px] text-fg-subtle leading-relaxed">
-            {isEs
-              ? 'Operator es tu agencia AI dentro de tu bolsillo.'
-              : 'Operator is your AI agency in your pocket.'}
-          </p>
         </div>
-      </div>
+      </aside>
     </div>
-  );
-}
-
-// MobileMenuButton — the hamburger trigger
-interface MobileMenuButtonProps {
-  onClick: () => void;
-}
-
-export function MobileMenuButton({ onClick }: MobileMenuButtonProps) {
-  return (
-    <button
-      onClick={onClick}
-      className="lg:hidden p-2 -ml-2 text-fg-muted hover:text-fg transition-colors"
-      aria-label="Menu"
-    >
-      <Menu className="h-5 w-5" />
-    </button>
   );
 }

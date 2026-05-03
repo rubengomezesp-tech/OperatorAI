@@ -256,10 +256,7 @@ export function ChatView({
       <OperatorBg variant="chat" />
 
       <div className="flex-1 flex flex-col min-w-0">
-        <div className="flex items-center gap-2 px-4 py-2 border-b border-border">
-          <ChatDrawer currentId={conversationId} onSelect={handleChatSelect} />
-          <ChatTopbar title={initialTitle} conversationId={conversationId} />
-        </div>
+        
 
         {consecutiveFailures >= 2 && !recoveryDismissed && (
           <div className="mx-4 mt-3 mb-1 p-3 rounded-xl glass border border-amber-500/30 flex items-start gap-3">

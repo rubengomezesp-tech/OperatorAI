@@ -147,7 +147,8 @@ export function Sidebar({ isAdmin = false, onClose }: Props) {
     }
   }
 
-  const grouped = groupByTime(convs);
+  const limitedConvs = convs.slice(0, 8);
+  const grouped = groupByTime(limitedConvs);
   const isOnChat = pathname?.startsWith('/chat');
   const activeChatId = isOnChat ? pathname?.split('/')[2] : null;
 
