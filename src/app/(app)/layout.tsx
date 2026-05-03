@@ -10,6 +10,8 @@ import { resolveCurrentOrg } from '@/features/organizations/server/resolve';
 import { AppShell } from '@/components/layout/app-shell';
 import { OrgProvider } from '@/features/organizations/context/org-provider';
 import { Aurora } from '@/components/ui/aurora';
+import { getActiveSubscription } from '@/features/billing/server/subscription';
+import { headers } from 'next/headers';
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const db = await createSupabaseServerClient();
@@ -39,6 +41,21 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   const { currentOrg, orgs } = await resolveCurrentOrg(user.id);
   if (!currentOrg) redirect('/welcome');
+
+  // Enforce active subscription (admin saltea)
+  const isAdminUser = (user.email ?? '') === 'rubengomezesp@gmail.com';
+  if (!isAdminUser) {
+    const sub = await getActiveSubscription(svc, currentOrg.id);
+    const hasActiveSub = sub && (sub.status === 'active' || sub.status === 'trialing');
+    if (!hasActiveSub) {
+      const hdrs = await headers();
+      const path = hdrs.get('x-pathname') ?? hdrs.get('x-invoke-path') ?? '';
+      // Permitir /billing y /admin sin sub activa
+      if (!path.startsWith('/billing') && !path.startsWith('/admin')) {
+        redirect('/billing');
+      }
+    }
+  }
 
   // Fetch brand assets (logo, icon, avatar, bg) from Supabase Storage
   const brandAssets = await getBrandAssets();

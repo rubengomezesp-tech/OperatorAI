@@ -7,7 +7,8 @@ export const config = {
 };
 
 export async function middleware(req: NextRequest) {
-  let res = NextResponse.next();
+  let res = NextResponse.next({ request: { headers: new Headers(req.headers) } });
+  res.headers.set('x-pathname', req.nextUrl.pathname);
 
   // Refresh Supabase session on every request (keeps user logged in)
   try {

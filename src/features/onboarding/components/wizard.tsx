@@ -98,7 +98,23 @@ export function OnboardingWizard({ userEmail }: { userEmail: string }) {
     setData(merged);
     await saveState(TOTAL_STEPS - 1, merged, true);
     toast.success("You're all set!");
-    router.push('/dashboard');
+    
+    // Después del onboarding → redirect a Stripe Checkout (plan PRO con trial 3 días)
+    try {
+      const res = await fetch('/api/billing/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ planId: 'pro', interval: 'monthly' }),
+      });
+      const json = await res.json();
+      if (json.url) {
+        window.location.href = json.url;
+        return;
+      }
+    } catch {
+      // Si falla checkout, mandamos a /billing para que elija plan
+    }
+    router.push('/billing');
     router.refresh();
   }
 
