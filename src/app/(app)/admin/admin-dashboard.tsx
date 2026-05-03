@@ -8,6 +8,8 @@ import { AdminSidebar, AdminMenuButton, type AdminTabId } from './admin-sidebar'
 import { SubscriptionsPanel } from './subscriptions/panel';
 import { HomeContentEditor } from './home-content/editor';
 import { SupportPanel } from './support/panel';
+import { UsersPanel } from './users-panel/panel';
+import { SystemPanel } from './system/panel';
 
 interface Stats { users: number; conversations: number; images: number }
 interface FeedbackItem { id: string; feedback_type: string; message_preview: string | null; comment: string | null; created_at: string }
@@ -143,34 +145,17 @@ export function AdminDashboard() {
       {/* Feedback */}
       {tab === 'feedback' && <SupportPanel />}
 
-      {tab === 'users' && (
-        <div className="space-y-2">
-          <div className="text-[12px] text-fg-muted mb-2">{users.length} users total</div>
-          {users.map(u => (
-            <div key={u.id} className="rounded-lg border border-border bg-surface p-4 flex items-center gap-4">
-              <div className="h-9 w-9 rounded-full bg-gold/10 border border-gold/20 flex items-center justify-center text-[14px] font-display text-gold shrink-0">
-                {(u.full_name ?? u.email)?.[0]?.toUpperCase() ?? '?'}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-[14px] truncate">{u.full_name || 'No name'}</div>
-                <div className="text-[12px] text-fg-muted truncate">{u.email}</div>
-              </div>
-              <div className="flex flex-col items-end gap-0.5 shrink-0">
-                <span className="text-[9px] px-1.5 py-0.5 rounded bg-surface-2 text-fg-subtle uppercase">{u.provider}</span>
-                <div className="flex items-center gap-1 text-[10px] text-fg-subtle"><Clock className="h-2.5 w-2.5" />{new Date(u.created_at).toLocaleDateString()}</div>
-                {u.last_sign_in && <div className="text-[9px] text-fg-subtle">Last: {new Date(u.last_sign_in).toLocaleDateString()}</div>}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+      {tab === 'users' && <UsersPanel users={users} />}
 
-      {/* Settings */}
       {tab === 'brand' && (
         <div className="mt-6">
           <BrandAssetsManager />
         </div>
       )}
+
+      {tab === 'subscriptions' && <SubscriptionsPanel />}
+      {tab === 'home-content' && <HomeContentEditor />}
+      {tab === 'system' && <SystemPanel />}
 
       {tab === 'settings' && (
         <div className="space-y-6">
