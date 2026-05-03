@@ -16,6 +16,7 @@ import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
 import { Aurora } from '@/components/ui/aurora';
 import { fadeUp, staggerContainer } from '@/lib/motion';
 import { BrandLogo } from '@/components/brand/brand-logo';
+import { SocialAuth } from '@/features/auth/components/social-auth';
 
 const tx: Record<string, Record<string, string>> = {
   back: { en: '← Home', es: '← Inicio' },
@@ -87,6 +88,8 @@ export default function LoginPage() {
             </h1>
             <p className="text-[14.5px] text-fg-muted">{t('sub')}</p>
           </motion.div>
+
+          <SocialAuth mode="login" />
 
           <motion.form variants={fadeUp} onSubmit={handleSubmit} className="space-y-4">
             <div>
