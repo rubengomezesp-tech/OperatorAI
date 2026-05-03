@@ -23,6 +23,7 @@ import type Stripe from 'stripe';
 import { getStripe } from '@/features/billing/server/stripe-client';
 import { createSupabaseServiceClient } from '@/lib/supabase/service';
 import { serverEnv } from '@/lib/env';
+import { resolvePriceId } from '@/lib/billing/pricing';
 
 export const runtime = 'nodejs';
 
@@ -127,12 +128,8 @@ export async function POST(req: NextRequest) {
         let planId: string | null = sub.metadata?.plan_id ?? null;
         const item = sub.items.data[0];
         if (!planId && item?.price?.id) {
-          const { data: pr } = await svc
-            .from('plans')
-            .select('id')
-            .eq('stripe_price_monthly_id', item.price.id)
-            .maybeSingle();
-          planId = (pr as { id: string } | null)?.id ?? null;
+          const resolved = resolvePriceId(item.price.id);
+          planId = resolved?.planId ?? null;
         }
         const pEnd = item?.current_period_end
           ? new Date(item.current_period_end * 1000).toISOString()
@@ -186,6 +183,23 @@ export async function POST(req: NextRequest) {
             .update({ status: 'past_due' } as never)
             .eq('stripe_subscription_id', inv.subscription);
         }
+        break;
+      }
+      case 'customer.subscription.trial_will_end': {
+        const sub = event.data.object as Stripe.Subscription;
+        const orgId = sub.metadata?.org_id;
+        if (!orgId) break;
+        // Marcar para que el cron envíe email/push
+        await (svc as unknown as {
+          from: (t: string) => {
+            update: (data: object) => {
+              eq: (k: string, v: string) => Promise<unknown>;
+            };
+          };
+        })
+          .from('subscriptions')
+          .update({ trial_ending_notified_at: null } as never)
+          .eq('org_id', orgId);
         break;
       }
       default:

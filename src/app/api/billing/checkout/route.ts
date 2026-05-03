@@ -56,6 +56,14 @@ export async function POST(req: NextRequest) {
     customerId = customer.id;
     if (sub) {
       await svc.from('subscriptions').update({ stripe_customer_id: customerId } as never).eq('id', sub.id);
+    } else {
+      // Crear row placeholder para que el webhook pueda hacer update por org_id
+      await svc.from('subscriptions').insert({
+        org_id: orgId,
+        plan_id: planId,
+        stripe_customer_id: customerId,
+        status: 'incomplete',
+      } as never);
     }
   }
 
