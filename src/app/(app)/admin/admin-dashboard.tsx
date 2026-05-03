@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Users, MessageSquare, ImageIcon, ThumbsUp, ThumbsDown, Heart, Flag, Shield, TrendingUp, Clock, Settings, Save, Loader2, Bell, Wrench, Mail, Globe, Zap } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { BrandAssetsManager } from './brand-assets/manager';
 
 interface Stats { users: number; conversations: number; images: number }
 interface FeedbackItem { id: string; feedback_type: string; message_preview: string | null; comment: string | null; created_at: string }
@@ -34,7 +35,7 @@ const DEFAULT_SETTINGS: AppSettings = {
 };
 
 export function AdminDashboard() {
-  const [tab, setTab] = useState<'overview' | 'feedback' | 'users' | 'settings'>('overview');
+  const [tab, setTab] = useState<'overview' | 'feedback' | 'users' | 'settings' | 'brand'>('overview');
   const [stats, setStats] = useState<Stats>({ users: 0, conversations: 0, images: 0 });
   const [feedback, setFeedback] = useState<FeedbackItem[]>([]);
   const [users, setUsers] = useState<UserItem[]>([]);
@@ -99,6 +100,7 @@ export function AdminDashboard() {
           { id: 'overview', label: 'Overview', I: TrendingUp },
           { id: 'feedback', label: 'Feedback', I: MessageSquare },
           { id: 'users', label: 'Users', I: Users },
+          { id: 'brand', label: 'Brand Assets', I: ImageIcon },
           { id: 'settings', label: 'Settings', I: Settings },
         ].map(t => (
           <button key={t.id} onClick={() => setTab(t.id as any)} className={cn('h-8 px-4 rounded-md text-[13px] flex items-center gap-2 whitespace-nowrap', tab === t.id ? 'bg-surface-3 text-fg' : 'text-fg-muted hover:text-fg')}>
@@ -185,6 +187,12 @@ export function AdminDashboard() {
       )}
 
       {/* Settings */}
+      {tab === 'brand' && (
+        <div className="mt-6">
+          <BrandAssetsManager />
+        </div>
+      )}
+
       {tab === 'settings' && (
         <div className="space-y-6">
           {/* Support */}
