@@ -15,6 +15,7 @@ import { useI18n, LanguageToggle } from '@/lib/i18n';
 import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
 import { Aurora } from '@/components/ui/aurora';
 import { fadeUp, staggerContainer } from '@/lib/motion';
+import { BrandLogo } from '@/components/brand/brand-logo';
 
 const tx: Record<string, Record<string, string>> = {
   back: { en: '← Home', es: '← Inicio' },
@@ -78,9 +79,7 @@ export default function LoginPage() {
         >
           <motion.div variants={fadeUp} className="mb-8">
             <div className="flex items-center gap-2 mb-6">
-              <div className="h-9 w-9 rounded-md gold-grad flex items-center justify-center">
-                <Sparkles className="h-4 w-4 text-bg" />
-              </div>
+              <BrandLogo slot="login" size={36} />
               <span className="font-display text-[19px] tracking-tight">Operator</span>
             </div>
             <h1 className="font-display text-[36px] sm:text-[44px] leading-[1.05] tracking-tight mb-2">

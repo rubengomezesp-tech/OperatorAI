@@ -33,6 +33,7 @@ import { OperatorBg } from '@/components/layout/operator-bg';
 import { Magnetic } from '@/components/ui/magnetic';
 import { fadeUp, staggerContainer, scaleIn } from '@/lib/motion';
 import dynamic from 'next/dynamic';
+import { BrandLogo } from '@/components/brand/brand-logo';
 
 const GuestChat = dynamic(() => import('@/features/landing/components/guest-chat').then(m => m.GuestChat), {
   ssr: false,
@@ -142,9 +143,7 @@ export function LandingPageClient() {
       {/* Top nav */}
       <nav className="relative z-20 max-w-7xl mx-auto px-6 sm:px-8 py-5 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-2 text-fg hover:opacity-80 transition-opacity">
-          <div className="h-8 w-8 rounded-md gold-grad flex items-center justify-center">
-            <Sparkles className="h-4 w-4 text-bg" />
-          </div>
+          <BrandLogo slot="home" size={32} />
           <span className="font-display text-[18px] tracking-tight">Operator</span>
         </Link>
 
