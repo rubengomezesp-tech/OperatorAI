@@ -25,6 +25,7 @@ export interface BrandAssetUrls {
   ogImageUrl: string | null;
   bgHomeUrl: string | null;
   bgOnboardingUrl: string | null;
+  logoFooterUrl: string | null;
 }
 
 const EMPTY: BrandAssetUrls = {
@@ -32,7 +33,7 @@ const EMPTY: BrandAssetUrls = {
   navChatUrl: null, navCampaignsUrl: null, navBrandUrl: null, navSettingsUrl: null,
   logoHomeUrl: null, logoLoginUrl: null, logoTopbarUrl: null,
   faviconUrl: null, pwaIconUrl: null, ogImageUrl: null,
-  bgHomeUrl: null, bgOnboardingUrl: null,
+  bgHomeUrl: null, bgOnboardingUrl: null, logoFooterUrl: null,
 };
 
 export async function getBrandAssets(): Promise<BrandAssetUrls> {
@@ -71,6 +72,7 @@ export async function getBrandAssets(): Promise<BrandAssetUrls> {
       ogImageUrl: urlFor('og-image'),
       bgHomeUrl: urlFor('bg-home'),
       bgOnboardingUrl: urlFor('bg-onboarding'),
+      logoFooterUrl: urlFor('logo-footer'),
     };
   } catch {
     return EMPTY;

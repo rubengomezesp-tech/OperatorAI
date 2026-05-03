@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 
 interface Props {
   /** Which slot to fetch: 'home' | 'login' | 'topbar' | 'logo' (default operator) */
-  slot?: 'home' | 'login' | 'topbar' | 'logo';
+  slot?: 'home' | 'login' | 'topbar' | 'logo' | 'footer';
   /** Size in px for the icon fallback box */
   size?: number;
   className?: string;
@@ -16,6 +16,7 @@ const SLOT_TO_KEY: Record<string, string> = {
   login: 'logo-login',
   topbar: 'logo-topbar',
   logo: 'logo-operator',
+  footer: 'logo-footer',
 };
 
 export function BrandLogo({ slot = 'logo', size = 36, className }: Props) {

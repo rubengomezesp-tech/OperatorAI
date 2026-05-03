@@ -19,6 +19,7 @@ export interface BrandAssets {
   ogImageUrl: string | null;
   bgHomeUrl: string | null;
   bgOnboardingUrl: string | null;
+  logoFooterUrl: string | null;
 }
 
 const DEFAULT_ASSETS: BrandAssets = {
@@ -38,6 +39,7 @@ const DEFAULT_ASSETS: BrandAssets = {
   ogImageUrl: null,
   bgHomeUrl: null,
   bgOnboardingUrl: null,
+  logoFooterUrl: null,
 };
 
 const BrandAssetsContext = createContext<BrandAssets>(DEFAULT_ASSETS);
