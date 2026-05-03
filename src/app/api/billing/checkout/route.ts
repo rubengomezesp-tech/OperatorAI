@@ -6,21 +6,17 @@ import { resolveOrgContext } from '@/features/chat/server/resolve-org-context';
 import { getStripe } from '@/features/billing/server/stripe-client';
 import { getActiveSubscription } from '@/features/billing/server/subscription';
 import { serverEnv } from '@/lib/env';
+import { getPriceId, TRIAL_DAYS, type PlanId, type Interval } from '@/lib/billing/pricing';
 
 export const runtime = 'nodejs';
 
-const BodySchema = z.object({ planId: z.enum(['starter', 'pro', 'studio', 'agency']) });
+const BodySchema = z.object({
+  planId: z.enum(['starter', 'pro', 'studio', 'agency']),
+  interval: z.enum(['monthly', 'yearly']).optional().default('monthly'),
+});
 
-// Map plan IDs to env var price IDs
-function getPriceId(planId: string): string | null {
-  const map: Record<string, string | undefined> = {
-    starter: process.env.STRIPE_PRICE_STARTER,
-    pro: process.env.STRIPE_PRICE_PRO,
-    studio: process.env.STRIPE_PRICE_STUDIO,
-    agency: process.env.STRIPE_PRICE_AGENCY,
-  };
-  return map[planId] ?? null;
-}
+// Importado desde lib/billing/pricing
+// (la función fuera ahora, importamos arriba)
 
 export async function POST(req: NextRequest) {
   const parsed = BodySchema.safeParse(await req.json().catch(() => ({})));
@@ -28,8 +24,8 @@ export async function POST(req: NextRequest) {
 
   const planId = parsed.data.planId;
 
-  // Studio and Agency without price → contact sales
-  const priceId = getPriceId(planId);
+  const interval = parsed.data.interval;
+  const priceId = getPriceId(planId as PlanId, interval as Interval);
   if (!priceId) {
     return NextResponse.json({ error: 'This plan requires contacting sales. Email sales@operatorai.app' }, { status: 400 });
   }
@@ -68,9 +64,13 @@ export async function POST(req: NextRequest) {
     customer: customerId,
     mode: 'subscription',
     line_items: [{ price: priceId, quantity: 1 }],
+    subscription_data: {
+      trial_period_days: TRIAL_DAYS,
+      metadata: { org_id: orgId, plan_id: planId },
+    },
+    payment_method_collection: 'always',
     success_url: appUrl + '/billing/success?session_id={CHECKOUT_SESSION_ID}',
     cancel_url: appUrl + '/billing?canceled=1',
-    subscription_data: { metadata: { org_id: orgId, plan_id: planId } },
     metadata: { org_id: orgId, plan_id: planId },
     allow_promotion_codes: true,
     billing_address_collection: 'auto',

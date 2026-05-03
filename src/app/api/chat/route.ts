@@ -19,6 +19,7 @@ import type { ChatMessage } from '@/lib/providers';
 import { buildCreativeAgentPrompt } from '@/lib/agents/creative-agent-prompt';
 import { detectsCampaignGenerationIntent, detectLocale } from '@/lib/agents/action-detector';
 import { waitUntil } from '@vercel/functions';
+import { checkUsage, incrementUsage } from '@/lib/billing/usage';
 
 export const runtime = 'nodejs';
 export const maxDuration = 300;
@@ -63,10 +64,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'No active workspace' }, { status: 403 });
   }
 
-  const userEmail = user.email ?? ""; const isAdminUser = userEmail === "rubengomezesp@gmail.com"; const { data: quota } = await svc.rpc('check_quota', { p_org_id: orgId, p_kind: 'chat_message' });
-  const q = quota as { allowed: boolean; used: number; limit: number } | null;
-  if (q && !q.allowed && !isAdminUser) {
-    return NextResponse.json({ error: 'Monthly chat limit reached. Upgrade your plan.', quota: q }, { status: 402 });
+  const userEmail = user.email ?? "";
+  const isAdminUser = userEmail === "rubengomezesp@gmail.com";
+  
+  if (!isAdminUser) {
+    const usage = await checkUsage(orgId, 'chat_messages');
+    if (!usage.ok) {
+      return NextResponse.json({
+        error: usage.reason === 'no_subscription'
+          ? 'Active subscription required. Please choose a plan.'
+          : 'Monthly chat limit reached. Upgrade your plan to continue.',
+        usage: { used: usage.used, limit: usage.limit, planId: usage.planId },
+      }, { status: 402 });
+    }
   }
 
   const assistantId = await ensureDefaultAssistant(svc, orgId, orgName);
@@ -716,12 +726,7 @@ export async function POST(req: NextRequest) {
           await svc.from('conversations').update({ title } as never).eq('id', conversationId);
         }
 
-        await svc.rpc('increment_usage', {
-          p_org_id: orgId,
-          p_kind: 'chat_message',
-          p_quantity: 1,
-          p_cost: costUsd,
-        });
+        await incrementUsage(orgId, 'chat_messages');
 
         // Memoria en background — no bloquea respuesta al usuario
         if (!failed && queryText) {

@@ -15,6 +15,7 @@ import { createSupabaseServiceClient } from '@/lib/supabase/service';
 import { buildAdVisualPrompt, type AdPreset } from '@/lib/ads/visual-prompt';
 import { streamGenerateGptImage } from '@/features/creative-studio/server/gpt-image-client';
 import { resolveOrgContext } from '@/features/chat/server/resolve-org-context';
+import { checkUsage, incrementUsage } from '@/lib/billing/usage';
 import {
   generateCreativeDirection,
   detectIntentHints,
@@ -99,6 +100,29 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid body', details: parsed.error.flatten() }, { status: 400 });
   }
   const body = parsed.data;
+
+  // Enforcement de quotas de imágenes (skip admin)
+  const userEmail = user.email ?? '';
+  const isAdminUser = userEmail === 'rubengomezesp@gmail.com';
+  if (!isAdminUser) {
+    try {
+      const svc = createSupabaseServiceClient();
+      const { orgId } = await resolveOrgContext(svc, user.id);
+      if (orgId) {
+        const usage = await checkUsage(orgId, 'image_generations');
+        if (!usage.ok) {
+          return NextResponse.json({
+            error: usage.reason === 'no_subscription'
+              ? 'Active subscription required to generate images.'
+              : 'Monthly image generation limit reached. Upgrade your plan.',
+            usage: { used: usage.used, limit: usage.limit, planId: usage.planId },
+          }, { status: 402 });
+        }
+      }
+    } catch {
+      // En caso de error de check, dejar pasar para no romper experiencia
+    }
+  }
 
   const acceptHeader = req.headers.get('accept') ?? '';
   const wantsStream = acceptHeader.includes('text/event-stream');
