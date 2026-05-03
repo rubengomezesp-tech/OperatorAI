@@ -4,6 +4,7 @@ import { Users, MessageSquare, ImageIcon, ThumbsUp, ThumbsDown, Heart, Flag, Shi
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { BrandAssetsManager } from './brand-assets/manager';
+import { AdminSidebar, AdminMenuButton, type AdminTabId } from './admin-sidebar';
 
 interface Stats { users: number; conversations: number; images: number }
 interface FeedbackItem { id: string; feedback_type: string; message_preview: string | null; comment: string | null; created_at: string }
@@ -35,7 +36,8 @@ const DEFAULT_SETTINGS: AppSettings = {
 };
 
 export function AdminDashboard() {
-  const [tab, setTab] = useState<'overview' | 'feedback' | 'users' | 'settings' | 'brand'>('overview');
+  const [tab, setTab] = useState<AdminTabId>('overview');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [stats, setStats] = useState<Stats>({ users: 0, conversations: 0, images: 0 });
   const [feedback, setFeedback] = useState<FeedbackItem[]>([]);
   const [users, setUsers] = useState<UserItem[]>([]);
@@ -88,26 +90,28 @@ export function AdminDashboard() {
   if (loading) return <div className="flex items-center justify-center py-20"><Loader2 className="h-6 w-6 text-gold animate-spin" /></div>;
 
   return (
-    <div className="px-4 lg:px-10 py-8 max-w-[1100px] w-full mx-auto space-y-6">
-      <div className="flex items-center gap-3">
-        <div className="h-10 w-10 rounded-lg bg-red-500/15 border border-red-500/30 flex items-center justify-center"><Shield className="h-5 w-5 text-red-400" /></div>
-        <div><h1 className="font-display text-[28px]">Admin Panel</h1><p className="text-[12px] text-fg-muted">CEO access only — full control</p></div>
-      </div>
+    <div className="flex min-h-screen">
+      <AdminSidebar
+        active={tab}
+        onChange={setTab}
+        open={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+      />
+      <div className="flex-1 px-4 lg:px-10 py-8 max-w-[1100px] w-full mx-auto space-y-6 lg:ml-0">
+        {/* Mobile header */}
+        <div className="lg:hidden flex items-center justify-between mb-2">
+          <AdminMenuButton onClick={() => setSidebarOpen(true)} />
+          <div className="flex items-center gap-2">
+            <div className="h-8 w-8 rounded-md bg-red-500/15 border border-red-500/30 flex items-center justify-center"><Shield className="h-4 w-4 text-red-400" /></div>
+            <span className="font-display text-[15px]">Admin</span>
+          </div>
+        </div>
 
-      {/* Tabs */}
-      <div className="flex gap-1 p-1 rounded-lg border border-border bg-surface-2 w-fit overflow-x-auto">
-        {[
-          { id: 'overview', label: 'Overview', I: TrendingUp },
-          { id: 'feedback', label: 'Feedback', I: MessageSquare },
-          { id: 'users', label: 'Users', I: Users },
-          { id: 'brand', label: 'Brand Assets', I: ImageIcon },
-          { id: 'settings', label: 'Settings', I: Settings },
-        ].map(t => (
-          <button key={t.id} onClick={() => setTab(t.id as any)} className={cn('h-8 px-4 rounded-md text-[13px] flex items-center gap-2 whitespace-nowrap', tab === t.id ? 'bg-surface-3 text-fg' : 'text-fg-muted hover:text-fg')}>
-            <t.I className="h-3.5 w-3.5" />{t.label}
-          </button>
-        ))}
-      </div>
+        {/* Desktop header */}
+        <div className="hidden lg:flex items-center gap-3">
+          <div className="h-10 w-10 rounded-lg bg-red-500/15 border border-red-500/30 flex items-center justify-center"><Shield className="h-5 w-5 text-red-400" /></div>
+          <div><h1 className="font-display text-[28px]">Admin Panel</h1><p className="text-[12px] text-fg-muted">CEO access only — full control</p></div>
+        </div>
 
       {/* Overview */}
       {tab === 'overview' && (
@@ -243,6 +247,7 @@ export function AdminDashboard() {
           </button>
         </div>
       )}
+      </div>
     </div>
   );
 }
