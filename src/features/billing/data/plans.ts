@@ -25,7 +25,7 @@ export const PLANS: PlanDefinition[] = [
     tagline: 'For individuals',
     priceCents: 2900,
     priceDisplay: '$29',
-    quotas: { chatMessages: 500, imageGenerations: 50, knowledgeDocuments: 10, assistants: 1, projects: 1, integrations: 2, videoGenerations: 10 },
+    quotas: { chatMessages: 200, imageGenerations: 30, knowledgeDocuments: 10, assistants: 1, projects: 1, integrations: 2, videoGenerations: 0 },
     features: [
       'AI Creative Agent (Claude + GPT-4o)',
       '500 chat messages / mo',
@@ -45,7 +45,7 @@ export const PLANS: PlanDefinition[] = [
     tagline: 'For brands and pros',
     priceCents: 9900,
     priceDisplay: '$99',
-    quotas: { chatMessages: 3000, imageGenerations: 300, knowledgeDocuments: 100, assistants: 5, projects: 5, integrations: 10, videoGenerations: 100 },
+    quotas: { chatMessages: 1500, imageGenerations: 150, knowledgeDocuments: 100, assistants: 5, projects: 5, integrations: 10, videoGenerations: 5 },
     features: [
       'Everything in Starter',
       '3,000 chat messages / mo',
@@ -67,7 +67,7 @@ export const PLANS: PlanDefinition[] = [
     tagline: 'For studios with multiple brands',
     priceCents: 29900,
     priceDisplay: '$299',
-    quotas: { chatMessages: 15000, imageGenerations: 1500, knowledgeDocuments: 999999, assistants: 999999, projects: 25, integrations: 50, videoGenerations: 500 },
+    quotas: { chatMessages: 6000, imageGenerations: 500, knowledgeDocuments: 999999, assistants: 999999, projects: 25, integrations: 50, videoGenerations: 20 },
     features: [
       'Everything in Pro',
       '15,000 chat messages / mo',
@@ -85,9 +85,9 @@ export const PLANS: PlanDefinition[] = [
     id: 'agency',
     name: 'Agency',
     tagline: 'White-label for agencies',
-    priceCents: 99900,
-    priceDisplay: '$999',
-    quotas: { chatMessages: 50000, imageGenerations: 5000, knowledgeDocuments: 999999, assistants: 999999, projects: 999999, integrations: 999999, videoGenerations: 999999 },
+    priceCents: 49900,
+    priceDisplay: '$499',
+    quotas: { chatMessages: 999999, imageGenerations: 999999, knowledgeDocuments: 999999, assistants: 999999, projects: 999999, integrations: 999999, videoGenerations: 999999 },
     features: [
       'Everything in Studio',
       '50,000 chat messages / mo',
