@@ -4,6 +4,7 @@ import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { createSupabaseServiceClient } from '@/lib/supabase/service';
 import { isAdmin } from '@/lib/admin';
 import { logAudit } from '@/lib/admin/audit';
+import { invalidateMaintenanceCache } from '@/lib/admin/maintenance';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -74,6 +75,8 @@ export async function POST(req: NextRequest) {
     .upsert(update, { onConflict: 'id' });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  invalidateMaintenanceCache();
 
   await logAudit({
     adminId: u.id,

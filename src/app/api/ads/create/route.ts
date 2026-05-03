@@ -16,6 +16,7 @@ import { buildAdVisualPrompt, type AdPreset } from '@/lib/ads/visual-prompt';
 import { streamGenerateGptImage } from '@/features/creative-studio/server/gpt-image-client';
 import { resolveOrgContext } from '@/features/chat/server/resolve-org-context';
 import { checkUsage, incrementUsage } from '@/lib/billing/usage';
+import { isAdsDisabled, isMaintenanceMode } from '@/lib/admin/maintenance';
 import {
   generateCreativeDirection,
   detectIntentHints,
@@ -101,10 +102,16 @@ export async function POST(req: NextRequest) {
   }
   const body = parsed.data;
 
-  // Enforcement de quotas de imágenes (skip admin)
+  // Kill switches + quotas (admin saltea todo)
   const userEmail = user.email ?? '';
   const isAdminUser = userEmail === 'rubengomezesp@gmail.com';
   if (!isAdminUser) {
+    if (await isMaintenanceMode()) {
+      return NextResponse.json({ error: 'Maintenance mode' }, { status: 503 });
+    }
+    if (await isAdsDisabled()) {
+      return NextResponse.json({ error: 'Ads generation temporarily disabled' }, { status: 503 });
+    }
     try {
       const svc = createSupabaseServiceClient();
       const { orgId } = await resolveOrgContext(svc, user.id);

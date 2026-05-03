@@ -20,6 +20,7 @@ import { buildCreativeAgentPrompt } from '@/lib/agents/creative-agent-prompt';
 import { detectsCampaignGenerationIntent, detectLocale } from '@/lib/agents/action-detector';
 import { waitUntil } from '@vercel/functions';
 import { checkUsage, incrementUsage } from '@/lib/billing/usage';
+import { isChatDisabled, isMaintenanceMode } from '@/lib/admin/maintenance';
 
 export const runtime = 'nodejs';
 export const maxDuration = 300;
@@ -66,8 +67,16 @@ export async function POST(req: NextRequest) {
 
   const userEmail = user.email ?? "";
   const isAdminUser = userEmail === "rubengomezesp@gmail.com";
-  
+
+  // Kill switches (admin saltea)
   if (!isAdminUser) {
+    if (await isMaintenanceMode()) {
+      return NextResponse.json({ error: 'Maintenance mode — try again in a few minutes' }, { status: 503 });
+    }
+    if (await isChatDisabled()) {
+      return NextResponse.json({ error: 'Chat is temporarily disabled. We are working on it.' }, { status: 503 });
+    }
+
     const usage = await checkUsage(orgId, 'chat_messages');
     if (!usage.ok) {
       return NextResponse.json({
