@@ -480,18 +480,12 @@ async function execCreateAd(input: Record<string, unknown>, ctx: ToolContext): P
     const { parseAspectRatios } = await import('@/lib/ads/aspect-ratio');
 
     // Crear el Creative Plan usando todo el DNA
-    // Si el usuario no especifica formatos, generamos 1 sola variante (1:1)
-    // Solo si pide "campaña" o varios formatos, generamos múltiples
-    const resolvedFormats = formats && formats.length > 0 
-      ? parseAspectRatios(formats) 
-      : ['1:1']; // default: una sola imagen cuadrada
-    
     const plan = await generateCreativePlan({
       userPrompt,
       brandContext,
       logoUrl,
       images,
-      aspectRatios: resolvedFormats as ('9:16' | '1:1' | '4:5' | '16:9' | '3:2')[],
+      aspectRatios: formats ? parseAspectRatios(formats) : undefined,
       presetOverride,
     });
 
