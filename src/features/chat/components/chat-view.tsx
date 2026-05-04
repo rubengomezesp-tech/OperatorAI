@@ -256,7 +256,7 @@ export function ChatView({
   }
 
   return (
-    <div className="flex overflow-hidden relative" style={{ height: "var(--vvh, 100dvh)" }}>
+    <div className="flex overflow-hidden fixed inset-0" style={{ top: 0, bottom: "var(--kbh, 0px)" }}>
       <OperatorBg variant="chat" />
 
       <div className="flex-1 flex flex-col min-w-0">
@@ -334,7 +334,7 @@ export function ChatView({
           )}
         </div>
 
-        <div className="flex-shrink-0 sticky-bottom-safe">
+        <div className="flex-shrink-0" style={{ paddingBottom: "var(--kbh, 0px)" }}>
           {adStreamPayload && (
             <div className="px-4 pt-3">
               <AdLiveGenerator
