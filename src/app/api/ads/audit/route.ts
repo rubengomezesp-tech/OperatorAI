@@ -99,6 +99,27 @@ Audit this ad image against the brief and return the JSON audit result.`;
   const client = new OpenAI({ apiKey: serverEnv.OPENAI_API_KEY });
 
   try {
+    // Convert image URL to base64 to avoid OpenAI timeout downloading from Supabase
+    let imageData: { type: 'image_url'; image_url: { url: string; detail: 'high' } };
+    try {
+      const imageResponse = await fetch(body.adImageUrl, { signal: AbortSignal.timeout(10000) });
+      if (!imageResponse.ok) throw new Error(`Failed to fetch image: ${imageResponse.status}`);
+      const imageBuffer = Buffer.from(await imageResponse.arrayBuffer());
+      const base64 = imageBuffer.toString('base64');
+      const mimeType = imageResponse.headers.get('content-type') || 'image/jpeg';
+      imageData = {
+        type: 'image_url',
+        image_url: { url: `data:${mimeType};base64,${base64}`, detail: 'high' },
+      };
+    } catch (fetchErr) {
+      // Fallback: usar URL directa si no se puede convertir
+      console.warn('[ads/audit] Could not convert to base64, using URL:', (fetchErr as Error).message);
+      imageData = {
+        type: 'image_url',
+        image_url: { url: body.adImageUrl, detail: 'high' },
+      };
+    }
+
     const response = await client.chat.completions.create({
       model: 'gpt-4o',
       max_tokens: 1000,
@@ -108,10 +129,7 @@ Audit this ad image against the brief and return the JSON audit result.`;
           role: 'user',
           content: [
             { type: 'text', text: briefContext },
-            {
-              type: 'image_url',
-              image_url: { url: body.adImageUrl, detail: 'high' },
-            },
+            imageData,
           ],
         },
       ],
