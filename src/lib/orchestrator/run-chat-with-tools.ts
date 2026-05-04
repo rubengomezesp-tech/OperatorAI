@@ -113,6 +113,8 @@ export async function* runChatWithTools(args: RunArgs): AsyncIterable<ToolStream
   const _adKeywords = /\b(publicidad|anuncio|ad|advertisement|advert|creative|marketing\s+piece|ads)\b/i;
   const _isAdRequest = _adKeywords.test(_lastUserText);
 
+  let adAlreadyCreated = false;
+
   for (let loop = 0; loop < MAX_TOOL_LOOPS; loop++) {
     const _toolChoice: Anthropic.MessageCreateParams.ToolChoiceTool | Anthropic.MessageCreateParams.ToolChoiceAuto =
       (loop === 0 && _isAdRequest)
@@ -193,6 +195,17 @@ export async function* runChatWithTools(args: RunArgs): AsyncIterable<ToolStream
 
     const toolResultBlocks: Anthropic.ToolResultBlockParam[] = [];
     for (const use of pendingToolUses) {
+      // BLOQUEO: si ya creamos un ad en este turn, no permitir otro
+      if (use.name === 'create_ad' && adAlreadyCreated) {
+        console.warn('[chat:anthropic] BLOCKED duplicate create_ad call in same turn');
+        toolResultBlocks.push({
+          type: 'tool_result',
+          tool_use_id: use.id,
+          content: 'Ad already created in this turn. No further creation needed.',
+          is_error: false,
+        });
+        continue;
+      }
       const toolLabel = use.name === 'image' ? '◐' : use.name === 'video' ? '◐' : use.name === 'file_analysis' ? '◐' : '◐';
       const toolAction = use.name === 'image' ? 'Generating image' : use.name === 'video' ? 'Rendering video' : use.name === 'file_analysis' ? 'Analyzing' : 'Searching';
       yield { type: 'text', value: '\n\n---\n\n' };
@@ -218,6 +231,11 @@ export async function* runChatWithTools(args: RunArgs): AsyncIterable<ToolStream
         result: execResult.result,
         error: execResult.error,
       };
+
+      // Marcar create_ad como ya hecho
+      if (use.name === 'create_ad' && execResult.ok) {
+        adAlreadyCreated = true;
+      }
 
       // Inject result as markdown into the text stream
       if (execResult.ok) {
