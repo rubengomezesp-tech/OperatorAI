@@ -4,7 +4,7 @@ import { TOOL_SPECS, executeTool } from '@/lib/chat/tools';
 import type { ToolKind } from '@/lib/chat/tools';
 import type { ChatMessage } from '@/lib/providers';
 
-const MODEL = 'claude-sonnet-4-5';
+const MODEL = 'claude-opus-4-7';
 const MAX_TOOL_LOOPS = 5;
 const INPUT_USD_PER_MTOKEN = 3;
 const OUTPUT_USD_PER_MTOKEN = 15;

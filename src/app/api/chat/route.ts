@@ -257,7 +257,7 @@ export async function POST(req: NextRequest) {
     content: '',
     status: 'streaming',
     provider: body.provider || 'anthropic',
-    model: body.model || 'claude-sonnet-4-5',
+    model: body.model || 'claude-opus-4-7',
     parent_message_id: userMessageId,
     context_doc_chunks: retrieved.map((c) => c.id),
   } as never;
@@ -371,7 +371,7 @@ export async function POST(req: NextRequest) {
             console.log('[chat:openai] tool_choice:', _isAdRequest ? 'create_ad (forced)' : 'auto', '| msg:', _userMsgForChoice.slice(0, 80));
 
             const firstCall = await oai.chat.completions.create({
-              model: body.model || 'gpt-4o',
+              model: body.model || 'gpt-5.4',
               messages: oaiMsgs as never,
               tools: oaiTools,
               tool_choice: _forcedChoice,
@@ -384,7 +384,7 @@ export async function POST(req: NextRequest) {
             // CASE A: No tool — stream text response
             if (toolCalls.length === 0) {
               const stream = await oai.chat.completions.create({
-                model: body.model || 'gpt-4o',
+                model: body.model || 'gpt-5.4',
                 messages: oaiMsgs as never,
                 stream: true,
                 max_tokens: 4096,
