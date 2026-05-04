@@ -21,7 +21,7 @@ interface Props {
 
 const ROTATING_PLACEHOLDERS = {
   es: [
-    'Pídeme lo que necesites. Estrategia, anuncios, ideas...',
+    '¿Qué necesitas crear hoy?',
     'Dame una idea. La convierto en un anuncio que vende.',
     '¿Qué lanzamos hoy?',
     'Habla. Yo me encargo del resto.',
@@ -126,7 +126,7 @@ export function Composer({ onSend, onCancel, loading, disabled }: Props) {
   }
 
   return (
-    <div className="border-t border-border glass">
+    <div className="border-t border-border bg-surface-1">
       <div className="w-full px-4 sm:px-6 lg:px-8 py-3 space-y-2.5">
         {/* Attachment preview */}
         {attachments.length > 0 && (
