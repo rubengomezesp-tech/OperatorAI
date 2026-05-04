@@ -68,8 +68,8 @@ export async function middleware(req: NextRequest) {
     // Rate limiting
     if (req.method !== 'OPTIONS') {
       const ip = req.headers.get('x-forwarded-for')?.split(',')[0] ?? 'unknown';
-      const ok = checkRateLimit(ip, req.nextUrl.pathname);
-      if (!ok.allowed) return rateLimitResponse();
+      const { allowed } = await checkRateLimit(ip, req.nextUrl.pathname);
+      if (!allowed) return rateLimitResponse();
     }
 
     // Security headers
