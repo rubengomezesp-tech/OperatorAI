@@ -38,7 +38,7 @@ const SECTIONS: NavSection[] = [
     title: 'OVERVIEW',
     items: [
       { id: 'overview', label: 'Overview', icon: LayoutDashboard },
-      { id: 'stats', label: 'Stats', icon: BarChart3, comingSoon: true },
+      { id: 'stats', label: 'Stats', icon: BarChart3 },
     ],
   },
   {
