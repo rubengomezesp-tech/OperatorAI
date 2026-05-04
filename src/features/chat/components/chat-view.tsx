@@ -9,6 +9,7 @@ import { Composer } from './composer';
 import { ChatTopbar } from './chat-topbar';
 import { ChatDrawer } from './chat-drawer';
 import { useSendMessage } from '../hooks/use-send-message';
+import { useVisualViewport } from '@/hooks/use-visual-viewport';
 import { EmptyState } from './empty-state';
 import { useChatStore, MODEL_OPTIONS } from '../stores/chat-store';
 import type { UiMessage } from '@/lib/chat/types';
@@ -38,6 +39,9 @@ export function ChatView({
   const [messages, setMessages] = useState<UiMessage[]>(initialMessages);
   const [recoveryDismissed, setRecoveryDismissed] = useState(false);
   const { send, cancel, loading, consecutiveFailures } = useSendMessage();
+
+  // Fix iOS keyboard: actualiza --vvh cuando el teclado aparece/desaparece
+  useVisualViewport();
 
   useEffect(() => {
     if (consecutiveFailures === 0) setRecoveryDismissed(false);

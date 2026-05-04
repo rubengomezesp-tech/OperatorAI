@@ -127,7 +127,7 @@ export function Composer({ onSend, onCancel, loading, disabled }: Props) {
 
   return (
     <div className="border-t border-border bg-surface-1">
-      <div className="w-full px-4 sm:px-6 lg:px-8 py-3 space-y-2.5">
+      <div className="w-full px-4 sm:px-6 lg:px-8 py-2 space-y-2">
         {/* Attachment preview */}
         {attachments.length > 0 && (
           <div className="flex flex-wrap gap-2 p-2 rounded-lg border border-border bg-surface-2">
@@ -172,7 +172,7 @@ export function Composer({ onSend, onCancel, loading, disabled }: Props) {
             className={cn(
               'flex-1 bg-transparent resize-none border-0 focus:outline-none',
               'px-4 py-3.5 text-[14.5px] text-fg placeholder:text-fg-subtle',
-              'min-h-[52px] max-h-[300px]',
+              'min-h-[44px] max-h-[300px]',
             )}
           />
           <div className="p-1.5 flex items-center gap-1.5">
