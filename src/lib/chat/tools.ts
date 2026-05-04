@@ -475,7 +475,11 @@ async function execCreateAd(input: Record<string, unknown>, ctx: ToolContext): P
   try {
     const res = await fetch(`${ctx.origin}/api/ads/create`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', cookie: ctx.cookieHeader },
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'text/event-stream',
+        cookie: ctx.cookieHeader,
+      },
       body: JSON.stringify({
         userPrompt,
         logoUrl,
@@ -493,20 +497,53 @@ async function execCreateAd(input: Record<string, unknown>, ctx: ToolContext): P
       return { ok: false, error: `Ad pipeline failed (${res.status}): ${errText.slice(0, 200)}` };
     }
 
-    const data = (await res.json()) as {
-      results: Array<{ format: string; url?: string; error?: string }>;
-      stages?: Array<{ stage: string; ok: boolean; error?: string }>;
-    };
+    // Parse SSE stream and capture final 'complete' event with URLs
+    if (!res.body) return { ok: false, error: 'No response body' };
 
-    const urls = data.results.filter((r) => r.url).map((r) => r.url as string);
-    if (urls.length === 0) {
-      const fmtErrs = data.results.map((r) => `${r.format}=${r.error ?? 'no url'}`).join('; ');
-      const stgErrs = (data.stages ?? []).filter((s) => !s.ok).map((s) => `${s.stage}=${s.error}`).join('; ');
-      console.error('[execCreateAd] empty result. formats:', fmtErrs, 'stages:', stgErrs);
-      return { ok: false, error: `No ads produced. Formats[${fmtErrs}] Stages[${stgErrs || 'all ok'}]` };
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let finalUrls: string[] = [];
+    let lastError: string | undefined;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() ?? '';
+
+      let currentEvent = '';
+      let currentData = '';
+      for (const line of lines) {
+        if (line.startsWith('event:')) {
+          currentEvent = line.slice(6).trim();
+        } else if (line.startsWith('data:')) {
+          currentData = line.slice(5).trim();
+        } else if (line === '' && currentEvent && currentData) {
+          // Process event
+          try {
+            const parsed = JSON.parse(currentData);
+            if (currentEvent === 'complete' && parsed.results) {
+              finalUrls = (parsed.results as Array<{ url?: string }>)
+                .filter((r) => r.url)
+                .map((r) => r.url as string);
+            } else if (currentEvent === 'error') {
+              lastError = parsed.message || parsed.error || 'Stream error';
+            }
+          } catch {}
+          currentEvent = '';
+          currentData = '';
+        }
+      }
     }
 
-    return { ok: true, result: { urls } };
+    if (finalUrls.length === 0) {
+      console.error('[execCreateAd] no urls from stream. lastError:', lastError);
+      return { ok: false, error: lastError || 'No ads produced from stream' };
+    }
+
+    return { ok: true, result: { urls: finalUrls } };
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Ad creation failed';
     return { ok: false, error: msg };
