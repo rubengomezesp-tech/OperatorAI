@@ -110,19 +110,16 @@ export async function* runChatWithTools(args: RunArgs): AsyncIterable<ToolStream
     }
     return '';
   })();
-  const _adKeywords = /\b(publicidad|anuncio|ad|advertisement|advert|creative|marketing\s+piece|ads)\b/i;
-  const _isAdRequest = _adKeywords.test(_lastUserText);
-
+  // Ad detection desactivada — el modelo decide libremente qué tool usar
+  // El modelo decide libremente — no forzamos create_ad
   let adAlreadyCreated = false;
 
   for (let loop = 0; loop < MAX_TOOL_LOOPS; loop++) {
-    const _toolChoice: Anthropic.MessageCreateParams.ToolChoiceTool | Anthropic.MessageCreateParams.ToolChoiceAuto =
-      (loop === 0 && _isAdRequest)
-        ? { type: 'tool', name: 'create_ad' }
-        : { type: 'auto' };
+    // Siempre 'auto' — el modelo elige la mejor tool según el contexto
+    const _toolChoice: Anthropic.MessageCreateParams.ToolChoiceAuto = { type: 'auto' };
 
     if (loop === 0) {
-      console.log('[chat:anthropic] tool_choice:', _isAdRequest ? 'create_ad (forced)' : 'auto', '| msg:', _lastUserText.slice(0, 80));
+      console.log('[chat:anthropic] tool_choice: auto | msg:', _lastUserText.slice(0, 80));
     }
 
     let stream: Awaited<ReturnType<typeof client.messages.stream>>;
