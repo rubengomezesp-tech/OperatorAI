@@ -19,9 +19,12 @@ export async function middleware(req: NextRequest) {
         cookies: {
           getAll() { return req.cookies.getAll(); },
           setAll(cookiesToSet: { name: string; value: string; options?: any }[]) {
-            cookiesToSet.forEach(({ name, value, options }: { name: string; value: string; options?: any }) => {
+            cookiesToSet.forEach(({ name, value }: { name: string; value: string; options?: any }) => {
               req.cookies.set(name, value);
-              res = NextResponse.next({ request: req });
+            });
+            res = NextResponse.next({ request: req });
+            res.headers.set('x-pathname', req.nextUrl.pathname);
+            cookiesToSet.forEach(({ name, value, options }: { name: string; value: string; options?: any }) => {
               res.cookies.set(name, value, options);
             });
           },
