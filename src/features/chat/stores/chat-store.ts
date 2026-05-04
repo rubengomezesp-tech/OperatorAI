@@ -3,9 +3,10 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
 export type ModelId =
-  | 'gpt-4o'
+  | 'gpt-5.4'
+  | 'claude-opus-4-7'
   | 'claude-sonnet-4-5-20250929'
-  | 'gemini-2.5-flash';
+  | 'gemini-3.1-pro';
 
 export interface ModelOption {
   id: ModelId;
@@ -15,9 +16,10 @@ export interface ModelOption {
 }
 
 export const MODEL_OPTIONS: ModelOption[] = [
-  { id: 'gpt-4o', label: 'GPT-4o', provider: 'openai', hint: 'Fast, versatile, great for chat and copy' },
-  { id: 'claude-sonnet-4-5-20250929', label: 'Claude Sonnet 4.5', provider: 'anthropic', hint: 'Best for images, strategy, and complex tasks' },
-  { id: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash', provider: 'google', hint: 'Ultra-fast, multimodal, latest Google AI' },
+  { id: 'claude-opus-4-7', label: 'Claude Opus 4.7', provider: 'anthropic', hint: 'Most intelligent — best for strategy, creative direction, complex reasoning' },
+  { id: 'gpt-5.4', label: 'GPT-5.4', provider: 'openai', hint: 'OpenAI flagship — versatile, fast, great for varied tasks' },
+  { id: 'claude-sonnet-4-5-20250929', label: 'Claude Sonnet 4.5', provider: 'anthropic', hint: 'Balanced — fast and reliable for everyday work' },
+  { id: 'gemini-3.1-pro', label: 'Gemini 3.1 Pro', provider: 'google', hint: 'Multimodal — excellent vision and long context' },
 ];
 
 interface ChatState {
@@ -28,7 +30,7 @@ interface ChatState {
 export const useChatStore = create<ChatState>()(
   persist(
     (set) => ({
-      selectedModel: 'gpt-4o',
+      selectedModel: 'claude-opus-4-7',
       setModel: (id) => set({ selectedModel: id }),
     }),
     { name: 'operator.chat' },

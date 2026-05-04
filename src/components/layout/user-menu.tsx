@@ -102,7 +102,7 @@ export function UserMenu({ email, fullName }: Props) {
             </div>
             <div className="space-y-0.5">
               {MODEL_OPTIONS.map((opt) => {
-                const Icon = opt.id === 'gpt-4o' ? Zap : opt.id.startsWith('claude') ? Brain : Sparkles;
+                const Icon = opt.id.startsWith('gpt') ? Zap : opt.id.startsWith('claude') ? Brain : Sparkles;
                 const isActive = selectedModel === opt.id;
                 return (
                   <button
