@@ -11,6 +11,7 @@ import { SupportPanel } from './support/panel';
 import { UsersPanel } from './users-panel/panel';
 import { SystemPanel } from './system/panel';
 import { LogsPanel } from './logs/panel';
+import { DnaCardsPanel } from './dna-cards/panel';
 import { StatsPanel } from './stats/panel';
 
 interface Stats { users: number; conversations: number; images: number }
