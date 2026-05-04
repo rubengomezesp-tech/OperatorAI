@@ -55,7 +55,7 @@ export function PlansPanel() {
 
   const loadPlans = useCallback(async () => {
     try {
-      const res = await fetch('/api/admin/subscriptions?type=plans');
+      const res = await fetch('/api/admin/plans');
       const data = await res.json();
       setPlans(data.plans ?? []);
     } catch (err) {
@@ -70,10 +70,10 @@ export function PlansPanel() {
   async function savePlan(plan: Plan) {
     setSaving(true);
     try {
-      const res = await fetch('/api/admin/subscriptions', {
+      const res = await fetch('/api/admin/plans', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'upsert_plan', plan }),
+        body: JSON.stringify({ action: 'plan', plan }),
       });
       if (res.ok) {
         toast.success('Plan saved');
