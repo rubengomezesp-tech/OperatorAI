@@ -19,11 +19,10 @@ export async function middleware(req: NextRequest) {
         cookies: {
           getAll() { return req.cookies.getAll(); },
           setAll(cookiesToSet: { name: string; value: string; options?: any }[]) {
-            cookiesToSet.forEach(({ name, value }: { name: string; value: string; options?: any }) => {
+            cookiesToSet.forEach(({ name, value, options }: { name: string; value: string; options?: any }) => {
               req.cookies.set(name, value);
             });
-            res = NextResponse.next({ request: req });
-            res.headers.set('x-pathname', req.nextUrl.pathname);
+            // IMPORTANTE: Modificar la response existente, no crear una nueva
             cookiesToSet.forEach(({ name, value, options }: { name: string; value: string; options?: any }) => {
               res.cookies.set(name, value, options);
             });
@@ -31,7 +30,12 @@ export async function middleware(req: NextRequest) {
         },
       },
     );
-    await supabase.auth.getUser();
+    const { data: { session } } = await supabase.auth.getSession();
+    // Si hay session pero no cookies, forzar refresh
+    if (session && !req.cookies.getAll().some(c => c.name.includes('auth-token'))) {
+      const { data: { session: refreshed } } = await supabase.auth.refreshSession();
+      // Cookies ya se setearon via setAll
+    }
   } catch {}
 
   // V3: Redirect bare / to /chat for authenticated users (Creative Agent is HOME)

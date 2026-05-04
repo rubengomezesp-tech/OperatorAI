@@ -524,10 +524,8 @@ async function execCreateAd(input: Record<string, unknown>, ctx: ToolContext): P
           // Process event
           try {
             const parsed = JSON.parse(currentData);
-            if (currentEvent === 'complete' && parsed.results) {
-              finalUrls = (parsed.results as Array<{ url?: string }>)
-                .filter((r) => r.url)
-                .map((r) => r.url as string);
+            if (currentEvent === 'result' && parsed.url) {
+              finalUrls = [parsed.url as string];
             } else if (currentEvent === 'error') {
               lastError = parsed.message || parsed.error || 'Stream error';
             }
