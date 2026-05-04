@@ -52,7 +52,15 @@ export async function GET(req: NextRequest) {
     }
   );
 
-  const { error } = await supabase.auth.exchangeCodeForSession(code);
+  const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+  
+  console.log('[auth/callback] exchange result:', {
+    hasError: !!error,
+    errorMsg: error?.message,
+    hasUser: !!data?.user,
+    userEmail: data?.user?.email,
+    cookiesSet: response.cookies.getAll().map(c => c.name),
+  });
 
   if (error) {
     console.error('[auth/callback] exchange error:', error.message);
