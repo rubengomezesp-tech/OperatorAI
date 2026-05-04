@@ -12,7 +12,7 @@ import {
 import type { AdAspectRatio } from '@/lib/ads/compose/dimensions';
 
 export const runtime = 'nodejs';
-export const maxDuration = 120;
+export const maxDuration = 300;
 
 const BodySchema = z.object({
   baseImageUrl: z.string().url(),

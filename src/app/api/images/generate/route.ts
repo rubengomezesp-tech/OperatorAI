@@ -7,7 +7,7 @@ import { enhancePrompt } from '@/features/image-studio/server/flux-client';
 import { IMAGE_PRESETS } from '@/features/image-studio/data/presets';
 
 export const runtime = 'nodejs';
-export const maxDuration = 120;
+export const maxDuration = 300;
 
 const BodySchema = z.object({
   prompt: z.string().min(2).max(8000),
@@ -142,7 +142,7 @@ export async function POST(req: NextRequest) {
       const allRefUrls = [...(body.referenceUrls || []), ...refDataUris];
       
       // Retry up to 2 times on 5xx errors, then fallback to gpt-image-1
-      async function generateWithRetry(model: 'gpt-image-2' | 'gpt-image-1', maxRetries = 2) {
+      async function generateWithRetry(model: 'gpt-image-2' | 'gpt-image-1', maxRetries = 1) {
         let lastErr: unknown;
         for (let attempt = 0; attempt <= maxRetries; attempt++) {
           try {
@@ -166,14 +166,8 @@ export async function POST(req: NextRequest) {
         throw lastErr;
       }
 
-      let gptResult;
-      try {
-        gptResult = await generateWithRetry('gpt-image-2', 2);
-      } catch (primaryErr) {
-        const msg = primaryErr instanceof Error ? primaryErr.message : String(primaryErr);
-        console.warn('[generate] gpt-image-2 failed after retries, falling back to gpt-image-1:', msg.slice(0, 200));
-        gptResult = await generateWithRetry('gpt-image-1', 1);
-      }
+      // Single try, then 1 retry on 5xx. No fallback to gpt-image-1 (we need ref images support)
+      const gptResult = await generateWithRetry('gpt-image-2', 1);
       
       // Upload buffer to Supabase Storage
       const fileName = `${imageId}.png`;
