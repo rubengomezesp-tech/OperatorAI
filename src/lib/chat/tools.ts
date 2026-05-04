@@ -437,7 +437,7 @@ async function execComposeAd(input: Record<string, unknown>, ctx: ToolContext): 
   }
 }
 
-// ── CREATE AD (full pipeline) ─────────────────────────────────────
+// ── CREATE AD (full pipeline) — usando el nuevo sistema nervioso central ──
 async function execCreateAd(input: Record<string, unknown>, ctx: ToolContext): Promise<ToolResult> {
   const userPrompt = String(input.user_prompt ?? '').trim();
   if (!userPrompt) return { ok: false, error: 'Empty user_prompt' };
@@ -473,77 +473,63 @@ async function execCreateAd(input: Record<string, unknown>, ctx: ToolContext): P
   console.log('[execCreateAd] images:', images ? images.length : 0, 'logoUrl:', logoUrl ? 'yes' : 'no');
 
   try {
-    const res = await fetch(`${ctx.origin}/api/ads/create`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'text/event-stream',
-        cookie: ctx.cookieHeader,
-      },
-      body: JSON.stringify({
-        userPrompt,
-        logoUrl,
-        brandContext,
-        images,
-        formats,
-        presetOverride,
-        enableAudit: true,
-      }),
-      signal: ctx.signal,
+    // ═══ NUEVO SISTEMA: brain-bridge + job-processor (sin HTTP interno) ═══
+    const { generateCreativePlan } = await import('@/lib/ads/brain-bridge');
+    const { processJob } = await import('@/lib/ads/job-processor');
+    const { createJob, getJob } = await import('@/lib/ads/job-manager');
+    const { parseAspectRatios } = await import('@/lib/ads/aspect-ratio');
+
+    // Crear el Creative Plan usando todo el DNA
+    const plan = await generateCreativePlan({
+      userPrompt,
+      brandContext,
+      logoUrl,
+      images,
+      aspectRatios: formats ? parseAspectRatios(formats) : undefined,
+      presetOverride,
     });
 
-    if (!res.ok) {
-      const errText = await res.text().catch(() => 'unknown');
-      return { ok: false, error: `Ad pipeline failed (${res.status}): ${errText.slice(0, 200)}` };
+    // Crear job
+    const jobId = `job_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+    await createJob({
+      jobId,
+      creativePlanId: plan.creativePlanId,
+      orgId: ctx.orgId,
+      userId: ctx.userId,
+      creativePlan: plan,
+    });
+
+    // Procesar job (genera imágenes con límite de concurrencia)
+    await processJob({
+      jobId,
+      plan,
+      orgId: ctx.orgId,
+      userId: ctx.userId,
+      logoUrl,
+    });
+
+    // Recuperar resultados
+    const job = await getJob(jobId);
+    if (!job) return { ok: false, error: 'Job not found after processing' };
+
+    const urls = (job.results || [])
+      .filter(r => r.status === 'completed' && r.url)
+      .map(r => r.url as string);
+
+    if (urls.length === 0) {
+      const errors = (job.results || [])
+        .filter(r => r.error)
+        .map(r => r.error)
+        .join('; ');
+      console.error('[execCreateAd] no urls generated. errors:', errors);
+      return { ok: false, error: errors || 'No ads produced' };
     }
 
-    // Parse SSE stream and capture final 'complete' event with URLs
-    if (!res.body) return { ok: false, error: 'No response body' };
-
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = '';
-    let finalUrls: string[] = [];
-    let lastError: string | undefined;
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
-      buffer = lines.pop() ?? '';
-
-      let currentEvent = '';
-      let currentData = '';
-      for (const line of lines) {
-        if (line.startsWith('event:')) {
-          currentEvent = line.slice(6).trim();
-        } else if (line.startsWith('data:')) {
-          currentData = line.slice(5).trim();
-        } else if (line === '' && currentEvent && currentData) {
-          // Process event
-          try {
-            const parsed = JSON.parse(currentData);
-            if (currentEvent === 'result' && parsed.url) {
-              finalUrls = [parsed.url as string];
-            } else if (currentEvent === 'error') {
-              lastError = parsed.message || parsed.error || 'Stream error';
-            }
-          } catch {}
-          currentEvent = '';
-          currentData = '';
-        }
-      }
-    }
-
-    if (finalUrls.length === 0) {
-      console.error('[execCreateAd] no urls from stream. lastError:', lastError);
-      return { ok: false, error: lastError || 'No ads produced from stream' };
-    }
-
-    return { ok: true, result: { urls: finalUrls } };
+    console.log('[execCreateAd] ✅ generated', urls.length, 'variants');
+    return { ok: true, result: { urls } };
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Ad creation failed';
+    console.error('[execCreateAd] ❌', msg);
     return { ok: false, error: msg };
   }
 }
