@@ -181,7 +181,7 @@ export async function composeMultiFormat(
 // HELPERS
 // ────────────────────────────────────────────────────────────────
 
-async function fetchImageBuffer(url: string, timeoutMs = 15000): Promise<Buffer> {
+async function fetchImageBuffer(url: string, timeoutMs = 45000): Promise<Buffer> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
   try {
