@@ -60,7 +60,7 @@ const SECTIONS: NavSection[] = [
   {
     title: 'PRODUCT',
     items: [
-      { id: 'chat-behavior', label: 'Chat Behavior', icon: Zap, comingSoon: true },
+      { id: 'chat-behavior', label: 'Chat Behavior', icon: Zap },
       { id: 'plans', label: 'Plans & Pricing', icon: CreditCard, comingSoon: true },
     ],
   },
