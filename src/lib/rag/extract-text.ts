@@ -41,15 +41,14 @@ export async function extractTextFromBuffer(
 }
 
 async function extractPdf(buffer: Buffer): Promise<ExtractedText> {
-  const { extractText, getDocumentProxy } = await import('unpdf');
-  const uint8 = new Uint8Array(buffer);
-  const pdf = await getDocumentProxy(uint8);
-  const { text, totalPages } = await extractText(pdf, { mergePages: true });
-
-  const joined = Array.isArray(text) ? text.join('\n\n') : text;
+  // pdf-parse ESM: usa el export nombrado o require
+  const pdfParse = (await import('pdf-parse')) as any;
+  const parseFn = typeof pdfParse === 'function' ? pdfParse : pdfParse.default || pdfParse;
+  const data = await parseFn(buffer);
+  
   return {
-    text: joined.slice(0, MAX_CHARS),
-    meta: { type: 'pdf', pages: totalPages },
+    text: (data.text ?? '').slice(0, MAX_CHARS),
+    meta: { type: 'pdf', pages: data.numpages },
   };
 }
 

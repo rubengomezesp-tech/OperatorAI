@@ -55,6 +55,7 @@
     "next-intl": "^3.26.5",
     "next-themes": "^0.4.6",
     "openai": "^4.104.0",
+    "pdf-parse": "^2.4.5",
     "pino": "^9.14.0",
     "posthog-js": "^1.372.3",
     "posthog-node": "^5.30.6",
@@ -82,6 +83,7 @@
   "devDependencies": {
     "@tanstack/react-query-devtools": "^5.100.5",
     "@types/node": "^20.19.39",
+    "@types/pdf-parse": "^1.1.5",
     "@types/react": "^18.3.28",
     "@types/react-dom": "^18.3.7",
     "@types/web-push": "^3.6.4",
