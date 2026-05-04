@@ -237,6 +237,20 @@ export async function* runChatWithTools(args: RunArgs): AsyncIterable<ToolStream
         adAlreadyCreated = true;
       }
 
+      // Si ya creamos un ad con éxito, NO permitir más loops
+      // El ad ya está entregado al usuario, fin del turno
+      if (use.name === 'create_ad' && execResult.ok) {
+        console.log('[chat:anthropic] create_ad success - ending turn immediately');
+        // Push tool result para conversación válida
+        toolResultBlocks.push({
+          type: 'tool_result',
+          tool_use_id: use.id,
+          content: JSON.stringify({ success: true, ...(execResult.result ?? {}) }),
+          is_error: false,
+        });
+        return; // Salir del generator completo
+      }
+
       // Inject result as markdown into the text stream
       if (execResult.ok) {
         if (use.name === 'image' && execResult.result?.urls) {
