@@ -240,6 +240,13 @@ NEVER USE: Discover now | Learn more | Get started | Click here | Find out more
 ❌ REJECTED (banned words, generic, no reasoning):
 { "concept": "Embrace the elite edge", "copy": { "headline": "EMBRACE THE ELITE EDGE", "subheadline": "Athletic fit, premium quality, exclusive design", "cta": "Get started" } }
 
+
+Pick the SINGLE best aspectRatio for the chosen preset:
+- 9:16 for stories/reels/mobile-first (aggressive-bold, aggressive-sport)
+- 1:1 for product demos/social posts (product-demo, clean-conversion)
+- 4:5 for luxury/editorial (luxury-minimal, luxury-editorial)
+- 16:9 for wide/hero (storytelling-warm, tech-futuristic)
+
 ═══════ OUTPUT — strict JSON, no markdown, no preamble ═══════
 
 {
@@ -259,7 +266,7 @@ NEVER USE: Discover now | Learn more | Get started | Click here | Find out more
     { "concept": "...", "reasoning": "..." }
   ],
   "preset": "...",
-  "aspectRatio": "9:16|1:1|4:5|16:9",
+  "aspectRatio": "9:16",
   "composition": "...",
   "typography": "...",
   "colorStrategy": "...",
