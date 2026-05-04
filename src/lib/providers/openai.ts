@@ -28,7 +28,7 @@ export class OpenAIProvider implements ChatProvider {
             content: m.content,
           })),
           temperature: req.temperature ?? 0.7,
-          max_tokens: req.maxTokens,
+          max_completion_tokens: req.maxTokens,
           stream: true,
           stream_options: { include_usage: true },
         },

@@ -73,7 +73,7 @@ export async function POST(req: NextRequest) {
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
       ],
-      max_tokens: 1500,
+      max_completion_tokens: 1500,
     }),
   });
 

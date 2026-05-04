@@ -375,7 +375,7 @@ export async function POST(req: NextRequest) {
               messages: oaiMsgs as never,
               tools: oaiTools,
               tool_choice: _forcedChoice,
-              max_tokens: 4096,
+              max_completion_tokens: 4096,
             });
             
             const choice = firstCall.choices[0];
@@ -387,7 +387,7 @@ export async function POST(req: NextRequest) {
                 model: body.model || 'gpt-5.4',
                 messages: oaiMsgs as never,
                 stream: true,
-                max_tokens: 4096,
+                max_completion_tokens: 4096,
               });
               let oaiText = '';
               for await (const chunk of stream) {

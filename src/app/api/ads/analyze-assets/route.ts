@@ -65,7 +65,7 @@ export async function POST(req: NextRequest) {
   try {
     const response = await client.chat.completions.create({
       model: 'gpt-4o',
-      max_tokens: 1000,
+      max_completion_tokens: 1000,
       messages: [
         { role: 'system', content: SYSTEM_PROMPT },
         { role: 'user', content },
