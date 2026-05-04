@@ -17,7 +17,7 @@ import { PushPanel } from './push/panel';
 import { DnaCardsPanel } from './dna-cards/panel';
 import { StatsPanel } from './stats/panel';
 
-interface Stats { users: number; conversations: number; images: number }
+interface Stats { users: number | { total: number }; conversations?: number; images?: number; usage?: { chats: number; images: number } }
 interface FeedbackItem { id: string; feedback_type: string; message_preview: string | null; comment: string | null; created_at: string }
 interface UserItem { id: string; email: string; full_name: string | null; created_at: string; last_sign_in: string | null; provider: string }
 interface AppSettings {
@@ -128,9 +128,9 @@ export function AdminDashboard() {
       {tab === 'overview' && (
         <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <SC icon={Users} label="Total Users" value={stats.users} color="text-blue-400" />
-            <SC icon={MessageSquare} label="Conversations" value={stats.conversations} color="text-emerald-400" />
-            <SC icon={ImageIcon} label="Images Generated" value={stats.images} color="text-purple-400" />
+            <SC icon={Users} label="Total Users" value={typeof stats.users === "object" ? stats.users.total : (stats.users ?? 0)} color="text-blue-400" />
+            <SC icon={MessageSquare} label="Conversations" value={stats.conversations ?? stats.usage?.chats ?? 0} color="text-emerald-400" />
+            <SC icon={ImageIcon} label="Images Generated" value={stats.images ?? stats.usage?.images ?? 0} color="text-purple-400" />
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {[
