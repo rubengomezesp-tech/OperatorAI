@@ -76,7 +76,7 @@ const SECTIONS: NavSection[] = [
     items: [
       { id: 'settings', label: 'Settings', icon: Settings },
       { id: 'system', label: 'Maintenance', icon: AlertTriangle },
-      { id: 'logs', label: 'Error Logs', icon: Database, comingSoon: true },
+      { id: 'logs', label: 'Error Logs', icon: Database },
     ],
   },
 ];
