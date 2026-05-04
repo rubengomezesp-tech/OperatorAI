@@ -225,10 +225,11 @@ html, body {
 }
 
 /* Prevent iOS Safari from scrolling body when keyboard opens */
+/* iOS 26+ uses dvh natively — removed forced height */
 @supports (-webkit-touch-callout: none) {
   body {
     position: relative;
-    height: 100%;
+    /* height handled by dvh in chat-view */
   }
 }
 
