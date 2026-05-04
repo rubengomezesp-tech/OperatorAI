@@ -252,7 +252,7 @@ export function ChatView({
   }
 
   return (
-    <div className="h-dvh flex overflow-hidden relative">
+    <div className="flex overflow-hidden relative" style={{ height: "var(--vvh, 100dvh)" }}>
       <OperatorBg variant="chat" />
 
       <div className="flex-1 flex flex-col min-w-0">

@@ -27,7 +27,7 @@ export function AppShell({
   }, []);
 
   return (
-    <div className="flex min-h-screen w-full overflow-x-hidden">
+    <div className="flex min-h-[var(--vvh,100dvh)] w-full overflow-x-hidden">
       {isDesktop ? <Sidebar /> : null}
 
       <div className="flex-1 min-w-0 flex flex-col">
