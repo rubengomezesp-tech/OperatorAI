@@ -156,6 +156,8 @@ export function AdminDashboard() {
       )}
 
       {tab === 'subscriptions' && <SubscriptionsPanel />}
+      {tab === 'stats' && <StatsPanel />}
+      {tab === 'logs' && <LogsPanel />}
       {tab === 'home-content' && <HomeContentEditor />}
       {tab === 'system' && <SystemPanel />}
 
