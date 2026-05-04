@@ -21,7 +21,7 @@ import {
   Palette,
   Settings,
   Shield,
-  Trash2,
+  Trash2, BookOpen,
   Loader2,
   type LucideIcon,
 } from 'lucide-react';
@@ -153,6 +153,11 @@ export function Sidebar({ isAdmin = false, onClose }: Props) {
   const activeChatId = isOnChat ? pathname?.split('/')[2] : null;
 
   const secondaryNav: SecondaryNavItem[] = [
+    {
+      href: '/knowledge',
+      label: isEs ? 'Conocimiento' : 'Knowledge',
+      icon: BookOpen,
+    },
     {
       href: '/campaigns',
       label: isEs ? 'Campañas' : 'Campaigns',
