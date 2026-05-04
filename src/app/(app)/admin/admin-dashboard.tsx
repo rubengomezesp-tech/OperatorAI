@@ -13,6 +13,7 @@ import { SystemPanel } from './system/panel';
 import { LogsPanel } from './logs/panel';
 import { ChatBehaviorPanel } from './chat-behavior/panel';
 import { PlansPanel } from './plans/panel';
+import { PushPanel } from './push/panel';
 import { DnaCardsPanel } from './dna-cards/panel';
 import { StatsPanel } from './stats/panel';
 

@@ -67,7 +67,7 @@ const SECTIONS: NavSection[] = [
   {
     title: 'COMMUNICATION',
     items: [
-      { id: 'push', label: 'Push Notifications', icon: Bell, comingSoon: true },
+      { id: 'push', label: 'Push Notifications', icon: Bell },
       { id: 'emails', label: 'Email Templates', icon: Mail, comingSoon: true },
     ],
   },
