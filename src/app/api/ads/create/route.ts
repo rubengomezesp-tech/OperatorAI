@@ -266,7 +266,7 @@ export async function POST(req: NextRequest) {
 
           for await (const evt of streamGenerateGptImage({
             prompt: visualPrompt,
-            aspectRatio: effectiveAspectRatio === '16:9' ? '1:1' : (effectiveAspectRatio as '1:1' | '9:16' | '4:5'),
+            aspectRatio: (() => { const r = (effectiveAspectRatio?.toString() || '9:16').split('|')[0]; return r === '16:9' ? '1:1' : (r as '1:1' | '9:16' | '4:5'); })(),
             quality: 'medium',
             referenceUrls: refUrls.length > 0 ? refUrls : undefined,
             partialImages: body.partialImages,
@@ -315,7 +315,7 @@ export async function POST(req: NextRequest) {
             brief: {
               ...brief,
               preset: effectivePreset,
-              aspectRatio: effectiveAspectRatio,
+              aspectRatio: (effectiveAspectRatio?.toString().split('|')[0] || '9:16'),
             },
           });
 
@@ -442,7 +442,7 @@ export async function POST(req: NextRequest) {
     const imageGen = await runStage('image-gen', () =>
       internalPost<ImageGenResponse>('/api/images/generate', {
         prompt: visualPrompt,
-        aspectRatio: effectiveAspectRatio,
+        aspectRatio: (effectiveAspectRatio?.toString().split('|')[0] || '9:16'),
         model: 'gpt-image-2',
         enhance: false,
         referenceImages: _hasReference ? _refImages : undefined,
@@ -531,7 +531,7 @@ export async function POST(req: NextRequest) {
       brief: {
         ...brief,
         preset: effectivePreset,
-        aspectRatio: effectiveAspectRatio,
+        aspectRatio: (effectiveAspectRatio?.toString().split('|')[0] || '9:16'),
       },
       baseImageUrl,
       results: formatOutputs,

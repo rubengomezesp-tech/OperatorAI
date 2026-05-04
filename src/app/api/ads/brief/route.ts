@@ -266,7 +266,7 @@ Pick the SINGLE best aspectRatio for the chosen preset:
     { "concept": "...", "reasoning": "..." }
   ],
   "preset": "...",
-  "aspectRatio": "9:16",
+  "aspectRatio": "9:16|1:1|4:5|16:9",
   "composition": "...",
   "typography": "...",
   "colorStrategy": "...",
