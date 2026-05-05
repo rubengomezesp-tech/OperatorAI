@@ -347,7 +347,7 @@ export async function POST(req: NextRequest) {
                 type: 'function' as const,
                 function: {
                   name: 'create_ad',
-                  description: 'Create a complete advertising piece (with copy, logo, CTA, audited) using the AD DIRECTOR pipeline. USE THIS — not generate_image — when the user asks for: "publicidad", "anuncio", "ad", "advertisement", "marketing piece", "creative", or any finished marketing asset. Auto-pulls brand logo and colors. Returns final ad image URLs ready to publish.',
+                  description: 'CREATE AN ADVERTISEMENT — finished marketing asset with copy, logo, and CTA. CALL THIS TOOL WHEN USER SAYS: "crea un anuncio", "publicidad", "hazme un ad", "quiero un anuncio", "anuncio para [marca]", "campaña", "ad", "advertisement", "marketing piece", "promociona", "promotion", "lanzar campaña", "banner", "pieza publicitaria", "creativo", "creative". DO NOT CALL THIS TOOL WHEN USER SAYS: "busca", "search", "encuentra", "find", "investiga", "research", "dime qué es", "explícame", "what is", "tell me about", "knowledge", "información sobre". DO NOT CALL knowledge_search or image tool for advertising — THIS is the only tool for ads. Auto-pulls brand logo, colors, and generates professional ad images.',
                   parameters: {
                     type: 'object',
                     properties: {
