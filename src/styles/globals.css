@@ -328,13 +328,26 @@ html, body {
 }
 
 /* ═══ iOS Keyboard — Contenedor fijo sin saltos ═══ */
+/* Mobile: fixed para que el teclado no empuje la página */
 .chat-fixed-container {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  bottom: var(--kbh, 0px);
   transition: none !important;
   will-change: auto;
+}
+
+@media (max-width: 767px) {
+  .chat-fixed-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    bottom: var(--kbh, 0px);
+  }
+}
+
+@media (min-width: 768px) {
+  .chat-fixed-container {
+    flex: 1;
+    min-height: 0;
+  }
 }
