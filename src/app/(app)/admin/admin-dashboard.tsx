@@ -11,6 +11,9 @@ import { SupportPanel } from './support/panel';
 import { UsersPanel } from './users-panel/panel';
 import { SystemPanel } from './system/panel';
 import { LogsPanel } from './logs/panel';
+import { PushPanel } from './push/panel';
+import { PlansPanel } from './plans/panel';
+import { ChatBehaviorPanel } from './chat-behavior/panel';
 import { DnaCardsPanel } from './dna-cards/panel';
 import { StatsPanel } from './stats/panel';
 
@@ -161,6 +164,10 @@ export function AdminDashboard() {
       {tab === 'logs' && <LogsPanel />}
       {tab === 'home-content' && <HomeContentEditor />}
       {tab === 'system' && <SystemPanel />}
+          {tab === 'push' && <PushPanel />}
+          {tab === 'plans' && <PlansPanel />}
+          {tab === 'chat-behavior' && <ChatBehaviorPanel />}
+          {tab === 'dna-cards' && <DnaCardsPanel />}
 
       {tab === 'settings' && (
         <div className="space-y-6">
