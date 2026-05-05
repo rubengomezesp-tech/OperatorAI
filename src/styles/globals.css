@@ -328,7 +328,8 @@ html, body {
 }
 
 /* ═══ iOS Keyboard — Contenedor fijo sin saltos ═══ */
-/* Mobile: fixed para que el teclado no empuje la página */
+/* Mobile: position:fixed para que el teclado ajuste el viewport */
+/* Desktop: position:relative para no tapar el Topbar */
 .chat-fixed-container {
   transition: none !important;
   will-change: auto;
@@ -347,7 +348,8 @@ html, body {
 
 @media (min-width: 768px) {
   .chat-fixed-container {
+    position: relative;
     flex: 1;
     min-height: 0;
   }
-}
+  }
