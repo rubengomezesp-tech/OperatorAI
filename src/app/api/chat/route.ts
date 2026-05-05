@@ -374,7 +374,7 @@ export async function POST(req: NextRequest) {
               model: body.model || 'gpt-5.4',
               messages: oaiMsgs as never,
               tools: oaiTools,
-              tool_choice: _forcedChoice,
+              tool_choice: 'auto',
               max_completion_tokens: 4096,
             });
             
