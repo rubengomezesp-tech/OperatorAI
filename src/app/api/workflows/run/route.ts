@@ -82,7 +82,7 @@ export async function POST(req: NextRequest) {
       if (step.type === 'web_search') {
         const query = interpolate(String(step.config.query ?? ''), variables);
         const results = await webSearch(query, Number(step.config.count ?? 5));
-        output = results.map((r, i) =>
+        output = results.map((r: any, i: number) =>
           '[' + (i + 1) + '] ' + r.title + '\n' + r.url + '\n' + r.snippet
         ).join('\n\n');
       }
