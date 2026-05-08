@@ -58,7 +58,7 @@ export function EmptyState({ onSuggestion }: EmptyStateProps) {
   const isEs = locale === 'es';
 
   return (
-    <div className="flex flex-col h-full w-full">
+    <div className="flex flex-col h-full w-full mt-auto">
       {/* Spacer para empujar las sugerencias hacia abajo */}
       <div className="flex-1" />
 

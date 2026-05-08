@@ -107,6 +107,7 @@ export function ChatView({
             createdAt: new Date().toISOString(),
             status: 'streaming',
             toolParts: [],
+            model: selectedModel,
           };
 
           next = [...next, assistantMsg];
@@ -118,7 +119,7 @@ export function ChatView({
       send({
         conversationId,
         message: userText ?? '__regenerate__',
-        provider: providerForModel,
+        provider: providerForModel === 'operator' ? undefined : providerForModel,
         model: selectedModel,
         imageBase64: attachment?.base64,
         imageMimeType: attachment?.mimeType,
@@ -303,7 +304,7 @@ export function ChatView({
           </div>
         )}
 
-        <div className="flex-1 overflow-y-auto overscroll-contain min-h-0">
+        <div className="flex-1 overflow-y-auto overscroll-contain min-h-0 flex flex-col">
           {messages.length === 0 ? (
             <EmptyState
               onSuggestion={(prompt) => {
