@@ -6,7 +6,7 @@ export const config = {
   matcher: ['/((?!_next/static|_next/image|favicon.ico|icons|logo.png|manifest.json|sw.js).*)'],
 };
 
-export async function middleware(req: NextRequest) {
+export async function proxy(req: NextRequest) {
   let res = NextResponse.next({ request: { headers: new Headers(req.headers) } });
   res.headers.set('x-pathname', req.nextUrl.pathname);
 

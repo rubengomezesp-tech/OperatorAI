@@ -15,7 +15,8 @@ const nextConfig = {
   },
   reactStrictMode: true,
   poweredByHeader: false,
-  experimental: { serverComponentsExternalPackages: ['@resvg/resvg-js', 'sharp'], serverActions: { bodySizeLimit: '25mb' } },
+  serverExternalPackages: ['@resvg/resvg-js', 'sharp'],
+  experimental: { serverActions: { bodySizeLimit: '25mb' } },
   outputFileTracingIncludes: {
     '/api/ads/compose': ['./public/fonts/**/*'],
     '/api/ads/compose-multi': ['./public/fonts/**/*'],
