@@ -40,6 +40,7 @@ interface Message {
   role: 'user' | 'assistant';
   content: string;
   toolParts?: import('@/lib/chat/types').ToolPart[];
+  model?: string;
 }
 
 interface Props {
@@ -70,6 +71,39 @@ function stripImageUrls(text: string): string {
   // Clean up leftover empty lines
   cleaned = cleaned.replace(/\n{3,}/g, '\n\n').trim();
   return cleaned;
+}
+
+const MODEL_LABELS: Record<string, string> = {
+  'operator-coach': 'operator',
+  'claude-opus-4-7': 'claude',
+  'claude-sonnet-4-5-20250929': 'sonnet',
+  'gpt-5.4': 'gpt',
+  'gemini-3.1-pro': 'gemini',
+};
+
+function ModelTag({ model }: { model?: string }) {
+  if (!model) return null;
+  const isOperator = model === 'operator-coach';
+  const label = MODEL_LABELS[model] ?? model;
+  return (
+    <span
+      className={cn(
+        'inline-flex items-center gap-1 text-[10px] font-mono lowercase tracking-[0.04em] select-none transition-opacity',
+        isOperator
+          ? 'text-gold/70 hover:text-gold'
+          : 'text-fg-subtle/60 hover:text-fg-subtle',
+      )}
+      title={isOperator ? 'OperatorAI — agente entrenado, local, gratis' : `Modelo: ${model}`}
+    >
+      <span
+        className={cn(
+          'h-1 w-1 rounded-full',
+          isOperator ? 'bg-gold/80' : 'bg-fg-subtle/40',
+        )}
+      />
+      {label}
+    </span>
+  );
 }
 
 export function MessageBubble({ message, isLastAssistant, onRegenerate, regenDisabled, previousUserContent, userAvatarUrl, userInitial = 'U' }: Props) {
@@ -156,6 +190,11 @@ export function MessageBubble({ message, isLastAssistant, onRegenerate, regenDis
               />
             ))}
           </div>
+        )}
+
+        {/* Model tag — sutil, solo en assistant */}
+        {!isUser && message.model && (
+          <ModelTag model={message.model} />
         )}
 
         {/* Actions (assistant only) */}

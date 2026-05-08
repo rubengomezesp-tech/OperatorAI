@@ -83,7 +83,7 @@ export function ChatView({ initialConversationId, initialMessages = [], initialT
       send({
         conversationId,
         message: userText ?? '__regenerate__',
-        provider: providerForModel,
+        provider: providerForModel === 'operator' ? undefined : providerForModel,
         model: selectedModel,
         imageBase64: attachment?.base64,
         imageMimeType: attachment?.mimeType,

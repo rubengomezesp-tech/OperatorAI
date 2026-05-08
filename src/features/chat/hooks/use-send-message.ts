@@ -55,15 +55,17 @@ export function useSendMessage() {
 
     try {
       const isRegen = opts.message === '__regenerate__';
-      const res = await fetch('/api/chat', {
+      const useCoach = opts.model === 'operator-coach';
+      const endpoint = useCoach ? '/api/chat?coach=1' : '/api/chat';
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           conversationId: opts.conversationId,
           message: isRegen ? null : opts.message,
           regenerate: isRegen,
-          provider: opts.provider,
-          model: opts.model,
+          provider: useCoach ? undefined : opts.provider,
+          model: useCoach ? undefined : opts.model,
           imageBase64: opts.imageBase64,
           imageMimeType: opts.imageMimeType,
         }),

@@ -4,6 +4,7 @@ import { createSupabaseServiceClient } from '@/lib/supabase/service';
 import { resolveOrgContext } from '@/features/chat/server/resolve-org-context';
 import { getDefaultAssistant, isAssistantConfigured } from '@/features/assistants/server/queries';
 import { ensureDefaultAssistant } from '@/features/chat/server/ensure-assistant';
+import { OperatorCoachTesterDevOnly } from '@/components/dev/operator-coach-tester';
 
 export default async function ChatLayout({ children }: { children: React.ReactNode }) {
   const ssr = await createSupabaseServerClient();
@@ -43,5 +44,10 @@ export default async function ChatLayout({ children }: { children: React.ReactNo
     }
   }
 
-  return <>{children}</>;
+  return (
+    <>
+      {children}
+      <OperatorCoachTesterDevOnly />
+    </>
+  );
 }

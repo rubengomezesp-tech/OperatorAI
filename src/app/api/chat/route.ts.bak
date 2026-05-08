@@ -4,7 +4,6 @@ import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { createSupabaseServiceClient } from '@/lib/supabase/service';
 import { sseEncode, sseComment } from '@/lib/sse/encoder';
 import { runChatWithTools } from '@/lib/orchestrator/run-chat-with-tools';
-import { runCoach } from '@/lib/orchestrator/coach/runner';
 import { buildToolFetchContext } from '@/lib/chat/tools';
 import { resolveOrgContext } from '@/features/chat/server/resolve-org-context';
 import { ensureDefaultAssistant } from '@/features/chat/server/ensure-assistant';
@@ -633,10 +632,7 @@ export async function POST(req: NextRequest) {
           createdAt: string;
         }> = [];
 
-        const useCoach = new URL(req.url).searchParams.get('coach') === '1';
-        const runner = useCoach ? runCoach : runChatWithTools;
-        console.log('[chat] runner:', useCoach ? 'OperatorAI-Coach (local)' : 'Claude (cloud)');
-        for await (const event of runner({
+        for await (const event of runChatWithTools({
           messages,
           svc,
           orgId,

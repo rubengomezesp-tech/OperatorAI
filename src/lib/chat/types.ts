@@ -30,6 +30,8 @@ export interface UiMessage {
   attachmentUrls?: string[];
   /** Tool invocations attached to this assistant message, in order. */
   toolParts?: ToolPart[];
+  /** Modelo que generó la respuesta (solo en assistant messages). */
+  model?: string;
 }
 
 export interface ConversationSummary {
