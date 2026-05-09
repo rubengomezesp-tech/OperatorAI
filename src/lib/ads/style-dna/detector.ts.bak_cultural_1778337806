@@ -22,7 +22,6 @@
 
 import type { MultiVariantIntent, StyleDNA } from './types';
 import { findDNAByAlias, getAllDNAs } from './library';
-import { resolveReference } from './cultural-reference-engine';
 
 // ═══════════════════════════════════════════════════════════════
 // PATRONES PARA DETECTAR NÚMERO DE VARIANTES
@@ -176,16 +175,7 @@ export function extractStyleDNAs(prompt: string): {
   const seenIds = new Set<string>();
 
   for (const segment of segments) {
-    // 1) Match directo por alias (rápido, alta precisión)
-    let dna = findDNAByAlias(segment);
-
-    // 2) Fallback: cultural reference engine
-    //    Resuelve referencias a obras, artistas, marcas, eras.
-    //    Ejemplo: "Royal Tenenbaums" → Wes Anderson via references.works
-    if (!dna) {
-      dna = resolveReference(segment);
-    }
-
+    const dna = findDNAByAlias(segment);
     if (dna && !seenIds.has(dna.id)) {
       matched.push(dna);
       matchedPhrases.push(segment);
@@ -197,15 +187,7 @@ export function extractStyleDNAs(prompt: string): {
   // (puede que el usuario no haya usado lista, sino una sola referencia inline)
   if (matched.length === 0) {
     const cleaned = preprocessPromptForDNA(prompt);
-
-    // Match directo por alias en prompt completo
-    let dna = findDNAByAlias(cleaned);
-
-    // Fallback: cultural reference engine sobre prompt completo
-    if (!dna) {
-      dna = resolveReference(cleaned);
-    }
-
+    const dna = findDNAByAlias(cleaned);
     if (dna) {
       matched.push(dna);
       matchedPhrases.push(cleaned);
