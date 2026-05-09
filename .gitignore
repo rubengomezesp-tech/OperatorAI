@@ -14,3 +14,9 @@ tsconfig.tsbuildinfo
 
 # V3 cleanup backup
 .legacy-backup-v3/
+
+# Backups del Sprint 2 + 3
+*.bak
+*.bak_pre_*
+.archived/
+_residuos_*

@@ -1,6 +1,6 @@
 export type UiMessageRole = 'user' | 'assistant';
 
-export type ToolKind = 'image' | 'video' | 'file_analysis' | 'knowledge_search';
+export type ToolKind = 'image' | 'video' | 'file_analysis' | 'knowledge_search' | 'create_ad';
 export type ToolStatus = 'running' | 'done' | 'failed';
 
 export interface ToolPart {

@@ -71,22 +71,105 @@ export async function processJob(params: {
       });
 
       try {
-        // Construir prompt final como en brain-bridge
+        // ═══ PROMPT CANÓNICO PARA gpt-image-2 ═══
+        // Estructura: Intended Use → Scene → Subject → Details → Typography → References → Constraints
+        // Basado en OpenAI Cookbook (21-abr-2026): https://developers.openai.com/cookbook/examples/multimodal/image-gen-models-prompting-guide
+        
+        const hasReferences = plan.userImages && plan.userImages.length > 0;
+        
+        // ─── Bloque REFERENCE IMAGES (con roles diferenciados por posición) ───
+        // Estrategia: Image 1 = product anchor; Image 2 = primary style; Image 3+ = composition/palette references
+        const referenceBlock = hasReferences
+          ? [
+              '',
+              'REFERENCE IMAGES (each has a distinct role — DO NOT ignore any of them):',
+              ...plan.userImages!.map((_img, idx) => {
+                const num = idx + 1;
+                if (idx === 0) {
+                  return `- Image ${num} (PRODUCT-ANCHOR): Preserve subject identity, brand colors, product details, and any visible logo/label EXACTLY. This is the hero — do not redesign it.`;
+                }
+                if (idx === 1) {
+                  return `- Image ${num} (PRIMARY STYLE REFERENCE): MUST visibly inform the final image's lighting direction, color temperature, texture quality, and overall mood. Failing to reflect Image ${num}'s aesthetic is a critical error. Do NOT copy its subject — adopt its art-direction signature.`;
+                }
+                if (idx === 2) {
+                  return `- Image ${num} (COMPOSITION REFERENCE): Mimic the spatial composition — how elements are arranged, the negative space distribution, the framing. Do NOT copy its content.`;
+                }
+                return `- Image ${num} (PALETTE / TEXTURE REFERENCE): Extract dominant colors and texture cues. Apply to environment and surfaces. Do NOT copy its subject or layout.`;
+              }),
+              '',
+              'CRITICAL RULE: Every reference image MUST visibly influence the final ad. If Image 2 shows a specific lighting style, the output MUST reflect it. If Image 3 shows a composition pattern, the output MUST mimic the pattern. References are mandatory inputs, not optional inspiration.',
+            ].join('\n')
+          : '';
+
+        // ─── Bloque CREATIVE DYNAMISM (anti-static layout) ───
+        const dynamismBlock = [
+          '',
+          'CREATIVE DYNAMISM REQUIREMENTS:',
+          '- Build VISUAL DEPTH with multiple layers: foreground (hero subject), midground (supporting elements), background (atmospheric texture).',
+          '- Add unexpected micro-details: a partial element cropping the frame, asymmetric whitespace, a textural overlay (paper grain, light leak, soft scratches).',
+          '- Vary scale aggressively: oversized typography next to small captions; hero element 3-4x larger than secondary elements.',
+          '- Inject ONE intentional rule-break: an off-grid alignment, a torn edge, a rotated label, a deliberate shadow misalignment — something that says "made by a human art director, not a template".',
+          '- Composition rule (rotate per variant): rule of thirds, golden ratio diagonal, asymmetric off-center, edge-bleed, layered z-axis.',
+        ].join('\n');
+
+        // ─── Bloque CONSTRAINTS (siempre presente — ANTI-PLANTILLA AGRESIVO) ───
+        const negativeBlock = [
+          '',
+          'STRICT CONSTRAINTS (non-negotiable):',
+          '- Render ALL specified text VERBATIM, in the exact case shown. No extra words. No filler. No duplicate text. No gibberish letters.',
+          '- DO NOT produce a centered symmetric hero composition. DO NOT default to "subject in middle, headline above, CTA below".',
+          '- DO NOT produce generic gradient backgrounds, blue-purple AI aesthetics, or "robotic futuristic" look.',
+          '- DO NOT produce stock-photo aesthetics, generic 3D renders, or "social media template" feel.',
+          '- DO NOT add fake brand logos, watermarks, signature lines, or random typography.',
+          '- DO NOT make all variants look the same — each must feel like a different art director designed it.',
+          plan.negativePrompt ? `- Additional forbidden: ${plan.negativePrompt}.` : '',
+          `- Aspect ratio: ${variant.aspectRatio} (this is mandatory).`,
+        ].filter(Boolean).join('\n');
+
+        // ─── Bloque ARCHETYPE (Sprint 2 — fuerza estructura compositiva) ───
+        const archetypeBlock = plan.archetype
+          ? [
+              '',
+              `LAYOUT ARCHETYPE: ${plan.archetype.name}`,
+              '',
+              'ARCHETYPE STRUCTURAL DIRECTIVE (mandatory — this defines the visual structure):',
+              plan.archetype.promptDirective,
+              '',
+              'COMPOSITION RULES (must be followed):',
+              ...plan.archetype.compositionRules.map(r => `- ${r}`),
+              '',
+              `TYPOGRAPHY CHARACTER: ${plan.archetype.typographyCharacter}`,
+              `PALETTE DIRECTIVE: ${plan.archetype.paletteDirective}`,
+              `LIGHTING: ${plan.archetype.lightingDirective}`,
+              `CAMERA: ${plan.archetype.cameraDirective}`,
+              '',
+              'ARCHETYPE-SPECIFIC FORBIDDEN PATTERNS:',
+              ...plan.archetype.forbidPatterns.map(p => `- DO NOT: ${p}`),
+            ].join('\n')
+          : '';
+
+        // ─── Construir el prompt final canónico ───
         const finalPrompt = [
+          `INTENDED USE: Advertisement for ${plan.brandContext?.brand_name || 'brand'} (${plan.campaignType}, ${variant.aspectRatio} format).`,
+          archetypeBlock,
+          plan.visualStyle.preset ? `LAYOUT PRESET: ${plan.visualStyle.preset}` : '',
+          '',
+          'SCENE / VISUAL DIRECTION:',
           plan.promptBase,
           '',
-          'VISUAL STYLE:',
-          `Mood: ${plan.visualStyle.mood}`,
-          `Colors: ${plan.visualStyle.colors.join(', ')}`,
-          `Lighting: ${plan.visualStyle.lighting}`,
-          `Composition: ${plan.visualStyle.composition}`,
-          `Typography: ${plan.visualStyle.typographyDirection}`,
-          plan.visualStyle.preset ? `Preset: ${plan.visualStyle.preset}` : '',
+          'KEY VISUAL DETAILS:',
+          `- Mood: ${plan.visualStyle.mood}`,
+          `- Color palette: ${plan.visualStyle.colors.join(', ')}`,
+          `- Lighting: ${plan.visualStyle.lighting}`,
+          `- Composition: ${plan.visualStyle.composition}`,
+          `- Typography character: ${plan.visualStyle.typographyDirection}`,
           '',
-          'VARIANT:',
+          'VARIANT-SPECIFIC DIRECTION:',
           variant.variantModifier,
-          '',
-          plan.brandContext?.brand_name ? `BRAND: ${plan.brandContext.brand_name}` : '',
+          plan.brandContext?.brand_name ? `\nBRAND: ${plan.brandContext.brand_name}` : '',
+          dynamismBlock,
+          referenceBlock,
+          negativeBlock,
         ].filter(Boolean).join('\n');
 
         console.log('[job-processor] 🎨 generating', {
@@ -96,11 +179,16 @@ export async function processJob(params: {
         });
 
         // ═══ LLAMADA DIRECTA (sin HTTP) ═══
+        // referenceUrls = logo (URL pública)
+        // referenceImages = imágenes que el usuario adjuntó al chat (base64)
         const result = await generateImage({
           prompt: finalPrompt,
           aspectRatio: variant.aspectRatio,
           model: 'gpt-image-2',
           referenceUrls: logoUrl ? [logoUrl] : undefined,
+          referenceImages: plan.userImages && plan.userImages.length > 0
+            ? plan.userImages.map(img => ({ data: img.base64, mimeType: img.mimeType }))
+            : undefined,
         });
 
         // Subir a Supabase Storage

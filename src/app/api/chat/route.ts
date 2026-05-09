@@ -4,6 +4,7 @@ import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { createSupabaseServiceClient } from '@/lib/supabase/service';
 import { sseEncode, sseComment } from '@/lib/sse/encoder';
 import { runChatWithTools } from '@/lib/orchestrator/run-chat-with-tools';
+import { runOpenAIWithTools } from '@/lib/orchestrator/run-openai-with-tools';
 import { runCoach } from '@/lib/orchestrator/coach/runner';
 import { buildToolFetchContext } from '@/lib/chat/tools';
 import { resolveOrgContext } from '@/features/chat/server/resolve-org-context';
@@ -292,253 +293,89 @@ export async function POST(req: NextRequest) {
           })),
         }));
 
+        // ═══ ESTADO COMPARTIDO ENTRE TODOS LOS PROVIDERS ═══
+        let fullText = '';
+        let inputTokens = 0;
+        let outputTokens = 0;
+        let costUsd = 0;
+        let failed = false;
+        let errorMessage = '';
+        const toolParts: Array<{
+          id: string; kind: string; status: 'running'|'done'|'failed';
+          input: Record<string, unknown>;
+          result?: Record<string, unknown>;
+          error?: string;
+          createdAt: string;
+        }> = [];
+
         // ═══ PROVIDER ROUTING ═══
         const selectedProvider = (body.provider || 'anthropic') as string;
         
         if (selectedProvider === 'openai') {
           try {
-            const OpenAI = (await import('openai')).default;
-            const oai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-            
-            // Convert messages with multimodal support
-            type OAIContent = string | Array<
-              | { type: 'text'; text: string }
-              | { type: 'image_url'; image_url: { url: string } }
-            >;
-            const oaiMsgs: Array<{role: 'system'|'user'|'assistant'; content: OAIContent}> = messages.map(m => ({
-              role: m.role as 'system' | 'user' | 'assistant',
-              content: typeof m.content === 'string' ? m.content : JSON.stringify(m.content),
-            }));
-            
-            // If user attached an image, inject into last user message
-            if (body.imageBase64 && body.imageMimeType) {
-              for (let i = oaiMsgs.length - 1; i >= 0; i--) {
-                if (oaiMsgs[i].role === 'user') {
-                  const txt = typeof oaiMsgs[i].content === 'string' 
-                    ? oaiMsgs[i].content as string 
-                    : '';
-                  oaiMsgs[i].content = [
-                    { type: 'text', text: txt || 'Analiza esta imagen' },
-                    { type: 'image_url', image_url: { url: `data:${body.imageMimeType};base64,${body.imageBase64}` } },
-                  ];
-                  break;
-                }
-              }
-            }
-            
-            // Define OpenAI function calling tools (mirror of Anthropic tools)
-            const oaiTools = [
-              {
-                type: 'function' as const,
-                function: {
-                  name: 'generate_image',
-                  description: 'Generate raw photorealistic images, photos, or illustrations WITHOUT text overlay, logo, or CTA. Use ONLY for plain image generation. DO NOT use this when user asks for an "ad", "publicidad", "anuncio", or "advertisement" — use create_ad for those.',
-                  parameters: {
-                    type: 'object',
-                    properties: {
-                      prompt: { type: 'string', description: 'Detailed image description: subject, composition, lighting, mood, colors, style. At least 20 words.' },
-                      aspect_ratio: { type: 'string', enum: ['1:1','16:9','9:16','4:5','3:2'], description: 'Aspect ratio. Default 1:1.' },
-                      num_images: { type: 'number', enum: [1,2,3,4], description: 'Number of variations. Default 1.' },
-                    },
-                    required: ['prompt'],
-                  },
-                },
-              },
-              {
-                type: 'function' as const,
-                function: {
-                  name: 'create_ad',
-                  description: 'CREATE AN ADVERTISEMENT — finished marketing asset with copy, logo, and CTA. CALL THIS TOOL WHEN USER SAYS: "crea un anuncio", "publicidad", "hazme un ad", "quiero un anuncio", "anuncio para [marca]", "campaña", "ad", "advertisement", "marketing piece", "promociona", "promotion", "lanzar campaña", "banner", "pieza publicitaria", "creativo", "creative". DO NOT CALL THIS TOOL WHEN USER SAYS: "busca", "search", "encuentra", "find", "investiga", "research", "dime qué es", "explícame", "what is", "tell me about", "knowledge", "información sobre". DO NOT CALL knowledge_search or image tool for advertising — THIS is the only tool for ads. Auto-pulls brand logo, colors, and generates professional ad images.',
-                  parameters: {
-                    type: 'object',
-                    properties: {
-                      user_prompt: { type: 'string', description: 'Faithful description of what the user wants the ad to communicate. Pass their original request.' },
-                      formats: { type: 'array', items: { type: 'string', enum: ['9:16', '1:1', '4:5', '16:9'] }, description: 'Optional output formats. Pass multiple for variants (Story + Post + Feed).' },
-                      preset_override: { type: 'string', enum: ['luxury-minimal', 'aggressive', 'clean-conversion', 'product-demo'], description: 'Optional style preset override when user explicitly requests a style.' },
-                    },
-                    required: ['user_prompt'],
-                  },
-                },
-              },
-            ];
-            
-            // Detect ad intent in user message → force create_ad tool
-            const _userMsgForChoice = (body.message || '').toLowerCase();
-            const _adKeywords = /\b(publicidad|anuncio|ad|advertisement|advert|creative|marketing\s+piece|ads)\b/i;
-            const _isAdRequest = _adKeywords.test(_userMsgForChoice);
-            const _forcedChoice = _isAdRequest
-              ? { type: 'function' as const, function: { name: 'create_ad' } }
-              : 'auto' as const;
-            console.log('[chat:openai] tool_choice:', _isAdRequest ? 'create_ad (forced)' : 'auto', '| msg:', _userMsgForChoice.slice(0, 80));
-
-            const firstCall = await oai.chat.completions.create({
-              model: body.model || 'gpt-5.4',
-              messages: oaiMsgs as never,
-              tools: oaiTools,
-              tool_choice: 'auto',
-              max_completion_tokens: 4096,
-            });
-            
-            const choice = firstCall.choices[0];
-            const toolCalls = choice?.message?.tool_calls ?? [];
-            
-            // CASE A: No tool — stream text response
-            if (toolCalls.length === 0) {
-              const stream = await oai.chat.completions.create({
-                model: body.model || 'gpt-5.4',
-                messages: oaiMsgs as never,
-                stream: true,
-                max_completion_tokens: 4096,
-              });
-              let oaiText = '';
-              for await (const chunk of stream) {
-                const d = chunk.choices[0]?.delta?.content || '';
-                if (d) { oaiText += d; controller.enqueue(sseEncode('delta', { text: d })); }
-              }
-              await svc.from('messages').update({ content: oaiText, status: 'complete' } as never).eq('id', pendingMessageId);
-              controller.enqueue(sseEncode('done', { assistantMessageId: pendingMessageId, conversationId, isNewConversation: isNew }));
-              controller.close();
-              return;
-            }
-            
-            // CASE B: Tool call — execute tool, then stream final response
-            const tcall = toolCalls[0];
-            const tname = tcall.function?.name;
-            
-            if (tname === 'generate_image') {
-              let toolArgs: { prompt?: string; aspect_ratio?: string; num_images?: number } = {};
-              try { toolArgs = JSON.parse(tcall.function?.arguments || '{}'); } catch {}
-              const imgPrompt = toolArgs.prompt || 'a product photo';
-              const aspectRatio = toolArgs.aspect_ratio || '1:1';
-              
-              // Emit tool_start event (activates ImageGeneratingSkeleton in UI)
-              const toolUseId = tcall.id || `gpt_img_${Date.now()}`;
-              controller.enqueue(sseEncode('tool_start', {
-                toolUseId,
-                tool: 'image',
-                input: { prompt: imgPrompt, aspect_ratio: aspectRatio },
-              }));
-              
-              // Call internal image generation endpoint
-              const cookieHeader = req.headers.get('cookie') || '';
-              const origin = req.nextUrl.origin;
-              try {
-                // If user attached an image, pass it as reference for gpt-image-1
-                const refImages = body.imageBase64 && body.imageMimeType
-                  ? [{ data: body.imageBase64, mimeType: body.imageMimeType }]
-                  : undefined;
-                
-                const imgRes = await fetch(`${origin}/api/images/generate`, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json', cookie: cookieHeader },
-                  body: JSON.stringify({ 
-                    prompt: imgPrompt, 
-                    aspectRatio: aspectRatio,
-                    model: 'gpt-image-2',
-                    referenceImages: refImages,
-                  }),
+            for await (const event of runOpenAIWithTools({
+              messages,
+              svc,
+              orgId,
+              userId: user.id,
+              assistantId,
+              origin: toolFetchCtx.origin,
+              cookieHeader: toolFetchCtx.cookieHeader,
+              model: body.model,
+              imageBase64: body.imageBase64,
+              imageMimeType: body.imageMimeType,
+              signal: req.signal,
+            })) {
+              if (event.type === 'text') {
+                fullText += event.value;
+                controller.enqueue(sseEncode('delta', { text: event.value }));
+              } else if (event.type === 'tool_start') {
+                toolParts.push({
+                  id: event.toolUseId,
+                  kind: event.tool,
+                  status: 'running',
+                  input: event.input,
+                  createdAt: new Date().toISOString(),
                 });
-                
-                if (imgRes.ok) {
-                  const imgData = await imgRes.json();
-                  const url = imgData.url || imgData.urls?.[0];
-                  if (url) {
-                    // Emit tool_result event (skeleton replaced by actual image)
-                    controller.enqueue(sseEncode('tool_result', {
-                      toolUseId,
-                      tool: 'image',
-                      ok: true,
-                      result: { urls: [url] },
-                    }));
-                    
-                    await svc.from('messages').update({ content: `![Generated image](${url})`, status: 'complete' } as never).eq('id', pendingMessageId);
-                    controller.enqueue(sseEncode('done', { assistantMessageId: pendingMessageId, conversationId, isNewConversation: isNew }));
-                    controller.close();
-                    return;
-                  }
-                }
-                throw new Error('Image generation returned no URL');
-              } catch (imgErr) {
-                const errMsg = imgErr instanceof Error ? imgErr.message : 'Image generation failed';
-                controller.enqueue(sseEncode('tool_result', {
-                  toolUseId,
-                  tool: 'image',
-                  ok: false,
-                  error: errMsg,
+                controller.enqueue(sseEncode('tool_start', {
+                  toolUseId: event.toolUseId,
+                  tool: event.tool,
+                  input: event.input,
                 }));
-                await svc.from('messages').update({ content: `Image generation failed: ${errMsg}`, status: 'failed' } as never).eq('id', pendingMessageId);
-                controller.enqueue(sseEncode('done', { assistantMessageId: pendingMessageId, conversationId, isNewConversation: isNew }));
-                controller.close();
-                return;
+              } else if (event.type === 'tool_result') {
+                const existing = toolParts.find((p) => p.id === event.toolUseId);
+                if (existing) {
+                  existing.status = event.ok ? 'done' : 'failed';
+                  existing.result = event.result as Record<string, unknown> | undefined;
+                  existing.error = event.error;
+                }
+                controller.enqueue(sseEncode('tool_result', {
+                  toolUseId: event.toolUseId,
+                  tool: event.tool,
+                  ok: event.ok,
+                  result: event.result,
+                  error: event.error,
+                }));
+              } else if (event.type === 'done') {
+                inputTokens = event.inputTokens;
+                outputTokens = event.outputTokens;
+                costUsd = event.costUsd;
+              } else if (event.type === 'error') {
+                failed = true;
+                errorMessage = event.message;
+                controller.enqueue(sseEncode('error', { message: event.message }));
               }
             }
-            
-            if (tname === 'create_ad') {
-              let toolArgs: { user_prompt?: string; formats?: string[]; preset_override?: string } = {};
-              try { toolArgs = JSON.parse(tcall.function?.arguments || '{}'); } catch {}
-              const userPrompt = toolArgs.user_prompt || '';
-
-              const toolUseId = tcall.id || `gpt_ad_${Date.now()}`;
-              controller.enqueue(sseEncode('tool_start', {
-                toolUseId,
-                tool: 'create_ad',
-                input: { prompt: userPrompt.slice(0, 80) + '...' },
-              }));
-
-              try {
-                // ═══ USA EL CEREBRO COMPLETO (misma función que Anthropic) ═══
-                const { executeTool } = await import('@/lib/chat/tools');
-                const cookieHeader = req.headers.get('cookie') || '';
-                const origin = req.nextUrl.origin;
-                
-                const result = await executeTool('create_ad', {
-                  user_prompt: userPrompt,
-                  formats: toolArgs.formats,
-                  preset_override: toolArgs.preset_override,
-                }, {
-                  svc,
-                  orgId,
-                  userId: user.id,
-                  assistantId: 'default',
-                  origin,
-                  cookieHeader,
-                  signal: undefined, // SSE controller no tiene .signal
-                  attachedImages: body.imageBase64 && body.imageMimeType
-                    ? [{ base64: body.imageBase64, mimeType: body.imageMimeType }]
-                    : undefined,
-                });
-
-                if (!result.ok || !result.result?.urls?.length) {
-                  throw new Error(result.error || 'No ads produced');
-                }
-
-                const urls = result.result.urls;
-                controller.enqueue(sseEncode('tool_result', {
-                  toolUseId,
-                  tool: 'image',
-                  ok: true,
-                  result: { urls },
-                }));
-
-                const md = urls.map((u) => `![Ad](${u})`).join('\n\n');
-                await svc.from('messages').update({ content: md, status: 'complete' } as never).eq('id', pendingMessageId);
-                controller.enqueue(sseEncode('done', { assistantMessageId: pendingMessageId, conversationId, isNewConversation: isNew }));
-                controller.close();
-                return;
-              } catch (adErr) {
-                const errMsg = adErr instanceof Error ? adErr.message : 'Ad creation failed';
-                controller.enqueue(sseEncode('tool_result', { toolUseId, tool: 'image', ok: false, error: errMsg }));
-                await svc.from('messages').update({ content: `Ad creation failed: ${errMsg}`, status: 'failed' } as never).eq('id', pendingMessageId);
-                controller.enqueue(sseEncode('done', { assistantMessageId: pendingMessageId, conversationId, isNewConversation: isNew }));
-                controller.close();
-                return;
-              }
-            }
-
-            // Unknown tool — fallback to text
-            const fallbackMsg = choice.message?.content || 'I tried to use a tool but it is not available.';
-            controller.enqueue(sseEncode('delta', { text: fallbackMsg }));
-            await svc.from('messages').update({ content: fallbackMsg, status: 'complete' } as never).eq('id', pendingMessageId);
+            await svc.from('messages').update({
+              content: fullText,
+              status: failed ? 'failed' : 'complete',
+              error_message: failed ? errorMessage : null,
+              input_tokens: inputTokens,
+              output_tokens: outputTokens,
+              latency_ms: Date.now() - started,
+              cost_usd: costUsd,
+              tool_parts: toolParts,
+            } as never).eq('id', pendingMessageId);
             controller.enqueue(sseEncode('done', { assistantMessageId: pendingMessageId, conversationId, isNewConversation: isNew }));
             controller.close();
           } catch (e) {
@@ -619,20 +456,6 @@ export async function POST(req: NextRequest) {
         }
         
         // ═══ ANTHROPIC (default) — with tool-use for images ═══
-        let fullText = '';
-        let inputTokens = 0;
-        let outputTokens = 0;
-        let costUsd = 0;
-        let failed = false;
-        let errorMessage = '';
-        const toolParts: Array<{
-          id: string; kind: string; status: 'running'|'done'|'failed';
-          input: Record<string, unknown>;
-          result?: Record<string, unknown>;
-          error?: string;
-          createdAt: string;
-        }> = [];
-
         const useCoach = new URL(req.url).searchParams.get('coach') === '1';
         const runner = useCoach ? runCoach : runChatWithTools;
         console.log('[chat] runner:', useCoach ? 'OperatorAI-Coach (local)' : 'Claude (cloud)');

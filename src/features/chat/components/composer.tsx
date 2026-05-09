@@ -55,7 +55,13 @@ function pickPlaceholder(locale: 'es' | 'en'): string {
 export function Composer({ onSend, onCancel, loading, disabled }: Props) {
   const { locale } = useI18n();
   const [value, setValue] = useState('');
-  const placeholderText = useMemo(() => pickPlaceholder(locale as 'es' | 'en'), [locale]);
+  // Placeholder fijo para SSR, rota al hidratar (evita hydration mismatch)
+  const [placeholderText, setPlaceholderText] = useState(
+    locale === 'es' ? 'Cuéntame tu marca. Te devuelvo la estrategia.' : 'Ask me anything. Strategy, ads, ideas...'
+  );
+  useEffect(() => {
+    setPlaceholderText(pickPlaceholder(locale as 'es' | 'en'));
+  }, [locale]);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const ref = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);

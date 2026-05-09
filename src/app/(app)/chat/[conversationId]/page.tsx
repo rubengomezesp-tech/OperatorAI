@@ -37,7 +37,7 @@ export default async function ConversationPage({ params }: PageProps) {
 
   const { data: rows } = await svc
     .from('messages')
-    .select('id, role, content, created_at, status, error_message')
+    .select('id, role, content, created_at, status, error_message, tool_parts')
     .eq('conversation_id', conversationId)
     .order('created_at', { ascending: true });
 
@@ -50,6 +50,7 @@ export default async function ConversationPage({ params }: PageProps) {
       const row = m as {
         id: string; role: string; content: string | null;
         created_at: string; status: string | null; error_message: string | null;
+        tool_parts: unknown;
       };
       return {
         id: row.id,
@@ -58,6 +59,7 @@ export default async function ConversationPage({ params }: PageProps) {
         createdAt: row.created_at,
         status: (row.status as UiMessage['status']) ?? 'complete',
         error: row.error_message ?? undefined,
+        toolParts: (row.tool_parts as UiMessage['toolParts']) ?? [],
       };
     });
 

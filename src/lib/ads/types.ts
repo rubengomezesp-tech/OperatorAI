@@ -51,6 +51,20 @@ export interface CreativePlan {
   negativePrompt: string;
   variants: VariantSpec[];
   brandContext?: BrandContext;
+  /** Imágenes de referencia adjuntadas por el usuario (base64). Se pasan a gpt-image-2 como references visuales. */
+  userImages?: Array<{ base64: string; mimeType: string }>;
+  /** Layout archetype seleccionado por el randomizer (Sprint 2). Dicta la estructura compositiva. */
+  archetype?: {
+    id: string;
+    name: string;
+    promptDirective: string;
+    compositionRules: string[];
+    typographyCharacter: string;
+    paletteDirective: string;
+    lightingDirective: string;
+    cameraDirective: string;
+    forbidPatterns: string[];
+  };
   created_at: string;
 }
 

@@ -14,7 +14,7 @@ import { EmptyState } from './empty-state';
 import { useChatStore, MODEL_OPTIONS } from '../stores/chat-store';
 import type { UiMessage } from '@/lib/chat/types';
 import { OperatorBg } from '@/components/layout/operator-bg';
-import { AdLiveGenerator } from './ad-live-generator';
+// AdLiveGenerator eliminado — todo va por /api/chat → create_ad → brain-bridge
 import type { ToolPart } from './tool-result';
 
 interface Props {
@@ -190,17 +190,6 @@ export function ChatView({
     [conversationId, providerForModel, selectedModel, send, router],
   );
 
-  const [adStreamPayload, setAdStreamPayload] = useState<null | {
-    userPrompt: string;
-    images?: Array<{ base64: string; mimeType: string }>;
-    logoUrl?: string;
-    brandContext?: {
-      brand_name?: string;
-      description?: string;
-      vibe?: string;
-    };
-  }>(null);
-
   const fetchBrandPayload = async () => {
     try {
       const res = await fetch('/api/brand/get', { cache: 'no-store' });
@@ -223,23 +212,10 @@ export function ChatView({
 
   const handleSend = useCallback(
     async (text: string, attachment?: { base64: string; mimeType: string; fileName: string }) => {
-      const isAd = /\b(publicidad|anuncio|advertisement|advert)\b/i.test(text);
-      console.log('[chat] handleSend text:', text, 'isAd:', isAd, 'attachment:', !!attachment);
-
-      if (isAd) {
-        console.log('[chat] → routing to AdLiveGenerator');
-
-        const brandPayload = await fetchBrandPayload();
-
-        setAdStreamPayload({
-          userPrompt: text,
-          images: attachment ? [{ base64: attachment.base64, mimeType: attachment.mimeType }] : undefined,
-          ...brandPayload,
-        });
-
-        return;
-      }
-
+      // ═══ SPRINT 2: TODOS los mensajes van por /api/chat (tool calling unificado) ═══
+      // El backend (runOpenAI/runChat) detecta intent y llama a create_ad → brain-bridge → archetypes
+      // AdLiveGenerator queda como fallback legacy (no se dispara automáticamente)
+      console.log('[chat] handleSend text:', text.slice(0, 80), 'attachment:', !!attachment);
       streamInto(text, null, attachment);
     },
     [streamInto],
@@ -336,19 +312,6 @@ export function ChatView({
         </div>
 
         <div className="flex-shrink-0" style={{ paddingBottom: "var(--kbh, 0px)" }}>
-          {adStreamPayload && (
-            <div className="px-4 pt-3">
-              <AdLiveGenerator
-                payload={adStreamPayload}
-                onComplete={(url) => {
-                  setAdStreamPayload(null);
-                  streamInto(`![Ad](${url})`, null);
-                }}
-                onCancel={() => setAdStreamPayload(null)}
-              />
-            </div>
-          )}
-
           <Composer onSend={handleSend} onCancel={cancel} loading={loading} />
         </div>
       </div>

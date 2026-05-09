@@ -4,7 +4,7 @@ import * as Dialog from '@radix-ui/react-dialog';
 import { Pencil, Send, Download, FileText, BookOpen, Image as ImageIcon, Video, Loader2, AlertCircle, X, Undo2, Brush, Eraser, Sparkles, Maximize2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-export type ToolKind = 'image' | 'video' | 'file_analysis' | 'knowledge_search';
+export type ToolKind = 'image' | 'video' | 'file_analysis' | 'knowledge_search' | 'create_ad';
 export type ToolStatus = 'running' | 'done' | 'failed';
 
 export interface ToolPart {
@@ -26,14 +26,14 @@ export interface ToolPart {
 
 export function ToolResult({ part }: { part: ToolPart }) {
   if (part.status === 'running') {
-    if (part.kind === 'image') {
+    if (part.kind === 'image' || part.kind === 'create_ad') {
       return <ImageGeneratingSkeleton aspectRatio={(part.input.aspect_ratio as string) || '1:1'} />;
     }
     return <ToolRunningCard kind={part.kind} input={part.input} />;
   }
   if (part.status === 'failed') return <ToolFailedCard kind={part.kind} error={part.error} />;
 
-  if (part.kind === 'image') {
+  if (part.kind === 'image' || part.kind === 'create_ad') {
     const urls = part.result?.urls ?? [];
     return (
       <div className="my-3 grid grid-cols-1 sm:grid-cols-2 gap-2">

@@ -23,6 +23,8 @@ import type {
 } from './types';
 import { parseAspectRatios, priorityOrder } from './aspect-ratio';
 import { createJob, updateJob, getJob } from './job-manager';
+import { selectArchetype } from './layout-randomizer';
+import type { LayoutArchetype } from './layout-archetypes';
 
 // ═══ RE-EXPORT ═══
 export { parseAspectRatios, normalizeAspectRatio } from './aspect-ratio';
@@ -148,6 +150,23 @@ export async function generateCreativePlan(input: CreateAdInput): Promise<Creati
     console.warn('[brain-bridge] selectCampaignType failed, using default');
   }
 
+  // ═══ STEP 2.5: SELECT LAYOUT ARCHETYPE (Sprint 2 — variedad estructural) ═══
+  let selectedArchetype: LayoutArchetype | null = null;
+  try {
+    const orgId = (input.brandContext?.brand_name || 'default') as string;
+    const result = selectArchetype({
+      vertical: verticalSlug,
+      campaignType: campaignTypeSlug,
+      orgId,
+      userPromptText: input.userPrompt,  // ← Sprint 3: detección de exploration intent
+      hasMultipleImages: (input.images?.length ?? 0) >= 2,  // ← Sprint 3: detección SaaS launch
+    });
+    selectedArchetype = result.archetype;
+    console.log('[brain-bridge] 🎨 archetype selected:', result.archetype.id, '|', result.reason);
+  } catch (e) {
+    console.warn('[brain-bridge] archetype selection failed:', e);
+  }
+
   // Step 3: Cargar DNA vertical desde vertical-knowledge
   let verticalDNA: VerticalDNA | null = null;
   let verticalCue = '';
@@ -251,6 +270,18 @@ export async function generateCreativePlan(input: CreateAdInput): Promise<Creati
     negativePrompt: 'blurry, low quality, watermark, text artifacts, fake logos, distorted faces, generic stock',
     variants,
     brandContext: input.brandContext,
+    userImages: input.images,
+    archetype: selectedArchetype ? {
+      id: selectedArchetype.id,
+      name: selectedArchetype.name,
+      promptDirective: selectedArchetype.promptDirective,
+      compositionRules: selectedArchetype.compositionRules,
+      typographyCharacter: selectedArchetype.typographyCharacter,
+      paletteDirective: selectedArchetype.paletteDirective,
+      lightingDirective: selectedArchetype.lightingDirective,
+      cameraDirective: selectedArchetype.cameraDirective,
+      forbidPatterns: selectedArchetype.forbidPatterns,
+    } : undefined,
     created_at: new Date().toISOString(),
   };
 
