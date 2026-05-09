@@ -25,6 +25,7 @@ import { parseAspectRatios, priorityOrder } from './aspect-ratio';
 import { createJob, updateJob, getJob } from './job-manager';
 import { selectArchetype } from './layout-randomizer';
 import type { LayoutArchetype } from './layout-archetypes';
+import { detectMultiVariantIntent, type StyleDNA } from './style-dna';
 
 // ═══ RE-EXPORT ═══
 export { parseAspectRatios, normalizeAspectRatio } from './aspect-ratio';
@@ -150,6 +151,25 @@ export async function generateCreativePlan(input: CreateAdInput): Promise<Creati
     console.warn('[brain-bridge] selectCampaignType failed, using default');
   }
 
+  // ═══ STEP 2.0: DETECT STYLE DNA (Sprint 5 — biblioteca curada de estilos) ═══
+  // Si el user invoca un estilo específico (Wes Anderson, Bauhaus, Apple…),
+  // detectamos el DNA correspondiente y forzamos su archetypeBase.
+  let detectedDNA: StyleDNA | null = null;
+  try {
+    const intent = detectMultiVariantIntent(input.userPrompt);
+    if (intent.detected && intent.styleDNAs.length > 0) {
+      detectedDNA = intent.styleDNAs[0]; // primer DNA detectado dirige el archetype
+      console.log(
+        '[brain-bridge] 🎨 Style DNA detected:',
+        detectedDNA.id,
+        '| matched:',
+        intent.matchedPhrases[0],
+      );
+    }
+  } catch (e) {
+    console.warn('[brain-bridge] style-dna detection failed:', e);
+  }
+
   // ═══ STEP 2.5: SELECT LAYOUT ARCHETYPE (Sprint 2 — variedad estructural) ═══
   let selectedArchetype: LayoutArchetype | null = null;
   try {
@@ -160,9 +180,24 @@ export async function generateCreativePlan(input: CreateAdInput): Promise<Creati
       orgId,
       userPromptText: input.userPrompt,  // ← Sprint 3: detección de exploration intent
       hasMultipleImages: (input.images?.length ?? 0) >= 2,  // ← Sprint 3: detección SaaS launch
+      forcedArchetype: detectedDNA?.archetypeBase as never,  // ← Sprint 5: forzar archetype del Style DNA
     });
     selectedArchetype = result.archetype;
     console.log('[brain-bridge] 🎨 archetype selected:', result.archetype.id, '|', result.reason);
+
+    // ═══ Sprint 5: ENRICH ARCHETYPE WITH STYLE DNA ═══
+    // Si hay DNA detectado, su promptDirective extiende el del archetype.
+    // El archetype dicta ESTRUCTURA, el DNA dicta IDENTIDAD VISUAL profunda.
+    if (detectedDNA && selectedArchetype) {
+      selectedArchetype = {
+        ...selectedArchetype,
+        promptDirective:
+          selectedArchetype.promptDirective +
+          '\n\n═══ STYLE DNA OVERLAY: ' + detectedDNA.name.toUpperCase() + ' ═══\n' +
+          detectedDNA.promptDirective,
+      };
+      console.log('[brain-bridge] ✨ Style DNA overlay applied:', detectedDNA.name);
+    }
   } catch (e) {
     console.warn('[brain-bridge] archetype selection failed:', e);
   }
