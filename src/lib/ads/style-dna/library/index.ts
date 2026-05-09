@@ -16,6 +16,10 @@ import { DESIGN_MOVEMENT_DNAS } from './design-movements';
 import { BRAND_REFERENCE_DNAS } from './brand-references';
 import { CINEMATIC_DNAS } from './cinematic';
 import { MOOD_EMOTIONAL_DNAS } from './mood-emotional';
+import { PHOTOGRAPHIC_DNAS } from './photographic';
+import { BRAND_REFERENCE_EXTRA_DNAS } from './brand-references-extra';
+import { CINEMATIC_EXTRA_DNAS } from './cinematic-extra';
+import { ERA_HISTORICAL_DNAS } from './era-historical';
 
 // ─── Registry global ────────────────────────────────────────────
 const ALL_DNAS: StyleDNA[] = [
@@ -23,6 +27,10 @@ const ALL_DNAS: StyleDNA[] = [
   ...BRAND_REFERENCE_DNAS,
   ...CINEMATIC_DNAS,
   ...MOOD_EMOTIONAL_DNAS,
+  ...PHOTOGRAPHIC_DNAS,
+  ...BRAND_REFERENCE_EXTRA_DNAS,
+  ...CINEMATIC_EXTRA_DNAS,
+  ...ERA_HISTORICAL_DNAS,
 ];
 
 // ─── Index de búsqueda rápida por ID ────────────────────────────

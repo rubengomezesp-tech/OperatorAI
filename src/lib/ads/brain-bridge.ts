@@ -174,6 +174,7 @@ export async function generateCreativePlan(input: CreateAdInput): Promise<Creati
       try {
         const { findDNAByAlias } = await import('./style-dna');
         const RANDOM_POOL = [
+          // Sesión 1 (originales)
           'apple',
           'pentagram',
           'swiss',
@@ -183,6 +184,23 @@ export async function generateCreativePlan(input: CreateAdInput): Promise<Creati
           'bauhaus',
           'tarkovsky',
           'ghibli',
+          // Sesión 2 — Photographic
+          'helmut newton',
+          'irving penn',
+          'platon',
+          // Sesión 2 — Brand references
+          'tesla',
+          'byredo',
+          'patagonia',
+          // Sesión 2 — Cinematic
+          'paul thomas anderson',
+          'fincher',
+          'malick',
+          'spike jonze',
+          // Sesión 2 — Eras
+          'mid-century',
+          'art deco',
+          'baroque',
         ];
         const pickedAlias = RANDOM_POOL[Math.floor(Math.random() * RANDOM_POOL.length)];
         const randomDNA = findDNAByAlias(pickedAlias);

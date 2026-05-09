@@ -51,7 +51,8 @@ export type StyleCategory =
   | 'brand-reference'     // Apple, Nike, Pentagram, Yohji...
   | 'mood-emotional'      // Melancholy, euphoria, quiet...
   | 'cultural-regional'   // Japanese, Mexican folk, Nordic...
-  | 'mixed-fusion';       // Combinaciones especiales
+  | 'mixed-fusion'
+  | 'era-historical';       // Combinaciones especiales
 
 /**
  * STYLE DNA — La unidad fundamental del sistema.
