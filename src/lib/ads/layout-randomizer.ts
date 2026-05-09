@@ -60,7 +60,10 @@ export interface SelectArchetypeInput {
 // ═══ DETECCIÓN DE EXPLORATION INTENT (Sprint 3) ═══
 // Si el user pide "explora variantes" / "muestra opciones" / "concept exploration"
 // → forzamos brand-system-document (el destructor de competencia)
-const EXPLORATION_INTENT_RX = /\b(explora|exploraci[oó]n|variantes|variations|opciones|options|muestra\s+opciones|m[aá]s\s+versiones|more\s+versions|concept\s+exploration|brand\s+book|brand\s+system|identity\s+round|brand\s+exploration|conceptos|concepts|alternativas|alternatives|propuestas|proposals|estilos|styles|formas|shapes|m[aá]s\s+formas|otros\s+conceptos)\b/i;
+// SPRINT 5.1: Solo se dispara con keywords EXPLÍCITOS de brand book.
+// Keywords genéricos como "explora", "variantes", "opciones" se gestionan
+// ahora por Style DNA (Sprint 5) — más control visual, menos forzado.
+const EXPLORATION_INTENT_RX = /\b(brand\s+book|brand\s+system|brand\s+guidelines|manual\s+de\s+marca|identity\s+system|design\s+system|sistema\s+de\s+marca|manual\s+de\s+identidad)\b/i;
 
 function detectsExplorationIntent(text?: string): boolean {
   if (!text) return false;
@@ -112,13 +115,41 @@ export function selectArchetype(input: SelectArchetypeInput): SelectArchetypeRes
     };
   }
 
-  // 0b. SAAS LAUNCH INTENT (Sprint 3) — ad para app/saas/plataforma
-  //     fuerza premium-saas-announcement (Apple/Linear announcement style)
+  // 0b. SAAS LAUNCH INTENT (Sprint 5.1 — pool con variedad)
+  //     Ya no fuerza ÚNICO archetype. Selecciona aleatoriamente
+  //     del pool de archetypes apropiados para products/SaaS,
+  //     respetando anti-repetition por orgId.
   if (detectsSaasLaunchIntent(userPromptText, input.hasMultipleImages)) {
-    recordUsage(orgId, 'premium-saas-announcement');
+    const SAAS_POOL: Array<{ id: ArchetypeId; weight: number }> = [
+      { id: 'premium-saas-announcement', weight: 30 },
+      { id: 'hero-typographic-apple', weight: 20 },
+      { id: 'full-bleed-cinematic', weight: 20 },
+      { id: 'spotify-duotone-diagonal', weight: 15 },
+      { id: 'surreal-sculptural-product', weight: 10 },
+      { id: 'bento-grid-modular', weight: 5 },
+    ];
+
+    // Filtrar recientes (anti-repetition)
+    const recents = getRecentArchetypesForOrg(orgId);
+    const available = SAAS_POOL.filter((p) => !recents.includes(p.id));
+    const pool = available.length > 0 ? available : SAAS_POOL;
+
+    // Selección weighted random
+    const totalWeight = pool.reduce((sum, p) => sum + p.weight, 0);
+    let rand = Math.random() * totalWeight;
+    let selected: ArchetypeId = pool[0].id;
+    for (const p of pool) {
+      rand -= p.weight;
+      if (rand <= 0) {
+        selected = p.id;
+        break;
+      }
+    }
+
+    recordUsage(orgId, selected);
     return {
-      archetype: ARCHETYPES['premium-saas-announcement'],
-      reason: 'saas-launch-intent (forced premium-saas-announcement)',
+      archetype: ARCHETYPES[selected],
+      reason: `saas-launch-intent (weighted pool → ${selected})`,
     };
   }
 

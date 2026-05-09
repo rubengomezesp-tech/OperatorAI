@@ -151,20 +151,52 @@ export async function generateCreativePlan(input: CreateAdInput): Promise<Creati
     console.warn('[brain-bridge] selectCampaignType failed, using default');
   }
 
-  // ═══ STEP 2.0: DETECT STYLE DNA (Sprint 5 — biblioteca curada de estilos) ═══
-  // Si el user invoca un estilo específico (Wes Anderson, Bauhaus, Apple…),
+  // ═══ STEP 2.0: DETECT STYLE DNA (Sprint 5 + 5.1) ═══
+  // Si el user invoca un estilo específico (Wes Anderson, Bauhaus…),
   // detectamos el DNA correspondiente y forzamos su archetypeBase.
+  // Sprint 5.1: si NO hay DNA explícito, inyectamos uno random
+  // del pool curado para AÑADIR variedad visual (el user no siempre
+  // sabe pedir estilos, así que el sistema diversifica solo).
   let detectedDNA: StyleDNA | null = null;
   try {
     const intent = detectMultiVariantIntent(input.userPrompt);
     if (intent.detected && intent.styleDNAs.length > 0) {
-      detectedDNA = intent.styleDNAs[0]; // primer DNA detectado dirige el archetype
+      detectedDNA = intent.styleDNAs[0];
       console.log(
         '[brain-bridge] 🎨 Style DNA detected:',
         detectedDNA.id,
         '| matched:',
         intent.matchedPhrases[0],
       );
+    } else {
+      // Sprint 5.1: random DNA del pool curado para variedad implícita
+      // Solo se aplica como overlay visual, NO fuerza archetype.
+      try {
+        const { findDNAByAlias } = await import('./style-dna');
+        const RANDOM_POOL = [
+          'apple',
+          'pentagram',
+          'swiss',
+          'villeneuve',
+          'aesop',
+          'wes anderson',
+          'bauhaus',
+          'tarkovsky',
+          'ghibli',
+        ];
+        const pickedAlias = RANDOM_POOL[Math.floor(Math.random() * RANDOM_POOL.length)];
+        const randomDNA = findDNAByAlias(pickedAlias);
+        if (randomDNA) {
+          detectedDNA = randomDNA;
+          console.log(
+            '[brain-bridge] 🎲 Style DNA random pool selection:',
+            randomDNA.id,
+            '(no explicit DNA in prompt — adding visual variety)',
+          );
+        }
+      } catch (e) {
+        console.warn('[brain-bridge] random DNA fallback failed:', e);
+      }
     }
   } catch (e) {
     console.warn('[brain-bridge] style-dna detection failed:', e);
@@ -180,7 +212,10 @@ export async function generateCreativePlan(input: CreateAdInput): Promise<Creati
       orgId,
       userPromptText: input.userPrompt,  // ← Sprint 3: detección de exploration intent
       hasMultipleImages: (input.images?.length ?? 0) >= 2,  // ← Sprint 3: detección SaaS launch
-      forcedArchetype: detectedDNA?.archetypeBase as never,  // ← Sprint 5: forzar archetype del Style DNA
+      // Sprint 5.1: forcedArchetype SOLO si el DNA viene de prompt EXPLÍCITO.
+      // Si viene del random pool (variedad implícita), dejamos que el randomizer
+      // escoja libremente para máxima variedad. El DNA solo añade overlay visual.
+      forcedArchetype: undefined as never,
     });
     selectedArchetype = result.archetype;
     console.log('[brain-bridge] 🎨 archetype selected:', result.archetype.id, '|', result.reason);
