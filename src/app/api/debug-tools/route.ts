@@ -2,7 +2,20 @@ import { NextResponse } from 'next/server';
 
 export const runtime = 'nodejs';
 
+function devOnly() {
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json(
+      { error: 'Endpoint disabled in production' },
+      { status: 403 }
+    );
+  }
+  return null;
+}
+
 export async function GET() {
+  const block = devOnly();
+  if (block) return block;
+
   const diagnostics: Record<string, unknown> = {
     timestamp: new Date().toISOString(),
   };

@@ -6,6 +6,8 @@ import { resolveOrgContext } from '@/features/chat/server/resolve-org-context';
 import { enhancePrompt } from '@/features/image-studio/server/flux-client';
 import { IMAGE_PRESETS } from '@/features/image-studio/data/presets';
 
+import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
+
 export const runtime = 'nodejs';
 export const maxDuration = 300;
 
@@ -56,6 +58,11 @@ export async function POST(req: NextRequest) {
 
   try {
     orgId = (await resolveOrgContext(svc, user.id)).orgId;
+
+    // ⭐ RATE LIMIT — protección contra abuse (Sprint 4 cleanup)
+    const rl = await checkRateLimit(user.id, '/api/images/generate');
+    if (!rl.allowed) return rateLimitResponse(rl.remaining, rl.reset);
+
   } catch {
     return NextResponse.json({ error: 'No active workspace' }, { status: 403 });
   }

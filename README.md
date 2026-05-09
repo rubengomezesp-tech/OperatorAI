@@ -1,175 +1,259 @@
-# Operator AI — Patch 1: i18n global + Apple Sign-In
+# OperatorAI
 
-This patch **extends** what you already have. It does **not** replace your i18n library or your auth flow.
+> AI-powered marketing platform that turns ideas into agency-grade ads, in minutes.
 
----
-
-## What's in this zip
-
-| File | What it does |
-|---|---|
-| `src/lib/i18n.tsx` | Your existing i18n + **auth & topbar keys** added |
-| `src/components/auth/apple-button.tsx` | **NEW** – Apple HIG-compliant button |
-| `src/app/(auth)/login/page.tsx` | Google + **Apple** + fully i18n-ed |
-| `src/app/(auth)/signup/page.tsx` | Google + **Apple** + fully i18n-ed |
+**Production:** https://operatoraiapp.com
+**Status:** Production · Active development
 
 ---
 
-## 1. Drop in the files
+## Overview
 
-Copy everything, preserving paths. Overwrites your existing `i18n.tsx`, `login/page.tsx`, `signup/page.tsx` (the replacements are supersets — nothing is lost).
+OperatorAI is an end-to-end marketing automation platform powered by a multi-model AI orchestrator. It generates premium ads, manages campaigns, and orchestrates external tools (web search, email, browser) — all from a single conversational interface.
 
----
-
-## 2. Show the language toggle on every page
-
-Open `src/components/layout/topbar.tsx`. Add the import:
-
-```tsx
-import { LanguageToggle } from '@/lib/i18n';
-```
-
-Drop `<LanguageToggle />` in the right-side controls of the topbar, next to your notifications / account menu:
-
-```tsx
-<div className="flex items-center gap-2">
-  <LanguageToggle />
-  {/* existing: notifications, avatar dropdown, etc. */}
-</div>
-```
-
-The toggle is already styled to match your design (border/gold hover). On every page that renders the `Topbar`, it'll appear. Auth pages have their own toggle already baked in.
+**Core capabilities:**
+- 16 layout archetypes for agency-grade ad design
+- Multi-model orchestration (GPT-5.4, Claude, Qwen v3 fine-tuned)
+- External tools: Gmail, web search, browser automation
+- Real-time streaming with auto-recovery
+- Brand-aware: respects user's brand assets and voice
 
 ---
 
-## 3. Use translations anywhere
+## Tech Stack
 
-```tsx
-'use client';
-import { useI18n } from '@/lib/i18n';
-
-export function AnyComponent() {
-  const { t, locale } = useI18n();
-  return <h1>{t('dash.headline')}</h1>;
-}
-```
-
-New keys added in this patch you can start using:
-- `auth.welcome_back`, `auth.continue_with_apple`, `auth.continue_with_google`, `auth.email`, `auth.password`, `auth.sign_in`, `auth.create_account_link`, etc.
-- `topbar.sign_out`, `topbar.account`, `topbar.notifications`, `topbar.search`
-
-Add more keys to the `translations` object as you need them.
-
----
-
-## 4. Apple Sign-In — set up in Apple Developer
-
-This is the part with the most steps. Budget ~20 minutes. **You need a paid Apple Developer account ($99/yr).**
-
-### 4.1 Create an App ID
-
-1. Go to https://developer.apple.com/account/resources/identifiers/list
-2. Click **+** → **App IDs** → **App**
-3. Description: `Operator AI`
-4. Bundle ID: `app.operatorai.web` (or your reverse-domain preference)
-5. Under Capabilities, check **Sign In with Apple**
-6. Register.
-
-### 4.2 Create a Services ID (this is what Supabase uses)
-
-1. Same page, click **+** → **Services IDs**
-2. Description: `Operator AI Web Auth`
-3. Identifier: `app.operatorai.auth` (must be **different** from the App ID above)
-4. Register.
-5. Now click on the just-created Services ID → enable **Sign In with Apple** → click **Configure**:
-   - **Primary App ID:** the one you made in 4.1
-   - **Domains and Subdomains:**
-     ```
-     YOUR_SUPABASE_PROJECT.supabase.co
-     operatoraiapp.com
-     www.operatoraiapp.com
-     ```
-     (replace `YOUR_SUPABASE_PROJECT` with your real Supabase project subdomain)
-   - **Return URLs:**
-     ```
-     https://YOUR_SUPABASE_PROJECT.supabase.co/auth/v1/callback
-     ```
-6. Save → Continue → Save.
-
-### 4.3 Create a Sign-In Key
-
-1. Go to https://developer.apple.com/account/resources/authkeys/list
-2. Click **+** → Key Name: `Operator AI Sign In`
-3. Check **Sign In with Apple** → Configure → Primary App ID → the App ID from 4.1
-4. Continue → Register → **Download the `.p8` file** (you can only download it once — keep it safe)
-5. Note down:
-   - **Key ID** (shown after creation)
-   - **Team ID** (top-right of the Apple Developer page)
-   - The Services ID from 4.2 (this acts as your "Client ID" in Supabase)
+| Layer | Technology |
+|-------|------------|
+| Framework | Next.js 16.2.6 + Turbopack |
+| Language | TypeScript 5.9 |
+| UI | React 19, Tailwind CSS, Radix UI, Framer Motion |
+| Database | Supabase (Postgres + RLS) |
+| Auth | Supabase Auth |
+| Storage | Supabase Storage |
+| AI Models | OpenAI (GPT-5.4), Anthropic (Claude), Google (Gemini), Qwen v3 (local) |
+| Image Gen | gpt-image-2, Flux, Recraft, Ideogram |
+| Video Gen | Replicate, Fal.ai |
+| Web Search | Tavily |
+| Browser | Browserbase |
+| Email | Gmail API + Resend |
+| Payments | Stripe |
+| Cache/RateLimit | Upstash Redis |
+| Background Jobs | Inngest |
+| Observability | Sentry, Langfuse, PostHog |
+| Hosting | Vercel |
 
 ---
 
-## 5. Configure Apple in Supabase
+## Setup
 
-1. Go to your Supabase project → **Authentication** → **Providers** → **Apple**
-2. Toggle **Enable Sign in with Apple**
-3. Fill in:
-   - **Client IDs (Services ID):** `app.operatorai.auth` (from step 4.2)
-   - **Secret Key (for OAuth):** Supabase now auto-generates this. Click **"Generate a new secret"** and paste:
-     - **Team ID:** from Apple Developer top-right
-     - **Key ID:** from step 4.3
-     - **Private Key:** paste the full contents of the `.p8` file (including `-----BEGIN PRIVATE KEY-----` and `-----END PRIVATE KEY-----`)
-   - Supabase computes the JWT client secret for you. It expires every 6 months — rotate when needed.
-4. **Callback URL (for OAuth):** Supabase shows it at the top — it should be `https://YOUR_PROJECT.supabase.co/auth/v1/callback`. This is what you entered as Return URL in step 4.2.
-5. Save.
+### Prerequisites
+- Node.js 20+
+- npm or pnpm
+- Supabase project
+- API keys (see Environment Variables below)
 
----
-
-## 6. CSP — already covered
-
-Your `next.config.js` CSP already allows `https://*.supabase.co`. Apple's OAuth redirects to Supabase which then redirects back to your domain. **No CSP change needed.**
-
----
-
-## 7. Test
+### Install
 
 ```bash
-pnpm dev
+git clone https://github.com/rubengomezesp-tech/OperatorAI.git
+cd OperatorAI
+npm install
+cp .env.example .env.local
+# Edit .env.local with your keys
+npm run dev
 ```
 
-1. Go to `http://localhost:3000/login`
-2. Click **Continue with Apple**
-3. Apple popup → authenticate → redirects to your `/auth/callback?code=...` → session exchanged → lands on `/dashboard`
-4. Click the `🇪🇸 ES` toggle → every label in `t(...)` flips to Spanish instantly. Reloads via localStorage.
+Server runs at http://localhost:3000
+
+### Required Environment Variables
+
+Critical groups (full list in `.env.local`):
+
+**Supabase**
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
+
+**AI Models**
+- `OPENAI_API_KEY`
+- `ANTHROPIC_API_KEY`
+- `GEMINI_API_KEY`
+
+**Image/Video Generation**
+- `REPLICATE_API_TOKEN`
+- `FAL_API_KEY`
+
+**External Tools (Sprint 4)**
+- `TAVILY_API_KEY`
+- `GOOGLE_CLIENT_ID`
+- `GOOGLE_CLIENT_SECRET`
+- `GOOGLE_REDIRECT_URI`
+- `BROWSERBASE_API_KEY`
+- `BROWSERBASE_PROJECT_ID`
+
+**Rate Limiting + Cache**
+- `UPSTASH_REDIS_REST_URL`
+- `UPSTASH_REDIS_REST_TOKEN`
+
+**Payments**
+- `STRIPE_SECRET_KEY`
+- `STRIPE_WEBHOOK_SECRET`
+
+**Observability**
+- `SENTRY_DSN`
+- `LANGFUSE_PUBLIC_KEY`
+- `LANGFUSE_SECRET_KEY`
 
 ---
 
-## 8. Production checklist before going live
+## Scripts
 
-- [ ] In Supabase → Auth → URL Configuration → **Site URL** = `https://operatoraiapp.com`
-- [ ] Redirect URLs whitelist includes `https://operatoraiapp.com/auth/callback`
-- [ ] Apple Services ID has `operatoraiapp.com` + `www.operatoraiapp.com` in Domains
-- [ ] Redeploy on Vercel
-- [ ] Test a real Apple sign-in on production
-
----
-
-## Known gotchas
-
-**"Invalid_client" from Apple:** Services ID not configured, or domain mismatch. Re-check step 4.2.
-
-**"Email hidden"** (user's email is relay `@privaterelay.appleid.com`): this is normal — Apple offers email masking. Your app receives a unique masked email. Store `auth.users.email` as-is; Supabase handles it.
-
-**Secret expired (every 6 months):** regenerate in Supabase Dashboard → Apple provider → "Generate a new secret" with the same `.p8` file. Zero downtime.
-
-**Sign-up requires name, Apple only returns name on first sign-in:** capture it from `auth.users.raw_user_meta_data.full_name` on the callback. If you need to enforce a name later, add a profile-completion step after first login.
+```bash
+npm run dev      # Development server (Turbopack)
+npm run build    # Production build
+npm run start    # Production server (after build)
+npm run lint     # ESLint
+```
 
 ---
 
-## Next patches (coming)
+## Project Structure
 
-- **Streaming chat** (SSE) — if your `/chat` isn't already streaming.
-- **PDF parsing** in Files & Analysis — using `mammoth` (already in deps) for docx + `pdf-parse` for PDFs.
-- **Multi-tone campaigns** — if Campaigns module needs it.
+See `ARCHITECTURE.md` for detailed system architecture.
 
-Ping me when this one is deployed.
+```
+src/
+  app/                      Next.js 16 app router
+    (app)/                  Authenticated layout
+    api/                    100+ API routes
+  features/                 Feature-based components
+    chat/                   Conversational interface
+    creative-studio/        Image/video generation UI
+    billing/                Stripe integration
+  lib/
+    ads/                    Ads pipeline (16 archetypes)
+    orchestrator/           AI model orchestration
+      coach/                Qwen-specific orchestrator
+      tools/                External tools (Sprint 4)
+    models/                 Model provider clients
+    chat/                   Chat tool execution
+    rag/                    Knowledge base / embeddings
+```
+
+---
+
+## Key Features
+
+### 1. Ads Pipeline
+Generates production-ready ads using a sophisticated orchestrator:
+- 16 layout archetypes (Apple-minimal, Cinematic, Bento Grid, Pentagram-style brand book, SaaS announcement, etc.)
+- Anti-repetition tracker (different archetype each request)
+- Auto-routing semántico (detects intent → forces specific archetype)
+- Brand-aware (respects user's logo, palette, voice)
+- Multiple aspect ratios (1:1, 9:16, 16:9, 4:5)
+
+See `src/lib/ads/`.
+
+### 2. Multi-Model Orchestrator
+Routes requests to the optimal model based on task:
+- **GPT-5.4**: tool calling, complex reasoning (production)
+- **Claude**: long context, creative writing
+- **Qwen v3 (local)**: fine-tuned for Operator persona (development)
+- **Gemini**: multimodal tasks
+
+See `src/lib/orchestrator/` and `src/lib/models/`.
+
+### 3. External Tools (Sprint 4)
+Modular adapter system for external integrations:
+- `web_search` — Tavily AI search
+- `web_fetch` — URL content extraction
+- `send_email` / `read_emails` — Gmail API + OAuth2
+- `browser_action` — Browserbase Chrome cloud
+
+See `src/lib/orchestrator/tools/`.
+
+### 4. Knowledge Base (RAG)
+Users can upload PDFs/docs and the AI retrieves relevant context.
+Embeddings via Nomic.
+
+See `src/lib/rag/`.
+
+### 5. Memory System
+Persistent memory across conversations:
+- Style learning (voice fingerprint)
+- Explicit memories ("remember that...")
+- Auto-extraction from turns
+
+See `src/features/memory/`.
+
+---
+
+## API Routes
+
+100+ endpoints organized by domain:
+
+| Domain | Endpoints | Purpose |
+|--------|-----------|---------|
+| `/api/chat` | 1 + variants | Main conversation endpoint |
+| `/api/admin/*` | 14 | Admin panel (protected by isAdmin check) |
+| `/api/billing/*` | 5 | Stripe subscriptions |
+| `/api/creative/*` | 5 | Ads pipeline |
+| `/api/images/*` | 7 | Image generation/management |
+| `/api/videos/*` | 4 | Video generation/management |
+| `/api/knowledge/*` | 5 | RAG documents |
+| `/api/memory/*` | 5 | Memory CRUD |
+| `/api/auth/google/*` | 2 | OAuth flow (Sprint 4) |
+| `/api/integrations/*` | 4 | External tool connections |
+
+**Rate-limited endpoints (Upstash Redis):**
+- `/api/chat`: 30 req/min
+- `/api/images/generate`: 10 req/min
+- `/api/videos/generate`: 5 req/min
+- `/api/billing/checkout`: 5 req/min
+
+---
+
+## Security
+
+- **Auth**: Supabase Auth with RLS policies on all tables
+- **Admin**: `isAdmin(email)` check on all `/api/admin/*` routes
+- **Rate Limiting**: Upstash Redis (Vercel-compatible)
+- **OAuth Tokens**: Stored in `oauth_tokens` table with RLS
+- **Secret Management**: All keys in Vercel env vars (never in code)
+- **Debug Endpoints**: `devOnly()` guard (returns 403 in production)
+
+---
+
+## Deployment
+
+Vercel auto-deploys on push to `main`:
+
+```bash
+git push origin main
+# Vercel detects push
+# Builds with Turbopack
+# Deploys to operatoraiapp.com
+# Cache propagated globally (~2-3 min)
+```
+
+Database migrations are applied manually via Supabase Dashboard SQL Editor.
+
+---
+
+## Documentation
+
+- `README.md` — This file (overview)
+- `ARCHITECTURE.md` — System architecture and design decisions
+- `src/lib/orchestrator/README.md` — External tools (Sprint 4) docs
+
+---
+
+## License
+
+Proprietary © 2026 Ruben Gómez. All rights reserved.
+
+---
+
+## Support
+
+For issues or questions: ruben@operatoraiapp.com

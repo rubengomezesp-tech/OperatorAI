@@ -1,52 +1,108 @@
-import { NextResponse } from 'next/server';
-
 /**
- * Rate limiter en memoria.
- * Para producción a escala, migrar a Upstash Redis.
+ * 🛡️ RATE LIMITER — Upstash Redis-based
+ * 
+ * Funciona en Vercel serverless (estado distribuido en Redis edge).
+ * Por user_id si hay sesión, por IP si no.
+ * 
+ * Uso:
+ *   const { allowed, remaining } = await checkRateLimit(userId, '/api/chat');
+ *   if (!allowed) return rateLimitResponse(remaining);
  */
-const requests = new Map<string, { count: number; resetAt: number }>();
 
-const WINDOW_MS = 60_000;
+import { NextResponse } from 'next/server';
+import { Ratelimit } from '@upstash/ratelimit';
+import { Redis } from '@upstash/redis';
+
+// ─── Configuración por endpoint ───────────────────────────────
+// Límites: requests permitidas por ventana (60 segundos)
 const LIMITS: Record<string, number> = {
-  '/api/chat': 30,
-  '/api/images/generate': 10,
-  '/api/billing/checkout': 5,
-  '/api/files/upload': 10,
-  default: 60,
+  '/api/chat': 30,             // Conversaciones (LLM tokens)
+  '/api/images/generate': 10,  // Generación imagen ($0.10-0.20 c/u)
+  '/api/videos/generate': 5,   // Generación vídeo ($0.50+ c/u)
+  '/api/billing/checkout': 5,  // Stripe abuse prevention
+  '/api/files/upload': 10,     // Storage abuse
+  default: 60,                  // Endpoints normales
 };
 
-export function checkRateLimit(ip: string, path: string): { allowed: boolean; remaining: number } {
-  const now = Date.now();
-  const key = ip + ':' + path;
+// ─── Upstash Redis client (lazy init) ─────────────────────────
+let redis: Redis | null = null;
+const limiters = new Map<string, Ratelimit>();
+
+function getRedis(): Redis | null {
+  if (redis) return redis;
+  const url = process.env.UPSTASH_REDIS_REST_URL;
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+  if (!url || !token) {
+    console.warn('[rate-limit] Upstash no configurado, rate limit DISABLED');
+    return null;
+  }
+  redis = new Redis({ url, token });
+  return redis;
+}
+
+function getLimiter(path: string): Ratelimit | null {
+  if (limiters.has(path)) return limiters.get(path)!;
+  const r = getRedis();
+  if (!r) return null;
   const limit = LIMITS[path] ?? LIMITS.default;
-
-  const record = requests.get(key);
-  if (!record || now > record.resetAt) {
-    requests.set(key, { count: 1, resetAt: now + WINDOW_MS });
-    return { allowed: true, remaining: limit - 1 };
-  }
-
-  record.count++;
-  if (record.count > limit) {
-    return { allowed: false, remaining: 0 };
-  }
-
-  return { allowed: true, remaining: limit - record.count };
+  const limiter = new Ratelimit({
+    redis: r,
+    limiter: Ratelimit.slidingWindow(limit, '60 s'),
+    analytics: true,
+    prefix: `ratelimit:${path}`,
+  });
+  limiters.set(path, limiter);
+  return limiter;
 }
 
-export function rateLimitResponse() {
-  return NextResponse.json(
-    { error: 'Too many requests. Please wait a moment.' },
-    { status: 429, headers: { 'Retry-After': '60' } },
-  );
-}
-
-// Limpieza cada 5 minutos
-if (typeof setInterval !== 'undefined') {
-  setInterval(() => {
-    const now = Date.now();
-    for (const [key, val] of requests) {
-      if (now > val.resetAt) requests.delete(key);
+/**
+ * Check rate limit por usuario (o IP) y endpoint.
+ * 
+ * Si Upstash no está configurado, permite todas las requests
+ * (modo desarrollo). NUNCA bloquea por error de infraestructura.
+ */
+export async function checkRateLimit(
+  identifier: string,
+  path: string,
+): Promise<{ allowed: boolean; remaining: number; reset?: number }> {
+  try {
+    const limiter = getLimiter(path);
+    if (!limiter) {
+      // Sin Upstash → permitir (no romper UX)
+      return { allowed: true, remaining: 999 };
     }
-  }, 300_000);
+
+    const result = await limiter.limit(identifier);
+    return {
+      allowed: result.success,
+      remaining: result.remaining,
+      reset: result.reset,
+    };
+  } catch (e) {
+    // Si Redis falla, permitir (failsafe — no romper producción)
+    console.error('[rate-limit] error, allowing request:', e);
+    return { allowed: true, remaining: 999 };
+  }
+}
+
+/**
+ * Response 429 estándar para cuando se supera el límite.
+ */
+export function rateLimitResponse(remaining = 0, resetAt?: number) {
+  const retryAfter = resetAt
+    ? Math.max(1, Math.ceil((resetAt - Date.now()) / 1000))
+    : 60;
+  return NextResponse.json(
+    {
+      error: 'Too many requests. Please wait a moment.',
+      retryAfter,
+    },
+    {
+      status: 429,
+      headers: {
+        'Retry-After': String(retryAfter),
+        'X-RateLimit-Remaining': String(remaining),
+      },
+    },
+  );
 }

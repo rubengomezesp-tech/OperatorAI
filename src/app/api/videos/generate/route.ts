@@ -6,6 +6,8 @@ import { resolveOrgContext } from '@/features/chat/server/resolve-org-context';
 import { serverEnv } from '@/lib/env';
 import { sendPushNotification } from '@/lib/push';
 
+import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
+
 export const runtime = 'nodejs';
 export const maxDuration = 300;
 
@@ -143,6 +145,11 @@ export async function POST(req: NextRequest) {
     const svc = createSupabaseServiceClient();
     let orgId: string;
     try { orgId = (await resolveOrgContext(svc, user.id)).orgId; } catch {
+
+    // ⭐ RATE LIMIT — protección contra abuse (Sprint 4 cleanup)
+    const rl = await checkRateLimit(user.id, '/api/videos/generate');
+    if (!rl.allowed) return rateLimitResponse(rl.remaining, rl.reset);
+
       return NextResponse.json({ error: 'No workspace' }, { status: 403 });
     }
 

@@ -24,6 +24,8 @@ import { waitUntil } from '@vercel/functions';
 import { checkUsage, incrementUsage } from '@/lib/billing/usage';
 import { isChatDisabled, isMaintenanceMode } from '@/lib/admin/maintenance';
 
+import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
+
 export const runtime = 'nodejs';
 export const maxDuration = 300;
 
@@ -61,6 +63,11 @@ export async function POST(req: NextRequest) {
   let orgName: string;
   try {
     const ctx = await resolveOrgContext(svc, user.id);
+
+    // ⭐ RATE LIMIT — protección contra abuse (Sprint 4 cleanup)
+    const rl = await checkRateLimit(user.id, '/api/chat');
+    if (!rl.allowed) return rateLimitResponse(rl.remaining, rl.reset);
+
     orgId = ctx.orgId;
     orgName = ctx.orgName;
   } catch {

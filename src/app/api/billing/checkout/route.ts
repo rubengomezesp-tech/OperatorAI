@@ -8,6 +8,8 @@ import { getActiveSubscription } from '@/features/billing/server/subscription';
 import { serverEnv } from '@/lib/env';
 import { getPriceId, TRIAL_DAYS, type PlanId, type Interval } from '@/lib/billing/pricing';
 
+import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
+
 export const runtime = 'nodejs';
 
 const BodySchema = z.object({
@@ -38,6 +40,11 @@ export async function POST(req: NextRequest) {
   let orgId: string; let orgName: string;
   try {
     const ctx = await resolveOrgContext(svc, user.id);
+
+    // ⭐ RATE LIMIT — protección contra abuse (Sprint 4 cleanup)
+    const rl = await checkRateLimit(user.id, '/api/billing/checkout');
+    if (!rl.allowed) return rateLimitResponse(rl.remaining, rl.reset);
+
     orgId = ctx.orgId; orgName = ctx.orgName;
   } catch {
     return NextResponse.json({ error: 'No active workspace' }, { status: 403 });
