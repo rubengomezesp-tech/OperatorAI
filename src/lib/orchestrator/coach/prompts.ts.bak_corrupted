@@ -87,7 +87,7 @@ NO toma argumentos.
 EJEMPLO:
 <tool_call>{"name":"get_brand_assets","arguments":{}}</tool_call>`,
 
-  web_search: `### web_search — búsqueda web actualizada
+  web_search: \`### web_search — búsqueda web actualizada
 Úsalo cuando necesitas información FRESCA, datos actuales, noticias, ranking, comparativas, o investigación.
 NO uses esto si la pregunta es de conocimiento general estable.
 Argumentos OBLIGATORIOS:
@@ -97,18 +97,18 @@ Argumentos OPCIONALES:
   - search_depth: "basic" (rápido) o "advanced" (más completo). Default "basic".
 
 EJEMPLO:
-<tool_call>{"name":"web_search","arguments":{"query":"best japanese restaurant Brickell Miami 2026","max_results":3}}</tool_call>`,
+<tool_call>{"name":"web_search","arguments":{"query":"best japanese restaurant Brickell Miami 2026","max_results":3}}</tool_call>\`,
 
-  web_fetch: `### web_fetch — leer contenido de una URL
+  web_fetch: \`### web_fetch — leer contenido de una URL
 Úsalo cuando ya conoces la URL exacta y quieres leer su contenido completo (artículo, blog, página de producto).
 Para búsqueda en general, usa web_search primero.
 Argumentos OBLIGATORIOS:
   - url (string): URL completa empezando con http:// o https://.
 
 EJEMPLO:
-<tool_call>{"name":"web_fetch","arguments":{"url":"https://example.com/articulo"}}</tool_call>`,
+<tool_call>{"name":"web_fetch","arguments":{"url":"https://example.com/articulo"}}</tool_call>\`,
 
-  send_email: `### send_email — enviar email vía Gmail
+  send_email: \`### send_email — enviar email vía Gmail
 Úsalo cuando el usuario pide mandar info por email, confirmar algo, o seguir conversación por correo.
 ⚠️ CONFIRMA CON EL USUARIO antes de mandar (destinatario + asunto resumido).
 Argumentos OBLIGATORIOS:
@@ -120,9 +120,9 @@ Argumentos OPCIONALES:
   - cc, bcc (array de emails).
 
 EJEMPLO:
-<tool_call>{"name":"send_email","arguments":{"to":"juan@x.com","subject":"Reserva confirmada","body":"Hola, te confirmo la mesa para esta noche a las 8pm."}}</tool_call>`,
+<tool_call>{"name":"send_email","arguments":{"to":"juan@x.com","subject":"Reserva confirmada","body":"Hola, te confirmo la mesa para esta noche a las 8pm."}}</tool_call>\`,
 
-  read_emails: `### read_emails — leer inbox de Gmail
+  read_emails: \`### read_emails — leer inbox de Gmail
 Úsalo cuando el usuario pregunta por sus emails, mensajes recientes, o quiere buscar info en su correo.
 Argumentos OPCIONALES:
   - query (string): filtro estilo Gmail (ej: "from:juan@x.com", "subject:invoice").
@@ -130,9 +130,9 @@ Argumentos OPCIONALES:
   - unread_only (boolean): default false.
 
 EJEMPLO:
-<tool_call>{"name":"read_emails","arguments":{"query":"from:stripe","max_results":5}}</tool_call>`,
+<tool_call>{"name":"read_emails","arguments":{"query":"from:stripe","max_results":5}}</tool_call>\`,
 
-  browser_action: `### browser_action — controlar browser real (Chrome cloud)
+  browser_action: \`### browser_action — controlar browser real (Chrome cloud)
 Úsalo SOLO cuando web_search/web_fetch no son suficientes (ej: contenido detrás de login, JavaScript dinámico, screenshots).
 Para lectura simple, prefiere web_fetch (más rápido y barato).
 Argumentos OBLIGATORIOS:
@@ -143,7 +143,7 @@ Argumentos OPCIONALES:
   - wait_ms (0-15000): tiempo de espera para JS dinámico.
 
 EJEMPLO:
-<tool_call>{"name":"browser_action","arguments":{"action":"navigate","url":"https://opentable.com","wait_ms":3000}}</tool_call>`,
+<tool_call>{"name":"browser_action","arguments":{"action":"navigate","url":"https://opentable.com","wait_ms":3000}}</tool_call>\`,
 };
 
 /* -------------------------------------------------------------------------- */

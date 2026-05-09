@@ -42,7 +42,7 @@ export type CoachToolName =
   | 'video'
   | 'knowledge_search'
   | 'file_analysis'
-  | 'get_brand_assets';
+  | 'get_brand_assets' | 'web_search' | 'web_fetch' | 'send_email' | 'read_emails' | 'browser_action';
 
 /** Tool calls que el coach NUNCA debe usar directamente (se filtran del prompt) */
 export const HIDDEN_TOOLS: ReadonlySet<string> = new Set([

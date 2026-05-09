@@ -1,7 +1,9 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 
-export type ToolKind = 'image' | 'video' | 'file_analysis' | 'knowledge_search' | 'get_brand_assets' | 'compose_ad' | 'create_ad';
+import { executeAdapter, type ExternalToolName } from '@/lib/orchestrator/tools';
+
+export type ToolKind = 'image' | 'video' | 'file_analysis' | 'knowledge_search' | 'get_brand_assets' | 'compose_ad' | 'create_ad' | 'web_search' | 'web_fetch' | 'send_email' | 'read_emails' | 'browser_action';
 
 export interface ToolSpec {
   name: ToolKind;
@@ -181,6 +183,13 @@ export async function executeTool(
       case 'get_brand_assets': return await execGetBrandAssets(input, ctx);
       case 'compose_ad': return await execComposeAd(input, ctx);
       case 'create_ad': return await execCreateAd(input, ctx);
+      // ═══ EXTERNAL TOOLS (Sprint 4) ═══
+      case 'web_search':
+      case 'web_fetch':
+      case 'send_email':
+      case 'read_emails':
+      case 'browser_action':
+        return await execExternalAdapter(name, input, ctx);
       default: return { ok: false, error: 'Unknown tool: ' + name };
     }
   } catch (e) {
@@ -570,3 +579,31 @@ async function execCreateAd(input: Record<string, unknown>, ctx: ToolContext): P
     return { ok: false, error: msg };
   }
 }
+
+// ═══ EXTERNAL TOOLS BRIDGE (Sprint 4) ═══
+// Conecta el executeTool central con el sistema de adapters externos.
+async function execExternalAdapter(
+  name: ExternalToolName,
+  input: Record<string, unknown>,
+  ctx: ToolContext,
+): Promise<ToolResult> {
+  const result = await executeAdapter(name, input, {
+    userId: (ctx as { userId?: string }).userId,
+    orgId: (ctx as { orgId?: string }).orgId,
+  });
+
+  if (!result.ok) {
+    return { ok: false, error: result.error || `${name} failed` };
+  }
+
+  // Convertir el resultado del adapter al formato ToolResult esperado
+  return {
+    ok: true,
+    result: {
+      text: typeof result.data === 'string' 
+        ? result.data 
+        : JSON.stringify(result.data, null, 2),
+    },
+  };
+}
+

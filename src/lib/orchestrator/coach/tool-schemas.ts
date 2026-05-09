@@ -125,6 +125,49 @@ export const FileAnalysisSchema = z.object({
 /** get_brand_assets — sin argumentos */
 export const GetBrandAssetsSchema = z.object({}).default({});
 
+/* ════════════════════════════════════════════════════════════════ */
+/*  EXTERNAL TOOLS SCHEMAS (Sprint 4)                                */
+/* ════════════════════════════════════════════════════════════════ */
+
+/** web_search — búsqueda web vía Tavily */
+export const WebSearchSchema = z.object({
+  query: z.string().min(2, 'query debe tener al menos 2 caracteres'),
+  search_depth: z.enum(['basic', 'advanced']).default('basic'),
+  max_results: z.number().int().min(1).max(10).default(5),
+  include_answer: z.boolean().default(true),
+});
+
+/** web_fetch — extracción de contenido de una URL */
+export const WebFetchSchema = z.object({
+  url: z.string().url('Debe ser una URL válida'),
+  extract_depth: z.enum(['basic', 'advanced']).default('basic'),
+});
+
+/** send_email — enviar email vía Gmail */
+export const SendEmailSchema = z.object({
+  to: z.string().email('Debe ser un email válido'),
+  subject: z.string().min(1),
+  body: z.string().min(1),
+  is_html: z.boolean().default(false),
+  cc: z.array(z.string().email()).optional(),
+  bcc: z.array(z.string().email()).optional(),
+});
+
+/** read_emails — leer inbox de Gmail */
+export const ReadEmailsSchema = z.object({
+  query: z.string().optional().default(''),
+  max_results: z.number().int().min(1).max(20).default(5),
+  unread_only: z.boolean().default(false),
+});
+
+/** browser_action — controlar Chrome via Browserbase */
+export const BrowserActionSchema = z.object({
+  action: z.enum(['navigate', 'screenshot', 'extract']),
+  url: z.string().url(),
+  selector: z.string().optional(),
+  wait_ms: z.number().int().min(0).max(15000).default(3000),
+});
+
 /* -------------------------------------------------------------------------- */
 /*  ALIAS DE NOMBRES DE TOOLS                                                  */
 /* -------------------------------------------------------------------------- */
@@ -173,6 +216,39 @@ const TOOL_NAME_ALIASES: Record<string, CoachToolName> = {
   'brand_assets': 'get_brand_assets',
   'get_brand': 'get_brand_assets',
   'brand_info': 'get_brand_assets',
+
+  // ═══ EXTERNAL TOOLS (Sprint 4) ═══
+  'web_search': 'web_search',
+  'webSearch': 'web_search',
+  'search_web': 'web_search',
+  'google_search': 'web_search',
+  'tavily': 'web_search',
+  'search': 'web_search',
+
+  'web_fetch': 'web_fetch',
+  'webFetch': 'web_fetch',
+  'fetch_url': 'web_fetch',
+  'read_url': 'web_fetch',
+  'extract_url': 'web_fetch',
+  'fetch': 'web_fetch',
+
+  'send_email': 'send_email',
+  'sendEmail': 'send_email',
+  'gmail_send': 'send_email',
+  'mail_send': 'send_email',
+  'email': 'send_email',
+
+  'read_emails': 'read_emails',
+  'readEmails': 'read_emails',
+  'gmail_read': 'read_emails',
+  'inbox': 'read_emails',
+  'check_email': 'read_emails',
+
+  'browser_action': 'browser_action',
+  'browserAction': 'browser_action',
+  'browser': 'browser_action',
+  'navigate': 'browser_action',
+  'browse': 'browser_action',
 };
 
 export function resolveToolName(rawName: string): CoachToolName | null {
@@ -335,6 +411,12 @@ const SCHEMA_BY_TOOL: Record<CoachToolName, z.ZodSchema> = {
   knowledge_search: KnowledgeSearchSchema,
   file_analysis: FileAnalysisSchema,
   get_brand_assets: GetBrandAssetsSchema,
+  // ═══ EXTERNAL TOOLS (Sprint 4) ═══
+  web_search: WebSearchSchema,
+  web_fetch: WebFetchSchema,
+  send_email: SendEmailSchema,
+  read_emails: ReadEmailsSchema,
+  browser_action: BrowserActionSchema,
 };
 
 export function validateToolArgs(

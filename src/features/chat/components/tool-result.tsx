@@ -4,25 +4,12 @@ import * as Dialog from '@radix-ui/react-dialog';
 import { Pencil, Send, Download, FileText, BookOpen, Image as ImageIcon, Video, Loader2, AlertCircle, X, Undo2, Brush, Eraser, Sparkles, Maximize2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-export type ToolKind = 'image' | 'video' | 'file_analysis' | 'knowledge_search' | 'create_ad';
+// ToolKind importado desde lib/chat/types para evitar duplicación
+export type { ToolKind, ToolPart } from '@/lib/chat/types';
+import type { ToolKind } from '@/lib/chat/types';
 export type ToolStatus = 'running' | 'done' | 'failed';
 
-export interface ToolPart {
-  id: string;
-  kind: ToolKind;
-  status: ToolStatus;
-  input: Record<string, unknown>;
-  result?: {
-    urls?: string[];
-    videoUrl?: string;
-    thumbnailUrl?: string;
-    text?: string;
-    sources?: Array<{ title: string; id: string }>;
-  };
-  error?: string;
-  attachmentUrls?: string[];
-  createdAt: string;
-}
+import type { ToolPart } from '@/lib/chat/types';
 
 export function ToolResult({ part }: { part: ToolPart }) {
   if (part.status === 'running') {
