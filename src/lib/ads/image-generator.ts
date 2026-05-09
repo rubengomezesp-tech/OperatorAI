@@ -84,7 +84,13 @@ export async function generateImage(input: GenerateImageInput): Promise<Generate
   const quality = resolveQuality(input.quality);
   const size = aspectToSize(input.aspectRatio);
   const model = input.model ?? 'gpt-image-2';
-  const timeoutMs = input.timeoutMs ?? 180000;
+  // SPRINT 5.1 FIX: timeout aligned with Vercel maxDuration (300s).
+  // gpt-image-2 with complex prompts (DNA + archetype + brand context)
+  // can take 200-280s. Configurable via IMAGE_GEN_TIMEOUT_MS env var.
+  const timeoutMs =
+    input.timeoutMs ??
+    (process.env.IMAGE_GEN_TIMEOUT_MS ? Number(process.env.IMAGE_GEN_TIMEOUT_MS) : null) ??
+    300000;
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
