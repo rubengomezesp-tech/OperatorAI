@@ -1,6 +1,6 @@
 import { I18nProvider } from '@/lib/i18n';
 import type { Metadata, Viewport } from 'next';
-import { Inter, Playfair_Display, JetBrains_Mono } from 'next/font/google';
+import { Inter, Playfair_Display, JetBrains_Mono, Cinzel } from 'next/font/google';
 import { SplashScreen } from '@/components/splash-screen';
 import { RootProviders } from '@/components/providers/root-providers';
 import '@/styles/globals.css';
@@ -9,6 +9,13 @@ import { getBrandAssets } from '@/lib/brand-assets-server';
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter', display: 'swap' });
 const serif = Playfair_Display({ weight: ['400', '500', '600', '700'], subsets: ['latin'], variable: '--font-serif', display: 'swap' });
 const mono = JetBrains_Mono({ subsets: ['latin'], variable: '--font-mono', display: 'swap' });
+
+const cinzel = Cinzel({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700'],
+  variable: '--font-cinzel',
+  display: 'swap',
+});
 
 export const viewport: Viewport = {
   width: 'device-width',

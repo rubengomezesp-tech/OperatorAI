@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { LandingPageClient } from './landing-client';
+import { InvocationWrapper } from '@/components/landing/invocation-wrapper';
 import { DEFAULT_HOME_CONTENT, type HomeContent } from '@/lib/home-content/defaults';
 import { createSupabaseServiceClient } from '@/lib/supabase/service';
 
@@ -29,5 +30,9 @@ export default async function HomePage() {
   if (user) redirect('/chat');
 
   const content = await getHomeContent();
-  return <LandingPageClient content={content} />;
+  return (
+    <InvocationWrapper>
+      <LandingPageClient content={content} />
+    </InvocationWrapper>
+  );
 }

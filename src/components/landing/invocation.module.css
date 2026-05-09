@@ -1,0 +1,492 @@
+/* ═══════════════════════════════════════════════════════════════
+   🎨 INVOCATION STYLES v4
+   
+   FIXES v4:
+     ✅ Tagline BLANCO NUCLEAR (no dorado tenue)
+     ✅ Drop-shadow cinematográfico (depth real)
+     ✅ Letter-spacing más amplio (drama)
+     ✅ Mantiene metallic gold del wordmark v3
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ─── Container ─────────────────────────────────────────────── */
+.invocationContainer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 9999;
+  background-color: #0A0A0A;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  cursor: default;
+  user-select: none;
+}
+
+/* ─── Background: grain texture ─────────────────────────────── */
+.grain {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  opacity: 0.04;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+  animation: grainShift 8s steps(8) infinite;
+}
+
+@keyframes grainShift {
+  0%, 100% { transform: translate(0, 0); }
+  10% { transform: translate(-5%, -10%); }
+  20% { transform: translate(-15%, 5%); }
+  30% { transform: translate(7%, -25%); }
+  40% { transform: translate(-5%, 25%); }
+  50% { transform: translate(-15%, 10%); }
+  60% { transform: translate(15%, 0%); }
+  70% { transform: translate(0%, 15%); }
+  80% { transform: translate(3%, 35%); }
+  90% { transform: translate(-10%, 10%); }
+}
+
+/* ─── Background: vignette ──────────────────────────────────── */
+.vignette {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse at center,
+    transparent 30%,
+    rgba(0, 0, 0, 0.4) 80%,
+    rgba(0, 0, 0, 0.7) 100%
+  );
+}
+
+/* ─── Background: AMBIENT GOLD GLOW ─────────────────────────── */
+.ambientGoldGlow {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 800px;
+  height: 800px;
+  pointer-events: none;
+  background: radial-gradient(
+    circle,
+    rgba(212, 175, 55, 0.06) 0%,
+    rgba(212, 175, 55, 0.03) 30%,
+    transparent 70%
+  );
+  filter: blur(60px);
+  opacity: 0;
+  animation: ambientPulse 6s ease-in-out 1.5s infinite;
+}
+
+@keyframes ambientPulse {
+  0%, 100% { opacity: 0.3; transform: translate(-50%, -50%) scale(1); }
+  50% { opacity: 0.6; transform: translate(-50%, -50%) scale(1.1); }
+}
+
+/* ─── Status indicator (top-right) ───────────────────────────── */
+.statusIndicator {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 10px;
+  letter-spacing: 0.15em;
+  color: rgba(255, 255, 255, 0.6);
+  text-transform: uppercase;
+  font-weight: 500;
+}
+
+.pulseDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: #D4AF37;
+  box-shadow: 0 0 8px rgba(212, 175, 55, 0.6);
+  animation: pulseDotAnim 2s ease-in-out infinite;
+}
+
+@keyframes pulseDotAnim {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.85); }
+}
+
+/* ─── Skip button (bottom-right) ─────────────────────────────── */
+.skipButton {
+  position: absolute;
+  bottom: 24px;
+  right: 24px;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.6);
+  font-family: 'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 10px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  padding: 8px 14px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-weight: 500;
+}
+
+.skipButton:hover {
+  border-color: rgba(212, 175, 55, 0.4);
+  color: rgba(212, 175, 55, 0.9);
+}
+
+/* ─── Center stage ──────────────────────────────────────────── */
+.centerStage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 22px;
+  padding: 0 24px;
+  text-align: center;
+  position: relative;
+  z-index: 1;
+}
+
+/* ─── Logo ──────────────────────────────────────────────────── */
+.logoContainer {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.logoSvg {
+  position: relative;
+  z-index: 2;
+  filter:
+    drop-shadow(0 0 8px rgba(212, 175, 55, 0.8))
+    drop-shadow(0 0 20px rgba(212, 175, 55, 0.5))
+    drop-shadow(0 0 40px rgba(212, 175, 55, 0.3));
+}
+
+.logoBloom {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 250px;
+  height: 250px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(212, 175, 55, 0.7) 0%,
+    rgba(212, 175, 55, 0.3) 30%,
+    transparent 70%
+  );
+  pointer-events: none;
+  z-index: 0;
+  filter: blur(25px);
+}
+
+.logoPulse {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 150px;
+  height: 150px;
+  border-radius: 50%;
+  border: 1px solid rgba(212, 175, 55, 0.4);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   ✨ WORDMARK — METALLIC GOLD (mantenido de v3)
+   ═══════════════════════════════════════════════════════════════ */
+
+.wordmarkContainer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 32px;
+  position: relative;
+}
+
+.wordmark {
+  font-family: 'Cinzel', 'Trajan Pro', 'Adobe Caslon Pro', Georgia, serif;
+  font-size: clamp(38px, 6vw, 60px);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  
+  background: linear-gradient(
+    135deg,
+    #FFE89C 0%,
+    #D4AF37 25%,
+    #8B6914 50%,
+    #D4AF37 75%,
+    #FFE89C 100%
+  );
+  background-size: 200% 200%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  
+  animation: goldShimmer 5s ease-in-out infinite;
+  filter: drop-shadow(0 0 12px rgba(212, 175, 55, 0.4));
+  position: relative;
+}
+
+@keyframes goldShimmer {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.aiBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Cinzel', 'Trajan Pro', Georgia, serif;
+  font-size: clamp(15px, 2.4vw, 24px);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  line-height: 1;
+  
+  border: 1.5px solid;
+  border-image: linear-gradient(
+    135deg,
+    #FFE89C 0%,
+    #D4AF37 50%,
+    #8B6914 100%
+  ) 1;
+  border-radius: 4px;
+  padding: 5px 10px 4px 10px;
+  
+  background: linear-gradient(
+    135deg,
+    #FFE89C 0%,
+    #D4AF37 50%,
+    #FFE89C 100%
+  );
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  
+  box-shadow:
+    inset 0 0 12px rgba(212, 175, 55, 0.15),
+    0 0 8px rgba(212, 175, 55, 0.2);
+  
+  margin-bottom: 4px;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   📝 TAGLINE v4 — BLANCO NUCLEAR CINEMATOGRÁFICO
+   
+   Cambios v4:
+     • Color #FFFFFF puro (no gradient dorado)
+     • Letter-spacing 0.5em (más drama)
+     • Drop-shadow cinematográfico (depth real)
+     • Multi-layer shadow para sensación 3D
+   ═══════════════════════════════════════════════════════════════ */
+
+.taglineContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  margin-top: 8px;
+}
+
+.tagline {
+  /* Tipografía */
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
+  font-size: clamp(11px, 1.6vw, 13px);
+  font-weight: 500;
+  letter-spacing: 0.5em;  /* Drama: más amplio */
+  text-transform: uppercase;
+  
+  /* BLANCO NUCLEAR */
+  color: #FFFFFF;
+  
+  /* SOMBRAS CINEMATOGRÁFICAS - profundidad real */
+  text-shadow:
+    /* Glow blanco sutil interior */
+    0 0 1px rgba(255, 255, 255, 0.4),
+    0 0 8px rgba(255, 255, 255, 0.25),
+    /* Sombra debajo (depth) */
+    0 1px 3px rgba(0, 0, 0, 0.5),
+    0 2px 6px rgba(0, 0, 0, 0.4),
+    /* Sombra ambient larga (cinematic depth) */
+    0 4px 16px rgba(0, 0, 0, 0.3);
+  
+  /* Sutil brillo */
+  filter: brightness(1.05);
+  
+  /* Antialiasing premium */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.taglineLine {
+  width: 36px;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(212, 175, 55, 0.7) 50%,
+    transparent 100%
+  );
+  margin-top: 4px;
+  /* Sombra sutil dorada */
+  box-shadow: 0 0 6px rgba(212, 175, 55, 0.3);
+}
+
+/* ─── CTA ───────────────────────────────────────────────────── */
+.ctaContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  margin-top: 32px;
+}
+
+.cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  font-family: 'Inter', -apple-system, sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  color: #0A0A0A;
+  
+  background: linear-gradient(
+    135deg,
+    #FFE89C 0%,
+    #D4AF37 50%,
+    #B8860B 100%
+  );
+  background-size: 200% 200%;
+  
+  border: none;
+  padding: 16px 32px;
+  border-radius: 4px;
+  cursor: pointer;
+  text-transform: uppercase;
+  transition: all 0.3s cubic-bezier(0.25, 0.1, 0.25, 1);
+  box-shadow:
+    0 0 20px rgba(212, 175, 55, 0.3),
+    inset 0 1px 0 rgba(255, 232, 156, 0.5);
+  
+  animation: ctaShimmer 6s ease-in-out infinite;
+}
+
+@keyframes ctaShimmer {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+.cta:hover {
+  box-shadow:
+    0 0 40px rgba(212, 175, 55, 0.5),
+    inset 0 1px 0 rgba(255, 232, 156, 0.7);
+}
+
+.arrow {
+  font-size: 16px;
+  font-weight: 400;
+  transition: transform 0.3s ease;
+}
+
+.cta:hover .arrow {
+  transform: translateX(4px);
+}
+
+.microCopy {
+  font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+/* ─── Mobile responsive ──────────────────────────────────────── */
+@media (max-width: 640px) {
+  .logoContainer {
+    width: 96px;
+    height: 96px;
+  }
+
+  .logoBloom {
+    width: 200px;
+    height: 200px;
+  }
+
+  .logoPulse {
+    width: 120px;
+    height: 120px;
+  }
+
+  .ambientGoldGlow {
+    width: 500px;
+    height: 500px;
+  }
+
+  .wordmarkContainer {
+    margin-top: 24px;
+    gap: 8px;
+  }
+
+  .tagline {
+    letter-spacing: 0.4em;  /* Slightly less on mobile */
+  }
+
+  .ctaContainer {
+    margin-top: 22px;
+  }
+
+  .cta {
+    padding: 14px 28px;
+    font-size: 13px;
+  }
+
+  .statusIndicator {
+    top: 16px;
+    right: 16px;
+    font-size: 9px;
+  }
+
+  .skipButton {
+    bottom: 16px;
+    right: 16px;
+    font-size: 9px;
+    padding: 6px 12px;
+  }
+}
+
+/* ─── Reduced motion preferences ─────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .grain,
+  .pulseDot,
+  .logoPulse,
+  .wordmark,
+  .ambientGoldGlow,
+  .cta {
+    animation: none;
+  }
+}
