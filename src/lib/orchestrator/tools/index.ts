@@ -28,5 +28,4 @@ export type {
 // Cada adapter se auto-registra cuando se importa por primera vez.
 import './adapters/web-search.adapter';
 import './adapters/web-fetch.adapter';
-import './adapters/gmail.adapter';
 import './adapters/browser.adapter';

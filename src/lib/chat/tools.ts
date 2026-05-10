@@ -212,10 +212,39 @@ export async function executeTool(
       // ═══ EXTERNAL TOOLS (Sprint 4) ═══
       case 'web_search':
       case 'web_fetch':
-      case 'send_email':
-      case 'read_emails':
       case 'browser_action':
         return await execExternalAdapter(name, input, ctx);
+      case 'send_email': {
+        // Redirect old coach 'send_email' to Composio gmail_send_email
+        const remapped: Record<string, unknown> = {
+          recipient_email: input.to ?? input.recipient_email,
+          subject: input.subject,
+          body: input.body,
+          ...(input.is_html !== undefined ? { is_html: input.is_html } : {}),
+          ...(input.cc ? { cc: input.cc } : {}),
+          ...(input.bcc ? { bcc: input.bcc } : {}),
+        };
+        const r = await executeIntegrationTool('gmail_send_email', remapped, {
+          orgId: ctx.orgId, userId: ctx.userId, svc: ctx.svc,
+        });
+        return r.ok
+          ? { ok: true, result: typeof r.result === 'object' && r.result !== null && '__action_pending__' in r.result
+              ? r.result as Record<string, unknown>
+              : { text: typeof r.result === 'string' ? r.result : JSON.stringify(r.result) } }
+          : { ok: false, error: r.error };
+      }
+      case 'read_emails': {
+        const remapped: Record<string, unknown> = {
+          query: input.query ?? '',
+          max_results: input.max_results ?? 10,
+        };
+        const r = await executeIntegrationTool('gmail_search_emails', remapped, {
+          orgId: ctx.orgId, userId: ctx.userId, svc: ctx.svc,
+        });
+        return r.ok
+          ? { ok: true, result: { text: typeof r.result === 'string' ? r.result : JSON.stringify(r.result) } }
+          : { ok: false, error: r.error };
+      }
       default: {
         const nameStr = String(name);
         if (isIntegrationTool(nameStr)) {
