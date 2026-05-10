@@ -26,5 +26,5 @@ export default async function TourPage({ params }: Props) {
   const tour = getTourBySlug(slug);
   if (!tour) notFound();
 
-  return <TourPlayerClient tour={tour} />;
+  return <TourPlayerClient tourSlug={slug} />;
 }

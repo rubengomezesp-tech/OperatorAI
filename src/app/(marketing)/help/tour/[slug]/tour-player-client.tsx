@@ -13,36 +13,46 @@ import {
   Database,
   Layers,
   Plug,
+  MessageSquare,
   type LucideIcon,
 } from 'lucide-react';
-import type { ProductTour } from '@/lib/help/tours';
+import { getTourBySlug } from '@/lib/help/tours';
 
-const STEP_ICONS: Record<string, LucideIcon> = {
-  sparkles: Sparkles,
+const TOUR_ICONS: Record<string, LucideIcon> = {
+  'message-square': MessageSquare,
   database: Database,
+  sparkles: Sparkles,
   layers: Layers,
   plug: Plug,
 };
 
 interface Props {
-  tour: ProductTour;
+  tourSlug: string;
 }
 
-export function TourPlayerClient({ tour }: Props) {
+export function TourPlayerClient({ tourSlug }: Props) {
+  const tour = getTourBySlug(tourSlug);
   const [currentStep, setCurrentStep] = useState(0);
+
+  if (!tour) {
+    return (
+      <div className="min-h-screen bg-bg flex items-center justify-center">
+        <p className="text-fg-muted">Tour not found</p>
+      </div>
+    );
+  }
 
   const step = tour.steps[currentStep];
   const isLastStep = currentStep === tour.steps.length - 1;
   const isFirstStep = currentStep === 0;
   const progress = ((currentStep + 1) / tour.steps.length) * 100;
 
-  const TourIcon = tour.icon;
-  const StepIcon = step.visual?.iconKey ? STEP_ICONS[step.visual.iconKey] : null;
+  const TourIcon = TOUR_ICONS[tour.iconKey] ?? Sparkles;
+  const StepIcon = step.visual?.iconKey ? TOUR_ICONS[step.visual.iconKey] : null;
 
   return (
     <div className="min-h-screen bg-bg">
       <div className="max-w-3xl mx-auto px-4 py-8">
-        {/* Back link */}
         <Link
           href="/help/tour"
           className="inline-flex items-center gap-1.5 text-[12.5px] text-fg-muted hover:text-gold transition-colors mb-6"
@@ -51,7 +61,6 @@ export function TourPlayerClient({ tour }: Props) {
           All tours
         </Link>
 
-        {/* Tour header */}
         <div className="rounded-xl border border-border bg-surface-2 p-5 mb-4">
           <div className="flex items-center gap-3 mb-3">
             <div
@@ -61,7 +70,7 @@ export function TourPlayerClient({ tour }: Props) {
                 border: `1px solid ${tour.accentColor}40`,
               }}
             >
-              <TourIcon className="h-4.5 w-4.5" style={{ color: tour.accentColor }} />
+              <TourIcon className="h-4 w-4" style={{ color: tour.accentColor }} />
             </div>
             <div className="flex-1 min-w-0">
               <h1 className="font-display text-[18px] text-fg">{tour.title}</h1>
@@ -72,7 +81,6 @@ export function TourPlayerClient({ tour }: Props) {
             </div>
           </div>
 
-          {/* Progress bar */}
           <div className="h-1 bg-surface-3 rounded-full overflow-hidden">
             <div
               className="h-full transition-all duration-300 rounded-full"
@@ -84,9 +92,7 @@ export function TourPlayerClient({ tour }: Props) {
           </div>
         </div>
 
-        {/* Current step */}
         <div className="rounded-xl border border-border bg-surface-2 overflow-hidden">
-          {/* Visual */}
           {step.visual && (
             <div
               className="h-48 flex items-center justify-center relative overflow-hidden"
@@ -97,7 +103,6 @@ export function TourPlayerClient({ tour }: Props) {
                     : `linear-gradient(180deg, ${tour.accentColor}0A, transparent)`,
               }}
             >
-              {/* Background pattern */}
               <div
                 className="absolute inset-0 opacity-20"
                 style={{
@@ -117,19 +122,20 @@ export function TourPlayerClient({ tour }: Props) {
                   <StepIcon className="h-9 w-9" style={{ color: tour.accentColor }} />
                 </div>
               ) : (
-                <div className="relative font-display text-[64px] opacity-30" style={{ color: tour.accentColor }}>
+                <div
+                  className="relative font-display text-[64px] opacity-30"
+                  style={{ color: tour.accentColor }}
+                >
                   {currentStep + 1}
                 </div>
               )}
             </div>
           )}
 
-          {/* Content */}
           <div className="px-6 py-6">
             <h2 className="font-display text-[22px] mb-3">{step.title}</h2>
             <p className="text-[14.5px] text-fg-muted leading-relaxed">{step.description}</p>
 
-            {/* Tip */}
             {step.tip && (
               <div
                 className="mt-5 rounded-lg p-3 flex gap-2.5"
@@ -146,7 +152,6 @@ export function TourPlayerClient({ tour }: Props) {
             )}
           </div>
 
-          {/* Navigation */}
           <div className="border-t border-border px-6 py-4 flex items-center justify-between gap-3">
             <button
               type="button"
@@ -158,7 +163,6 @@ export function TourPlayerClient({ tour }: Props) {
               Anterior
             </button>
 
-            {/* Dots */}
             <div className="flex gap-1.5">
               {tour.steps.map((_, i) => (
                 <button
@@ -187,10 +191,7 @@ export function TourPlayerClient({ tour }: Props) {
                 type="button"
                 onClick={() => setCurrentStep((s) => Math.min(tour.steps.length - 1, s + 1))}
                 className="inline-flex items-center gap-1.5 h-9 px-3 rounded-md text-[13px] font-medium transition-all"
-                style={{
-                  background: tour.accentColor,
-                  color: '#0A0A0A',
-                }}
+                style={{ background: tour.accentColor, color: '#0A0A0A' }}
               >
                 Siguiente
                 <ChevronRight className="h-3.5 w-3.5" />
@@ -199,7 +200,6 @@ export function TourPlayerClient({ tour }: Props) {
           </div>
         </div>
 
-        {/* Completion CTA */}
         {isLastStep && (
           <div className="mt-6 rounded-xl border border-emerald-500/30 bg-emerald-500/5 px-5 py-4 flex items-center gap-3">
             <CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0" />
@@ -210,7 +210,6 @@ export function TourPlayerClient({ tour }: Props) {
           </div>
         )}
 
-        {/* Help CTA */}
         <div className="mt-6 text-center text-[12.5px] text-fg-subtle">
           ¿Dudas? Visita el{' '}
           <Link href="/help" className="text-gold hover:underline">
