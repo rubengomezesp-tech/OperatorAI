@@ -20,3 +20,8 @@ tsconfig.tsbuildinfo
 *.bak_pre_*
 .archived/
 _residuos_*
+
+# Playwright
+playwright-report/
+test-results/
+/playwright/.cache/
