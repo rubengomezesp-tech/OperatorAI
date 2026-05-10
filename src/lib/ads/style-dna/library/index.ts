@@ -20,6 +20,10 @@ import { PHOTOGRAPHIC_DNAS } from './photographic';
 import { BRAND_REFERENCE_EXTRA_DNAS } from './brand-references-extra';
 import { CINEMATIC_EXTRA_DNAS } from './cinematic-extra';
 import { ERA_HISTORICAL_DNAS } from './era-historical';
+import { PRO_DESIGN_MODERN_DNAS } from './pro-design-modern';
+import { PRO_DESIGN_CONTEMPORARY_DNAS } from './pro-design-contemporary';
+import { PRO_DESIGN_EDITORIAL_DNAS } from './pro-design-editorial';
+import { VERTICAL_FORMAT_DNAS } from './vertical-formats';
 
 // ─── Registry global ────────────────────────────────────────────
 const ALL_DNAS: StyleDNA[] = [
@@ -31,6 +35,10 @@ const ALL_DNAS: StyleDNA[] = [
   ...BRAND_REFERENCE_EXTRA_DNAS,
   ...CINEMATIC_EXTRA_DNAS,
   ...ERA_HISTORICAL_DNAS,
+  ...PRO_DESIGN_MODERN_DNAS,
+  ...PRO_DESIGN_CONTEMPORARY_DNAS,
+  ...PRO_DESIGN_EDITORIAL_DNAS,
+  ...VERTICAL_FORMAT_DNAS,
 ];
 
 // ─── Index de búsqueda rápida por ID ────────────────────────────

@@ -173,36 +173,43 @@ export async function generateCreativePlan(input: CreateAdInput): Promise<Creati
       // Solo se aplica como overlay visual, NO fuerza archetype.
       try {
         const { findDNAByAlias } = await import('./style-dna');
+        // Sprint 5.3 (Sesión 3): VERTICAL intent detection
+        const VERTICAL_INTENT_RX = /\b(story|stories|historia|historias|reel|reels|tiktok|tik tok|short|shorts|vertical|9:?16|9 16|móvil|movil|mobile|portrait|retrato)\b/i;
+        const isVerticalIntent = VERTICAL_INTENT_RX.test(input.userPrompt);
+
+        const VERTICAL_POOL = [
+          'vertical story',
+          'vertical reel',
+          'vertical product',
+          'vertical split',
+          'vertical grid',
+        ];
+
         const RANDOM_POOL = [
           // Sesión 1 (originales)
-          'apple',
-          'pentagram',
-          'swiss',
-          'villeneuve',
-          'aesop',
-          'wes anderson',
-          'bauhaus',
-          'tarkovsky',
-          'ghibli',
+          'apple', 'pentagram', 'swiss', 'villeneuve', 'aesop',
+          'wes anderson', 'bauhaus', 'tarkovsky', 'ghibli',
           // Sesión 2 — Photographic
-          'helmut newton',
-          'irving penn',
-          'platon',
+          'helmut newton', 'irving penn', 'platon',
           // Sesión 2 — Brand references
-          'tesla',
-          'byredo',
-          'patagonia',
+          'tesla', 'byredo', 'patagonia',
           // Sesión 2 — Cinematic
-          'paul thomas anderson',
-          'fincher',
-          'malick',
-          'spike jonze',
+          'paul thomas anderson', 'fincher', 'malick', 'spike jonze',
           // Sesión 2 — Eras
-          'mid-century',
-          'art deco',
-          'baroque',
+          'mid-century', 'art deco', 'baroque',
+          // Sesión 3 — Pro Design Modern
+          'liquid metal', 'glassmorphism', 'anti-design',
+          'magazine collage', 'data overlay',
+          // Sesión 3 — Pro Design Contemporary
+          'acid graphics', 'tactile product', 'y2k',
+          'corporate illustration', 'mesh gradient',
+          // Sesión 3 — Pro Design Editorial
+          'typographic poster', 'quote pull', 'comparison split',
+          'luxury spotlight', 'tech keynote',
         ];
-        const pickedAlias = RANDOM_POOL[Math.floor(Math.random() * RANDOM_POOL.length)];
+
+        const POOL = isVerticalIntent ? VERTICAL_POOL : RANDOM_POOL;
+        const pickedAlias = POOL[Math.floor(Math.random() * POOL.length)];
         const randomDNA = findDNAByAlias(pickedAlias);
         if (randomDNA) {
           detectedDNA = randomDNA;
