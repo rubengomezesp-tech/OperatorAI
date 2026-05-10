@@ -20,7 +20,7 @@ export async function GET() {
 
   const { data } = await svc
     .from('documents')
-    .select('id, title, original_name, mime_type, size_bytes, status, chunk_count, extracted_text_preview, processing_error, created_at, processed_at, tags')
+    .select('id, title, original_name, mime_type, size_bytes, status, chunk_count, extracted_text_preview, processing_error, created_at, processed_at, tags, category, subcategory, is_brand_asset, importance')
     .eq('org_id', orgId)
     .is('deleted_at', null)
     .order('created_at', { ascending: false });

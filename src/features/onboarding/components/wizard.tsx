@@ -6,8 +6,8 @@ import { StepWelcome } from './step-welcome';
 import { StepOrganization } from './step-organization';
 import { StepAbout } from './step-about';
 import { StepBrand } from './step-brand';
-import { StepVibe } from './step-vibe';
-import { StepFirstPrompt } from './step-first-prompt';
+import { StepKnowledgeBootstrap } from './step-knowledge-bootstrap';
+import { StepConnectTools } from './step-connect-tools';
 import { StepTour } from './step-tour';
 
 export interface OnboardingData {
@@ -15,13 +15,13 @@ export interface OnboardingData {
   full_name?: string;
   user_role?: string;
 
-  // Organization (Step 1 — NEW)
+  // Organization (Step 1)
   workspace_name?: string;
 
   // About (Step 2)
   // user_role lives here too (overlap with welcome OK)
 
-  // Brand (Step 3) — UPDATED with C2 fields
+  // Brand (Step 3)
   brand_name?: string;
   description?: string;
   website_url?: string;
@@ -32,15 +32,20 @@ export interface OnboardingData {
     accent?: string;
     palette?: Array<{ hex: string; weight: number }>;
   };
-
-  // Vibe (Step 4)
+  // Auto-detected by Brand-OS pipeline (Sprint 6 Phase 3)
   vibe?: 'minimal' | 'editorial' | 'bold' | 'playful';
 
-  // First prompt (Step 5)
+  // Knowledge Bootstrap (Step 4 — NEW)
+  knowledge_uploaded_count?: number;
+
+  // Connect Tools (Step 5 — NEW)
+  tools_connected_count?: number;
+
+  // Optional first prompt (back-compat with old data)
   first_prompt?: string;
 }
 
-const TOTAL_STEPS = 7; // 0:Welcome 1:Org 2:About 3:Brand 4:Vibe 5:FirstPrompt 6:Tour
+const TOTAL_STEPS = 7; // 0:Welcome 1:Org 2:About 3:Brand 4:KnowledgeBootstrap 5:ConnectTools 6:Tour
 
 export function OnboardingWizard({ userEmail }: { userEmail: string }) {
   const router = useRouter();
@@ -96,10 +101,15 @@ export function OnboardingWizard({ userEmail }: { userEmail: string }) {
   async function complete(partial: Partial<OnboardingData>) {
     const merged = { ...data, ...partial };
     setData(merged);
+
+    // Save state as completed → triggers ensureTrialSubscription server-side
+    // (Sprint 6 Phase 1: trial auto-provision in /api/onboarding/save)
     await saveState(TOTAL_STEPS - 1, merged, true);
     toast.success("You're all set!");
-    
+
     // Después del onboarding → redirect a Stripe Checkout (plan PRO con trial 3 días)
+    // Sprint 6 note: Even if checkout fails, user already has trial subscription
+    // from ensureTrialSubscription, so connectors/tools work immediately.
     try {
       const res = await fetch('/api/billing/checkout', {
         method: 'POST',
@@ -112,9 +122,9 @@ export function OnboardingWizard({ userEmail }: { userEmail: string }) {
         return;
       }
     } catch {
-      // Si falla checkout, mandamos a /billing para que elija plan
+      // Si falla checkout, ir a dashboard (trial activo via ensureTrialSubscription)
     }
-    router.push('/billing');
+    router.push('/dashboard');
     router.refresh();
   }
 
@@ -136,8 +146,8 @@ export function OnboardingWizard({ userEmail }: { userEmail: string }) {
       {step === 1 && <StepOrganization data={data} onNext={next} onBack={back} />}
       {step === 2 && <StepAbout data={data} onNext={next} onBack={back} />}
       {step === 3 && <StepBrand data={data} onNext={next} onBack={back} />}
-      {step === 4 && <StepVibe data={data} onNext={next} onBack={back} />}
-      {step === 5 && <StepFirstPrompt data={data} onNext={next} onBack={back} />}
+      {step === 4 && <StepKnowledgeBootstrap data={data} onNext={next} onBack={back} />}
+      {step === 5 && <StepConnectTools data={data} onNext={next} onBack={back} />}
       {step === 6 && <StepTour data={data} onComplete={complete} onBack={back} />}
     </div>
   );

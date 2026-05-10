@@ -4,6 +4,7 @@ import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { createSupabaseServiceClient } from '@/lib/supabase/service';
 import { resolveOrgContext } from '@/features/chat/server/resolve-org-context';
 import { autoDetectBrand } from '@/lib/brand-os';
+import { ensureTrialSubscription } from '@/features/billing/server/ensure-trial-subscription';
 
 export const runtime = 'nodejs';
 
@@ -97,6 +98,29 @@ export async function POST(req: NextRequest) {
           error: err instanceof Error ? err.message : String(err),
         });
       }
+    }
+  }
+
+  // ─── PHASE 1: TRIAL AUTO-PROVISION ─────────────────────────
+  // Si el user completó onboarding y tiene org, garantizamos
+  // que tenga subscription en estado 'trialing'. Esto desbloquea
+  // connectors, image gen, y todo lo que pasa por checkUsage().
+  // Idempotente: no crea duplicado si ya tiene subscription.
+  if (parsed.data.completed && orgId) {
+    try {
+      const result = await ensureTrialSubscription(svc, orgId);
+      if (result.created) {
+        console.log('[onboarding/save] ✅ trial subscription created:', {
+          orgId,
+          subscriptionId: result.subscriptionId,
+        });
+      }
+    } catch (err) {
+      // Non-fatal — onboarding completed, user can manually upgrade later
+      console.warn('[onboarding/save] trial provision failed (non-fatal)', {
+        orgId,
+        error: err instanceof Error ? err.message : String(err),
+      });
     }
   }
 

@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { createSupabaseServiceClient } from '@/lib/supabase/service';
 import { resolveOrgContext } from '@/features/chat/server/resolve-org-context';
+import { autoClassifyDocument } from '@/lib/knowledge/auto-classify-document';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -56,6 +57,12 @@ export async function POST(req: NextRequest) {
     });
   if (upErr) return NextResponse.json({ error: upErr.message }, { status: 500 });
 
+  // PHASE 2: Auto-classify by filename + mime
+  const classification = autoClassifyDocument({
+    filename: file.name,
+    mimeType: file.type || 'application/octet-stream',
+  });
+
   const insertRow = {
     org_id: orgId,
     uploaded_by: user.id,
@@ -66,6 +73,10 @@ export async function POST(req: NextRequest) {
     size_bytes: file.size,
     status: 'uploading',
     title: file.name.replace(/\.[^/.]+$/, ''),
+    category: classification.category,
+    subcategory: classification.subcategory,
+    is_brand_asset: classification.is_brand_asset,
+    importance: classification.importance,
   } as never;
 
   const { data: docRow, error: insErr } = await svc

@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { Save, Palette, Type, Target, Eye, Shield, Plus, X, Loader2 } from 'lucide-react';
+import Link from 'next/link';
+import { Save, Palette, Type, Target, Eye, Shield, Plus, X, Loader2, Globe, RefreshCw, Plug, FileText, ArrowRight, Sparkles, Image as ImageIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardBody } from '@/components/ui/card';
@@ -22,6 +23,31 @@ interface BrandProfile {
   instagram_handle: string;
   brand_values: string[];
   competitors?: string[];
+  website_url?: string;
+  detected_logo_url?: string;
+  detected_colors?: {
+    primary?: string;
+    secondary?: string;
+    accent?: string;
+    palette?: Array<{ hex: string; weight: number }>;
+  };
+}
+
+interface BrandAsset {
+  id: string;
+  title: string | null;
+  original_name: string;
+  mime_type: string;
+  category: string;
+  subcategory: string | null;
+  is_brand_asset: boolean;
+  importance: number;
+  created_at: string;
+}
+
+interface IntegrationRow {
+  provider: string;
+  status: 'pending' | 'connected' | 'disconnected' | 'error';
 }
 
 const DEFAULT: BrandProfile = {
@@ -35,16 +61,28 @@ const PRESET_COLORS = ['#C9A863', '#1A1A1B', '#FFFFFF', '#0A0A0B', '#3B82F6', '#
 export default function BrandOSPage() {
   const { locale } = useI18n();
   const [bp, setBp] = useState<BrandProfile>(DEFAULT);
+  const [assets, setAssets] = useState<BrandAsset[]>([]);
+  const [integrations, setIntegrations] = useState<IntegrationRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [rescanning, setRescanning] = useState(false);
   const [newColor, setNewColor] = useState('#C9A863');
   const [newTag, setNewTag] = useState('');
   const [tagField, setTagField] = useState<keyof BrandProfile | null>(null);
 
   useEffect(() => {
-    fetch('/api/brand/get').then(r => r.json()).then(data => {
-      if (data.profile) setBp({ ...DEFAULT, ...data.profile });
-    }).finally(() => setLoading(false));
+    Promise.all([
+      fetch('/api/brand/get').then((r) => r.json()),
+      fetch('/api/knowledge/list').then((r) => r.json()),
+      fetch('/api/integrations/list').then((r) => r.json()),
+    ])
+      .then(([brandData, kbData, intData]) => {
+        if (brandData.profile) setBp({ ...DEFAULT, ...brandData.profile });
+        const docs = (kbData.documents ?? []) as BrandAsset[];
+        setAssets(docs.filter((d) => d.category === 'brand' || d.is_brand_asset));
+        if (Array.isArray(intData.integrations)) setIntegrations(intData.integrations);
+      })
+      .finally(() => setLoading(false));
   }, []);
 
   async function save() {
@@ -56,124 +94,373 @@ export default function BrandOSPage() {
         body: JSON.stringify(bp),
       });
       if (!res.ok) throw new Error('Failed');
-      toast.success(locale === 'es' ? 'Perfil de marca guardado' : 'Brand profile saved');
+      toast.success(locale === 'es' ? 'Marca guardada' : 'Brand saved');
     } catch {
       toast.error(locale === 'es' ? 'Error al guardar' : 'Failed to save');
-    } finally { setSaving(false); }
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function rescanUrl() {
+    if (!bp.website_url?.trim()) {
+      toast.error(locale === 'es' ? 'Sin URL configurada' : 'No URL configured');
+      return;
+    }
+    setRescanning(true);
+    try {
+      const res = await fetch('/api/brand/extract', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: bp.website_url, persist: true }),
+      });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body?.error ?? 'Failed');
+      toast.success(locale === 'es' ? 'URL re-escaneada' : 'URL re-scanned');
+      // Reload brand
+      const brandData = await fetch('/api/brand/get').then((r) => r.json());
+      if (brandData.profile) setBp({ ...DEFAULT, ...brandData.profile });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed');
+    } finally {
+      setRescanning(false);
+    }
   }
 
   function addToArray(field: keyof BrandProfile, value: string) {
     if (!value.trim()) return;
-    setBp(prev => ({ ...prev, [field]: [...(prev[field] as string[]), value.trim()] }));
+    setBp((prev) => ({ ...prev, [field]: [...(prev[field] as string[]), value.trim()] }));
   }
-
   function removeFromArray(field: keyof BrandProfile, index: number) {
-    setBp(prev => ({ ...prev, [field]: (prev[field] as string[]).filter((_, i) => i !== index) }));
+    setBp((prev) => ({ ...prev, [field]: (prev[field] as string[]).filter((_, i) => i !== index) }));
   }
 
-  if (loading) return <div className="flex items-center justify-center py-20"><Loader2 className="h-6 w-6 text-gold animate-spin" /></div>;
+  const t = (en: string, es: string) => (locale === 'es' ? es : en);
 
-  const t = (en: string, es: string) => locale === 'es' ? es : en;
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="h-6 w-6 text-gold animate-spin" />
+      </div>
+    );
+  }
+
+  const connectedCount = integrations.filter((i) => i.status === 'connected').length;
 
   return (
-    <div className="px-6 lg:px-10 py-8 max-w-[860px] w-full mx-auto space-y-6">
-      <div className="flex items-end justify-between gap-4">
+    <div className="px-6 lg:px-10 py-8 max-w-[1080px] w-full mx-auto space-y-6">
+      {/* HEADER */}
+      <div className="flex items-end justify-between gap-4 mb-2">
         <div>
-          <div className="text-[11px] uppercase tracking-[0.18em] text-gold mb-1">Operator</div>
-          <h1 className="font-display text-[32px]">Brand OS</h1>
-          <p className="text-[13.5px] text-fg-muted mt-1.5">{t('Your brand DNA. Every AI output respects these rules.', 'El ADN de tu marca. Cada salida de IA respeta estas reglas.')}</p>
+          <div className="text-[11px] uppercase tracking-[0.18em] text-gold mb-1">
+            {t('Brand OS', 'Brand OS')}
+          </div>
+          <h1 className="font-display text-[32px] mb-1">
+            {bp.brand_name || t('Your Brand', 'Tu marca')}
+          </h1>
+          <p className="text-[13.5px] text-fg-muted max-w-[620px]">
+            {t(
+              'Hub central donde Operator aprende quién eres. Identidad, assets, y conexiones.',
+              'Hub central donde Operator aprende quién eres. Identidad, assets y conexiones.',
+            )}
+          </p>
         </div>
-        <Button onClick={save} loading={saving}><Save className="h-4 w-4" /><span>{t('Save', 'Guardar')}</span></Button>
+        <Button onClick={save} loading={saving}>
+          <Save className="h-3.5 w-3.5 mr-1.5" />
+          {t('Save', 'Guardar')}
+        </Button>
       </div>
 
-      {/* Identity */}
-      <Card><CardBody className="space-y-4">
-        <div className="flex items-center gap-2 text-gold"><Shield className="h-4 w-4" /><span className="text-[10.5px] uppercase tracking-[0.18em]">{t('Identity', 'Identidad')}</span></div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Field label={t('Brand name', 'Nombre de marca')} value={bp.brand_name} onChange={v => setBp(p => ({ ...p, brand_name: v }))} placeholder="Operator AI" />
-          <Field label={t('Industry', 'Industria')} value={bp.industry} onChange={v => setBp(p => ({ ...p, industry: v }))} placeholder={t('Technology / SaaS', 'Tecnología / SaaS')} />
-        </div>
-        <Field label={t('Description', 'Descripción')} value={bp.description} onChange={v => setBp(p => ({ ...p, description: v }))} placeholder={t('What does your brand do?', 'Qué hace tu marca?')} multiline />
-        <Field label={t('Vibe / Personality', 'Vibra / Personalidad')} value={bp.vibe} onChange={v => setBp(p => ({ ...p, vibe: v }))} placeholder={t('Premium, minimal, confident, modern', 'Premium, minimal, seguro, moderno')} />
-        <Field label="Instagram" value={bp.instagram_handle} onChange={v => setBp(p => ({ ...p, instagram_handle: v }))} placeholder="@yourbrand" />
-      </CardBody></Card>
+      {/* OVERVIEW STRIP — 3 cards lado a lado */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Logo + URL */}
+        <Card>
+          <CardBody className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-[10.5px] uppercase tracking-[0.16em] text-fg-subtle">
+                {t('Identity', 'Identidad')}
+              </span>
+              {bp.website_url && (
+                <button
+                  onClick={rescanUrl}
+                  disabled={rescanning}
+                  className="text-[11px] text-fg-muted hover:text-gold inline-flex items-center gap-1 disabled:opacity-50"
+                  title={t('Re-scan website', 'Re-escanear web')}
+                >
+                  {rescanning ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-3 w-3" />
+                  )}
+                  {t('re-scan', 're-escanear')}
+                </button>
+              )}
+            </div>
+            <div className="flex items-center gap-3">
+              {bp.detected_logo_url ? (
+                <img
+                  src={bp.detected_logo_url}
+                  alt="Logo"
+                  className="h-14 w-14 rounded-lg border border-border bg-white object-contain p-1.5"
+                />
+              ) : (
+                <div className="h-14 w-14 rounded-lg border border-dashed border-border bg-surface-2 flex items-center justify-center">
+                  <ImageIcon className="h-5 w-5 text-fg-subtle" />
+                </div>
+              )}
+              <div className="min-w-0 flex-1">
+                <div className="font-display text-[14.5px] truncate">
+                  {bp.brand_name || t('No name yet', 'Sin nombre')}
+                </div>
+                {bp.website_url ? (
+                  <a
+                    href={bp.website_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-[12px] text-fg-muted hover:text-gold inline-flex items-center gap-1 truncate"
+                  >
+                    <Globe className="h-3 w-3 shrink-0" />
+                    <span className="truncate">{bp.website_url.replace(/^https?:\/\//, '')}</span>
+                  </a>
+                ) : (
+                  <div className="text-[12px] text-fg-subtle">{t('No URL', 'Sin URL')}</div>
+                )}
+              </div>
+            </div>
+          </CardBody>
+        </Card>
 
-      {/* Visual System */}
-      <Card><CardBody className="space-y-4">
-        <div className="flex items-center gap-2 text-gold"><Palette className="h-4 w-4" /><span className="text-[10.5px] uppercase tracking-[0.18em]">{t('Visual System', 'Sistema Visual')}</span></div>
-        <div>
-          <label className="text-[12px] uppercase tracking-[0.12em] text-fg-muted mb-2 block">{t('Brand Colors', 'Colores de marca')}</label>
-          <div className="flex flex-wrap gap-2 mb-2">
-            {bp.colors.map((c, i) => (
-              <button key={i} onClick={() => removeFromArray('colors', i)} className="group relative h-10 w-10 rounded-lg border-2 border-border hover:border-red-400 transition-colors" style={{ background: c }}>
-                <X className="h-3 w-3 text-white absolute top-0.5 right-0.5 opacity-0 group-hover:opacity-100 drop-shadow" />
-              </button>
-            ))}
-            <div className="flex items-center gap-1">
-              <input type="color" value={newColor} onChange={e => setNewColor(e.target.value)} className="h-10 w-10 rounded-lg cursor-pointer border border-border" />
-              <button onClick={() => { addToArray('colors', newColor); }} className="h-10 w-10 rounded-lg border border-dashed border-border flex items-center justify-center text-fg-muted hover:text-gold hover:border-gold/40 transition-colors"><Plus className="h-4 w-4" /></button>
+        {/* Brand Assets count */}
+        <Card>
+          <CardBody className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-[10.5px] uppercase tracking-[0.16em] text-fg-subtle">
+                {t('Brand Assets', 'Assets de Marca')}
+              </span>
+              <Link
+                href="/knowledge"
+                className="text-[11px] text-fg-muted hover:text-gold inline-flex items-center gap-1"
+              >
+                {t('manage', 'gestionar')} <ArrowRight className="h-3 w-3" />
+              </Link>
+            </div>
+            <div className="flex items-baseline gap-2">
+              <span className="font-display text-[36px] text-gold">{assets.length}</span>
+              <span className="text-[12px] text-fg-muted">
+                {assets.length === 1 ? t('document', 'documento') : t('documents', 'documentos')}
+              </span>
+            </div>
+            <div className="text-[11.5px] text-fg-muted leading-snug">
+              {t(
+                'Logos, brand book, fonts, tone guides — usados en cada generación.',
+                'Logos, brand book, fuentes, guías de tono — usados en cada generación.',
+              )}
+            </div>
+          </CardBody>
+        </Card>
+
+        {/* Connectors */}
+        <Card>
+          <CardBody className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-[10.5px] uppercase tracking-[0.16em] text-fg-subtle">
+                {t('Connectors', 'Conectores')}
+              </span>
+              <Link
+                href="/settings/integrations"
+                className="text-[11px] text-fg-muted hover:text-gold inline-flex items-center gap-1"
+              >
+                {t('manage', 'gestionar')} <ArrowRight className="h-3 w-3" />
+              </Link>
+            </div>
+            <div className="flex items-baseline gap-2">
+              <span className="font-display text-[36px] text-gold">{connectedCount}</span>
+              <span className="text-[12px] text-fg-muted">
+                {connectedCount === 1 ? t('active', 'activa') : t('active', 'activas')}
+              </span>
+            </div>
+            <div className="text-[11.5px] text-fg-muted leading-snug">
+              {t(
+                'Apps que Operator puede usar en tu nombre.',
+                'Apps que Operator puede usar en tu nombre.',
+              )}
+            </div>
+          </CardBody>
+        </Card>
+      </div>
+
+      {/* BRAND ASSETS LIST */}
+      {assets.length > 0 && (
+        <Card>
+          <CardBody className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="font-display text-[16px]">{t('Brand Assets', 'Assets de Marca')}</h2>
+              <Link
+                href="/knowledge?cat=brand"
+                className="text-[12px] text-gold hover:underline"
+              >
+                {t('See all', 'Ver todos')}
+              </Link>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              {assets.slice(0, 6).map((a) => (
+                <div
+                  key={a.id}
+                  className="flex items-center gap-3 p-2.5 rounded-md bg-surface-2 border border-border"
+                >
+                  <div className="h-8 w-8 rounded shrink-0 bg-gold/10 border border-gold/30 flex items-center justify-center">
+                    <FileText className="h-3.5 w-3.5 text-gold" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-[12.5px] font-medium truncate">
+                      {a.title || a.original_name}
+                    </div>
+                    {a.subcategory && (
+                      <div className="text-[10.5px] text-fg-subtle italic">{a.subcategory}</div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardBody>
+        </Card>
+      )}
+
+      {/* IDENTITY EDIT (kept from v1) */}
+      <Card>
+        <CardBody className="space-y-5">
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-gold" />
+            <h2 className="font-display text-[16px]">{t('Identity', 'Identidad')}</h2>
+          </div>
+
+          <div className="space-y-3">
+            <div>
+              <label className="text-[10.5px] uppercase tracking-[0.16em] text-fg-subtle">
+                {t('Brand name', 'Nombre de marca')}
+              </label>
+              <input
+                type="text"
+                value={bp.brand_name}
+                onChange={(e) => setBp({ ...bp, brand_name: e.target.value })}
+                className="w-full mt-1 px-3 py-2 rounded-md bg-surface-2 border border-border focus:border-gold outline-none text-[14px]"
+              />
+            </div>
+            <div>
+              <label className="text-[10.5px] uppercase tracking-[0.16em] text-fg-subtle">
+                {t('Description', 'Descripción')}
+              </label>
+              <textarea
+                rows={3}
+                value={bp.description}
+                onChange={(e) => setBp({ ...bp, description: e.target.value })}
+                className="w-full mt-1 px-3 py-2 rounded-md bg-surface-2 border border-border focus:border-gold outline-none text-[14px] resize-none"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-[10.5px] uppercase tracking-[0.16em] text-fg-subtle">
+                  {t('Industry', 'Industria')}
+                </label>
+                <input
+                  type="text"
+                  value={bp.industry}
+                  onChange={(e) => setBp({ ...bp, industry: e.target.value })}
+                  className="w-full mt-1 px-3 py-2 rounded-md bg-surface-2 border border-border focus:border-gold outline-none text-[14px]"
+                />
+              </div>
+              <div>
+                <label className="text-[10.5px] uppercase tracking-[0.16em] text-fg-subtle">
+                  {t('Vibe', 'Vibe')}
+                </label>
+                <select
+                  value={bp.vibe}
+                  onChange={(e) => setBp({ ...bp, vibe: e.target.value })}
+                  className="w-full mt-1 px-3 py-2 rounded-md bg-surface-2 border border-border focus:border-gold outline-none text-[14px]"
+                >
+                  <option value="">—</option>
+                  <option value="minimal">Minimal</option>
+                  <option value="editorial">Editorial</option>
+                  <option value="bold">Bold</option>
+                  <option value="playful">Playful</option>
+                </select>
+              </div>
             </div>
           </div>
-          <div className="flex flex-wrap gap-1">
-            {PRESET_COLORS.map(c => (
-              <button key={c} onClick={() => addToArray('colors', c)} className="h-6 w-6 rounded border border-border hover:scale-110 transition-transform" style={{ background: c }} />
-            ))}
+
+          {/* Colors */}
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <Palette className="h-3.5 w-3.5 text-gold" />
+              <label className="text-[10.5px] uppercase tracking-[0.16em] text-fg-subtle">
+                {t('Colors', 'Colores')}
+              </label>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {bp.colors.map((c, i) => (
+                <div
+                  key={i}
+                  className="group relative h-9 px-3 rounded-md border border-border bg-surface-2 flex items-center gap-2"
+                >
+                  <span
+                    className="h-4 w-4 rounded border border-border-strong"
+                    style={{ backgroundColor: c }}
+                  />
+                  <span className="text-[12px] tabular-nums">{c}</span>
+                  <button
+                    onClick={() => removeFromArray('colors', i)}
+                    className="ml-1 text-fg-muted hover:text-danger"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              ))}
+              <div className="flex items-center gap-1">
+                <input
+                  type="color"
+                  value={newColor}
+                  onChange={(e) => setNewColor(e.target.value)}
+                  className="h-9 w-9 rounded-md border border-border cursor-pointer"
+                />
+                <button
+                  onClick={() => {
+                    addToArray('colors', newColor);
+                  }}
+                  className="h-9 px-2 rounded-md bg-surface-2 border border-border hover:border-gold/40 text-fg-muted hover:text-gold"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </div>
+          </div>
+        </CardBody>
+      </Card>
+
+      {/* CONNECT PROMPT IF NO INTEGRATIONS */}
+      {connectedCount === 0 && (
+        <div className="rounded-lg border border-dashed border-gold/40 bg-gold/5 p-5">
+          <div className="flex items-start gap-3">
+            <Plug className="h-5 w-5 text-gold shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <h3 className="font-display text-[15px] text-gold mb-1">
+                {t('Conecta tus herramientas', 'Conecta tus herramientas')}
+              </h3>
+              <p className="text-[12.5px] text-fg-soft mb-3">
+                {t(
+                  'Operator puede actuar en tu nombre cuando conectas Gmail, Drive, Calendar o Slack.',
+                  'Operator puede actuar en tu nombre cuando conectas Gmail, Drive, Calendar o Slack.',
+                )}
+              </p>
+              <Link href="/settings/integrations">
+                <Button size="sm" variant="outline">
+                  {t('Connect now', 'Conectar ahora')}
+                  <ArrowRight className="h-3 w-3 ml-1" />
+                </Button>
+              </Link>
+            </div>
           </div>
         </div>
-        <Field label={t('Visual Style', 'Estilo Visual')} value={bp.visual_style} onChange={v => setBp(p => ({ ...p, visual_style: v }))} placeholder={t('Dark, cinematic, editorial, warm tones', 'Oscuro, cinematográfico, editorial, tonos cálidos')} />
-        <TagField label={t('Fonts', 'Tipografías')} items={bp.fonts} onAdd={v => addToArray('fonts', v)} onRemove={i => removeFromArray('fonts', i)} placeholder="Inter, Instrument Serif..." />
-      </CardBody></Card>
-
-      {/* Voice & Audience */}
-      <Card><CardBody className="space-y-4">
-        <div className="flex items-center gap-2 text-gold"><Target className="h-4 w-4" /><span className="text-[10.5px] uppercase tracking-[0.18em]">{t('Voice & Audience', 'Voz y Audiencia')}</span></div>
-        <Field label={t('Target Audience', 'Audiencia objetivo')} value={bp.target_audience} onChange={v => setBp(p => ({ ...p, target_audience: v }))} placeholder={t('CEOs, founders, marketing directors, 25-45', 'CEOs, fundadores, directores de marketing, 25-45')} multiline />
-        <TagField label={t('Tone Keywords', 'Palabras clave de tono')} items={bp.tone_keywords} onAdd={v => addToArray('tone_keywords', v)} onRemove={i => removeFromArray('tone_keywords', i)} placeholder={t('confident, elegant, direct', 'seguro, elegante, directo')} />
-        <TagField label={t('Brand Values', 'Valores de marca')} items={bp.brand_values} onAdd={v => addToArray('brand_values', v)} onRemove={i => removeFromArray('brand_values', i)} placeholder={t('innovation, simplicity, trust', 'innovación, simplicidad, confianza')} />
-        <TagField label={t('Content Pillars', 'Pilares de contenido')} items={bp.content_pillars} onAdd={v => addToArray('content_pillars', v)} onRemove={i => removeFromArray('content_pillars', i)} placeholder={t('AI tutorials, brand tips, behind the scenes', 'Tutoriales IA, tips de marca, detrás de cámaras')} />
-      </CardBody></Card>
-
-      {/* Guardrails */}
-      <Card><CardBody className="space-y-4">
-        <div className="flex items-center gap-2 text-gold"><Eye className="h-4 w-4" /><span className="text-[10.5px] uppercase tracking-[0.18em]">{t('Guardrails', 'Restricciones')}</span></div>
-        <TagField label={t('Avoid these words/styles', 'Evitar estas palabras/estilos')} items={bp.avoid_keywords} onAdd={v => addToArray('avoid_keywords', v)} onRemove={i => removeFromArray('avoid_keywords', i)} placeholder={t('cheap, discount, basic, clipart', 'barato, descuento, básico, clipart')} />
-        <TagField label={t('Competitors (for differentiation)', 'Competidores (para diferenciación)')} items={bp.competitors ?? []} onAdd={v => { setBp(p => ({ ...p, competitors: [...(p.competitors ?? []), v.trim()] })); }} onRemove={i => { setBp(p => ({ ...p, competitors: (p.competitors ?? []).filter((_, idx) => idx !== i) })); }} placeholder="Canva, Jasper, Copy.ai..." />
-      </CardBody></Card>
-
-      <div className="flex justify-end">
-        <Button onClick={save} loading={saving} size="md"><Save className="h-4 w-4" /><span>{t('Save Brand Profile', 'Guardar Perfil de Marca')}</span></Button>
-      </div>
-    </div>
-  );
-}
-
-function Field({ label, value, onChange, placeholder, multiline }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string; multiline?: boolean }) {
-  const cls = "w-full rounded-md border border-border bg-surface-2 px-3.5 py-2.5 text-[14px] text-fg placeholder:text-fg-subtle focus:outline-none focus:border-gold/60 focus:ring-2 focus:ring-gold/15";
-  return (
-    <div>
-      <label className="text-[12px] uppercase tracking-[0.12em] text-fg-muted mb-1.5 block">{label}</label>
-      {multiline ? <textarea value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} rows={2} className={cls + " resize-none"} /> : <input value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} className={cls} />}
-    </div>
-  );
-}
-
-function TagField({ label, items, onAdd, onRemove, placeholder }: { label: string; items: string[]; onAdd: (v: string) => void; onRemove: (i: number) => void; placeholder?: string }) {
-  const [val, setVal] = useState('');
-  return (
-    <div>
-      <label className="text-[12px] uppercase tracking-[0.12em] text-fg-muted mb-1.5 block">{label}</label>
-      <div className="flex flex-wrap gap-1.5 mb-2">
-        {items.map((item, i) => (
-          <span key={i} className="inline-flex items-center gap-1 h-7 px-2.5 rounded-md bg-gold/10 border border-gold/20 text-[12px] text-gold">
-            {item}
-            <button onClick={() => onRemove(i)} className="hover:text-red-400 transition-colors"><X className="h-2.5 w-2.5" /></button>
-          </span>
-        ))}
-      </div>
-      <div className="flex gap-2">
-        <input value={val} onChange={e => setVal(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); onAdd(val); setVal(''); } }} placeholder={placeholder} className="flex-1 h-8 rounded-md border border-border bg-surface-2 px-3 text-[13px] text-fg placeholder:text-fg-subtle focus:outline-none focus:border-gold/60" />
-        <button onClick={() => { onAdd(val); setVal(''); }} className="h-8 px-3 rounded-md border border-border bg-surface-2 text-[12px] text-fg-muted hover:text-gold hover:border-gold/40 transition-colors"><Plus className="h-3 w-3" /></button>
-      </div>
+      )}
     </div>
   );
 }
