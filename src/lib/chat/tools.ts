@@ -3,6 +3,13 @@ import { cookies } from 'next/headers';
 
 import { executeAdapter, type ExternalToolName } from '@/lib/orchestrator/tools';
 
+import {
+  getIntegrationToolSpecs,
+  isIntegrationTool,
+  executeIntegrationTool,
+  type IntegrationToolSpec,
+} from './integration-tools';
+
 export type ToolKind = 'image' | 'video' | 'file_analysis' | 'knowledge_search' | 'get_brand_assets' | 'compose_ad' | 'create_ad' | 'web_search' | 'web_fetch' | 'send_email' | 'read_emails' | 'browser_action';
 
 export interface ToolSpec {
@@ -140,6 +147,25 @@ export interface ToolResult {
 }
 
 
+
+// ─── DYNAMIC TOOL SPECS (Sprint 8) ───────────────────────────────
+export async function getToolSpecs(ctx: ToolContext): Promise<ToolSpec[]> {
+  let integrationSpecs: IntegrationToolSpec[] = [];
+  try {
+    integrationSpecs = await getIntegrationToolSpecs(ctx.svc, ctx.orgId, ctx.userId);
+  } catch (e) {
+    console.warn('[tools] getIntegrationToolSpecs failed:', e);
+  }
+
+  const integrationToolSpecs: ToolSpec[] = integrationSpecs.map((s) => ({
+    name: s.name as ToolKind,
+    description: s.description,
+    input_schema: s.input_schema,
+  }));
+
+  return [...TOOL_SPECS, ...integrationToolSpecs];
+}
+
 async function generateMultipleImages(
   input: Record<string, unknown>,
   ctx: ToolContext,
@@ -190,7 +216,20 @@ export async function executeTool(
       case 'read_emails':
       case 'browser_action':
         return await execExternalAdapter(name, input, ctx);
-      default: return { ok: false, error: 'Unknown tool: ' + name };
+      default: {
+        const nameStr = String(name);
+        if (isIntegrationTool(nameStr)) {
+          const r = await executeIntegrationTool(nameStr, input, {
+            orgId: ctx.orgId,
+            userId: ctx.userId,
+            svc: ctx.svc,
+          });
+          return r.ok
+            ? { ok: true, result: { text: typeof r.result === 'string' ? r.result : JSON.stringify(r.result) } }
+            : { ok: false, error: r.error };
+        }
+        return { ok: false, error: 'Unknown tool: ' + nameStr };
+      }
     }
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Tool execution failed';

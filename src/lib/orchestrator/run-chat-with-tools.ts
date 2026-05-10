@@ -1,6 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { TOOL_SPECS, executeTool } from '@/lib/chat/tools';
+import { TOOL_SPECS, getToolSpecs, executeTool } from '@/lib/chat/tools';
 import type { ToolKind } from '@/lib/chat/tools';
 import type { ChatMessage } from '@/lib/providers';
 
@@ -51,6 +51,32 @@ export async function* runChatWithTools(args: RunArgs): AsyncIterable<ToolStream
     return;
   }
   const client = new Anthropic({ apiKey });
+
+  // ─── DYNAMIC TOOLS (Sprint 8): Composio integrations ──
+  const ctxForTools = {
+    svc: args.svc,
+    orgId: args.orgId,
+    userId: args.userId,
+    assistantId: args.assistantId,
+    origin: args.origin,
+    cookieHeader: args.cookieHeader,
+    signal: args.signal,
+  };
+  const dynamicToolSpecs = await getToolSpecs(ctxForTools);
+  const integrationToolNames = dynamicToolSpecs
+    .filter((t) => !TOOL_SPECS.some((s) => s.name === t.name))
+    .map((t) => t.name);
+  const connectedProvidersBlock = integrationToolNames.length > 0
+    ? '\n\n═══ INTEGRATIONS CONNECTED ═══\n\nThe user has connected these integrations and you can call them directly:\n' +
+      integrationToolNames.map((n) => '  • ' + n).join('\n') +
+      '\n\nProactively offer to use them when relevant. For example:\n' +
+      '  - If user mentions a meeting → offer to create calendar event\n' +
+      '  - If user wants to follow up with someone → offer to draft an email\n' +
+      '  - If user references a document → search Drive\n' +
+      '  - Always CONFIRM before sending emails or messages.\n' +
+      'Be an executor, not just an advisor. Take action when authorized.'
+    : '';
+
 
   const systemBlocks = args.messages.filter((m) => m.role === 'system');
   const chatBlocks = args.messages.filter((m) => m.role !== 'system');
@@ -128,8 +154,8 @@ export async function* runChatWithTools(args: RunArgs): AsyncIterable<ToolStream
         {
           model: MODEL,
           max_tokens: 4000,
-          system: systemText,
-          tools: TOOL_SPECS.map((t) => ({
+          system: systemText + connectedProvidersBlock,
+          tools: dynamicToolSpecs.map((t) => ({
             name: t.name,
             description: t.description,
             input_schema: t.input_schema as Anthropic.Tool.InputSchema,
