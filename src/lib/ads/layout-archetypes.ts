@@ -35,7 +35,26 @@ export type ArchetypeId =
   | 'y2k-liquid-chrome'
   | 'testimonial-quote-product'
   | 'brand-system-document'
-  | 'premium-saas-announcement';
+  | 'premium-saas-announcement'
+  // Sprint 7 extensions (16 → 32)
+  | 'story-vertical-bold'
+  | 'tiktok-pov-handheld'
+  | 'reels-typography-hook'
+  | 'carousel-swipe-narrative'
+  | 'auction-pedestal-spotlight'
+  | 'atelier-craft-detail'
+  | 'golden-hour-aspirational'
+  | 'high-fashion-editorial'
+  | 'step-by-step-numbered'
+  | 'comparison-table-modern'
+  | 'infographic-minimal-data'
+  | 'faq-quote-conversational'
+  | '3d-render-hero-octane'
+  | 'glassmorphism-app-mockup'
+  | 'risograph-print-zine'
+  | 'anti-design-deconstructed';
+
+import { ARCHETYPES_EXTENSION } from './layout-archetypes-extension';
 
 export interface LayoutArchetype {
   id: ArchetypeId;
@@ -571,6 +590,9 @@ export const ARCHETYPES: Record<ArchetypeId, LayoutArchetype> = {
       'NO missing domain footer at bottom',
     ],
   },
+
+  // Sprint 7: +16 archetypes merged from extension file
+  ...ARCHETYPES_EXTENSION,
 };
 
 // ═══ HELPERS ═══
