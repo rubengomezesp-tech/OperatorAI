@@ -16,6 +16,8 @@ import {
   Settings,
   Shield,
   Trash2,
+  BookOpen,
+  HelpCircle,
   X,
   Menu,
   Loader2,
@@ -132,9 +134,11 @@ export function MobileMenu({ open, onClose, isAdmin = false }: { open: boolean; 
   const activeChatId = isOnChat ? pathname?.split('/')[2] : null;
 
   const secondaryNav: SecondaryNavItem[] = [
+    { href: '/knowledge', label: isEs ? 'Conocimiento' : 'Knowledge', icon: BookOpen },
     { href: '/campaigns', label: isEs ? 'Campañas' : 'Campaigns', icon: Sparkles },
     { href: '/brand-os', label: isEs ? 'Marca' : 'Brand', icon: Palette },
     { href: '/settings', label: isEs ? 'Configuración' : 'Settings', icon: Settings },
+    { href: '/help', label: isEs ? 'Ayuda' : 'Help', icon: HelpCircle },
     ...(isAdmin ? [{ href: '/admin', label: 'Admin', icon: Shield }] : []),
   ];
 
