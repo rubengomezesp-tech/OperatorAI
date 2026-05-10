@@ -1,4 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
+import { sendEmail } from '@/lib/email/client';
+import { welcomeEmail } from '@/lib/email/templates';
 import { z } from 'zod';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { createSupabaseServiceClient } from '@/lib/supabase/service';
@@ -123,6 +125,18 @@ export async function POST(req: NextRequest) {
       });
     }
   }
+  // Welcome email (best-effort)
+  try {
+    const userEmail = user.email;
+    const userName = (user.user_metadata?.full_name as string) || (user.email?.split('@')[0]) || 'there';
+    if (userEmail) {
+      const welcome = welcomeEmail({ userName });
+      void sendEmail({ to: userEmail, subject: welcome.subject, html: welcome.html, text: welcome.text });
+    }
+  } catch (e) {
+    console.warn('[onboarding] welcome email failed:', e);
+  }
+
 
   return NextResponse.json({ ok: true });
 }

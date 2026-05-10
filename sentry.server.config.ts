@@ -1,11 +1,23 @@
+/**
+ * 🐛 SENTRY SERVER CONFIG
+ * Tracking de errores en API routes y server-side.
+ */
+
 import * as Sentry from '@sentry/nextjs';
 
-const dsn = process.env.SENTRY_DSN;
+Sentry.init({
+  dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
 
-if (dsn) {
-  Sentry.init({
-    dsn,
-    environment: process.env.VERCEL_ENV ?? 'development',
-    tracesSampleRate: 0.1,
-  });
-}
+  tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1.0,
+
+  environment: process.env.NODE_ENV,
+
+  // Filtros
+  beforeSend(event, hint) {
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('[Sentry server] would report:', hint.originalException);
+      return null;
+    }
+    return event;
+  },
+});
