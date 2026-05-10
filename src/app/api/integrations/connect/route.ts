@@ -4,7 +4,7 @@ import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { createSupabaseServiceClient } from '@/lib/supabase/service';
 import { resolveOrgContext } from '@/features/chat/server/resolve-org-context';
 import { initiateConnection } from '@/features/integrations/server/composio-client';
-import { findIntegration } from '@/features/integrations/data/catalog';
+import { findIntegration, isProviderConnectable } from '@/features/integrations/data/catalog';
 import { serverEnv } from '@/lib/env';
 
 export const runtime = 'nodejs';
@@ -20,6 +20,17 @@ export async function POST(req: NextRequest) {
   const provider = findIntegration(parsed.data.provider);
   if (!provider) return NextResponse.json({ error: 'Unknown provider' }, { status: 400 });
 
+  // Check provider is configured (has auth_config_id env var set)
+  if (!isProviderConnectable(provider.id)) {
+    return NextResponse.json(
+      {
+        error: `${provider.name} is not yet configured on this server. Auth config missing.`,
+        setup: true,
+      },
+      { status: 503 },
+    );
+  }
+
   const ssr = await createSupabaseServerClient();
   const { data: { user } } = await ssr.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
@@ -32,24 +43,25 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'No active workspace' }, { status: 403 });
   }
 
-  // Quota check
+  // Quota check (fixed by 0031 migration: pro plan now has integrations: 10)
   const { data: quota } = await svc.rpc('check_quota', { p_org_id: orgId, p_kind: 'integration' });
   const q = quota as { allowed: boolean } | null;
   if (q && !q.allowed) {
     return NextResponse.json({ error: 'Integration limit reached for your plan.' }, { status: 402 });
   }
 
-  const entityId = orgId + ':' + user.id;
+  // userId for Composio v3 — orgId:userId composite (replaces v1 entityId)
+  const userId = orgId + ':' + user.id;
   const callbackUrl = serverEnv.NEXT_PUBLIC_APP_URL + '/settings/integrations?connected=' + provider.id;
 
   try {
     const conn = await initiateConnection({
-      entityId,
-      appName: provider.composioName,
-      redirectUrl: callbackUrl,
+      userId,
+      providerId: provider.id,
+      callbackUrl,
     });
 
-    // Upsert integration row
+    // Upsert integration row (use connectedAccountId from v3 nano-id)
     await svc
       .from('integrations')
       .upsert({
@@ -57,7 +69,7 @@ export async function POST(req: NextRequest) {
         user_id: user.id,
         provider: provider.id,
         composio_connection_id: conn.connectedAccountId,
-        composio_entity_id: entityId,
+        composio_entity_id: userId,
         status: 'pending',
         scopes: provider.scopes,
         updated_at: new Date().toISOString(),
@@ -66,12 +78,24 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ redirectUrl: conn.redirectUrl });
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Connect failed';
+
+    // Special handling for missing API key
     if (msg.includes('COMPOSIO_API_KEY')) {
       return NextResponse.json({
-        error: 'Integrations are not yet enabled on this server. Add COMPOSIO_API_KEY to environment.',
+        error: 'Integrations not enabled on this server. Add COMPOSIO_API_KEY to environment.',
         setup: true,
       }, { status: 503 });
     }
+
+    // Auth config missing
+    if (msg.includes('auth config') || msg.includes('COMPOSIO_AUTH_CONFIG')) {
+      return NextResponse.json({
+        error: `${provider.name} auth config missing. Create in Composio dashboard.`,
+        setup: true,
+      }, { status: 503 });
+    }
+
+    console.error('[integrations/connect] failed:', msg);
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

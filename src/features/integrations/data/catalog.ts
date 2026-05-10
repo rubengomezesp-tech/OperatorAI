@@ -1,6 +1,22 @@
+/**
+ * 🗂️ INTEGRATION CATALOG v3
+ *
+ * Cada provider mapea a:
+ *   - composioName: identificador de toolkit en Composio
+ *   - authConfigEnvVar: nombre de la env var que contiene el auth_config_id (ac_xxxxx)
+ *
+ * Para añadir un nuevo provider:
+ *   1. Crear auth_config en https://app.composio.dev (dashboard)
+ *   2. Añadir env var COMPOSIO_AUTH_CONFIG_XXX en .env.local + Vercel
+ *   3. Añadir entry aquí con authConfigEnvVar correspondiente
+ *   4. Añadir validación en src/lib/env.ts
+ */
+
 export interface IntegrationProvider {
   id: string;
   composioName: string;
+  /** Nombre de env var con auth_config_id (ac_xxxxx). null = aún no configurado */
+  authConfigEnvVar: string | null;
   name: string;
   tagline: string;
   description: string;
@@ -14,6 +30,7 @@ export const INTEGRATION_CATALOG: IntegrationProvider[] = [
   {
     id: 'gmail',
     composioName: 'gmail',
+    authConfigEnvVar: 'COMPOSIO_AUTH_CONFIG_GMAIL',
     name: 'Gmail',
     tagline: 'Read, draft, send emails',
     description: 'Let Operator manage your inbox, draft replies in your voice, and search emails by intent.',
@@ -25,6 +42,7 @@ export const INTEGRATION_CATALOG: IntegrationProvider[] = [
   {
     id: 'gcal',
     composioName: 'googlecalendar',
+    authConfigEnvVar: 'COMPOSIO_AUTH_CONFIG_GCAL',
     name: 'Google Calendar',
     tagline: 'Schedule, find time, brief on meetings',
     description: 'Operator can find slots, create events, and prepare you with context before each meeting.',
@@ -36,6 +54,7 @@ export const INTEGRATION_CATALOG: IntegrationProvider[] = [
   {
     id: 'gdrive',
     composioName: 'googledrive',
+    authConfigEnvVar: 'COMPOSIO_AUTH_CONFIG_GDRIVE',
     name: 'Google Drive',
     tagline: 'Search files, get content',
     description: 'Search across your Drive and pull content into conversations as context.',
@@ -47,6 +66,7 @@ export const INTEGRATION_CATALOG: IntegrationProvider[] = [
   {
     id: 'notion',
     composioName: 'notion',
+    authConfigEnvVar: null, // No auth config created yet
     name: 'Notion',
     tagline: 'Read, create, update pages',
     description: 'Operator works your second brain — drafts pages, queries databases, captures meeting notes.',
@@ -58,6 +78,7 @@ export const INTEGRATION_CATALOG: IntegrationProvider[] = [
   {
     id: 'slack',
     composioName: 'slack',
+    authConfigEnvVar: 'COMPOSIO_AUTH_CONFIG_SLACK',
     name: 'Slack',
     tagline: 'Send messages, search channels',
     description: 'Drop messages in any channel, search history, summarize threads.',
@@ -69,6 +90,7 @@ export const INTEGRATION_CATALOG: IntegrationProvider[] = [
   {
     id: 'linear',
     composioName: 'linear',
+    authConfigEnvVar: null,
     name: 'Linear',
     tagline: 'Track issues, create tickets',
     description: 'Spin up tickets from chat, query backlog, update issue status.',
@@ -77,30 +99,24 @@ export const INTEGRATION_CATALOG: IntegrationProvider[] = [
     popularActions: ['Create issue for [bug]', 'Show my open tickets', 'Move [issue] to done'],
     brandColor: '#5E6AD2',
   },
-  {
-    id: 'hubspot',
-    composioName: 'hubspot',
-    name: 'HubSpot',
-    tagline: 'CRM contacts, deals, notes',
-    description: 'Look up contacts, log activities, push notes from conversations into deals.',
-    category: 'crm',
-    scopes: ['Read contacts', 'Create notes', 'Update deals'],
-    popularActions: ['Find contact [name]', 'Log this call', 'Update deal stage'],
-    brandColor: '#FF7A59',
-  },
-  {
-    id: 'github',
-    composioName: 'github',
-    name: 'GitHub',
-    tagline: 'Issues, PRs, code search',
-    description: 'Reference repos, create issues, summarize PRs, search code across your projects.',
-    category: 'dev',
-    scopes: ['Read repos', 'Create issues', 'Comment on PRs'],
-    popularActions: ['Search code in [repo]', 'Create issue for [bug]', 'Summarize PR #123'],
-    brandColor: '#181717',
-  },
 ];
 
 export function findIntegration(id: string): IntegrationProvider | undefined {
   return INTEGRATION_CATALOG.find((p) => p.id === id);
+}
+
+/**
+ * Returns the env var name containing auth_config_id for a provider.
+ * null if not configured (provider can't be connected via OAuth yet).
+ */
+export function getAuthConfigIdForProvider(providerId: string): string | null {
+  const provider = findIntegration(providerId);
+  return provider?.authConfigEnvVar ?? null;
+}
+
+/**
+ * Returns true if provider is ready for connection (has auth_config configured).
+ */
+export function isProviderConnectable(providerId: string): boolean {
+  return getAuthConfigIdForProvider(providerId) !== null;
 }

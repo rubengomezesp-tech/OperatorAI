@@ -10,7 +10,8 @@ export const runtime = 'nodejs';
 
 const BodySchema = z.object({
   provider: z.string().min(1),
-  actionName: z.string().min(1),
+  /** Tool slug (e.g., GMAIL_SEND_EMAIL, GMAIL_FETCH_EMAILS) — replaces v1 actionName */
+  toolSlug: z.string().min(1),
   input: z.record(z.unknown()).default({}),
 });
 
@@ -33,6 +34,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'No active workspace' }, { status: 403 });
   }
 
+  // Get user identifier (composio_entity_id stores it in v3)
   const { data: integ } = await svc
     .from('integrations')
     .select('composio_entity_id, status')
@@ -47,13 +49,14 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    // v3: executeTool with userId + toolSlug
     const result = await executeTool({
-      entityId: row.composio_entity_id,
-      appName: provider.composioName,
-      actionName: parsed.data.actionName,
+      userId: row.composio_entity_id,
+      toolSlug: parsed.data.toolSlug,
       input: parsed.data.input,
     });
 
+    // Track last_used_at (best-effort)
     await svc
       .from('integrations')
       .update({ last_used_at: new Date().toISOString() } as never)
