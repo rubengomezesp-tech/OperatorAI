@@ -1,4 +1,5 @@
 import { PushNotificationPrompt } from '@/components/notifications/push-prompt';
+import { HelpFab } from '@/components/layout/help-fab';
 import { AppFooter } from '@/components/layout/app-footer';
 import { CommandPaletteProvider } from '@/features/command-palette/components/command-palette-provider';
 import { redirect } from 'next/navigation';
@@ -76,7 +77,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <AppFooter />
         </CommandPaletteProvider>
       </AppShell>
-      </BrandAssetsProvider>
+      </BrandAssetsProvider>      <HelpFab />
+
     </OrgProvider>
   );
 }
