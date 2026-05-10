@@ -21,7 +21,7 @@ import {
   Palette,
   Settings,
   Shield,
-  Trash2, BookOpen,
+  Trash2, BookOpen, HelpCircle,
   Loader2,
   type LucideIcon,
 } from 'lucide-react';
@@ -172,6 +172,11 @@ export function Sidebar({ isAdmin = false, onClose }: Props) {
       href: '/settings',
       label: isEs ? 'Configuración' : 'Settings',
       icon: Settings,
+    },
+    {
+      href: '/help',
+      label: isEs ? 'Ayuda' : 'Help',
+      icon: HelpCircle,
     },
     ...(isAdmin
       ? [
