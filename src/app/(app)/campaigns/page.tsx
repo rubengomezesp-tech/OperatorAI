@@ -2,13 +2,19 @@
 
 /**
  * /campaigns — list of saved campaigns
+ *
+ * Sprint 7 hotfix:
+ *   - Card hover reveals delete button
+ *   - Optimistic removal from UI
+ *   - Confirm dialog before delete
  */
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useI18n } from '@/lib/i18n';
-import { Plus, Loader2, ImageOff } from 'lucide-react';
+import { Plus, Loader2, ImageOff, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { StaggerList, StaggerItem } from '@/components/ui/page-transition';
 
 interface CampaignSummary {
@@ -50,6 +56,7 @@ export default function CampaignsListPage() {
   const [campaigns, setCampaigns] = useState<CampaignSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -76,6 +83,28 @@ export default function CampaignsListPage() {
       cancelled = true;
     };
   }, []);
+
+  async function handleDelete(id: string, name: string) {
+    if (!confirm(locale === 'es' ? `¿Eliminar "${name}"? Esto no se puede deshacer.` : `Delete "${name}"? This cannot be undone.`)) return;
+
+    setDeletingId(id);
+    try {
+      const res = await fetch('/api/campaigns/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+        credentials: 'include',
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body?.error ?? 'Failed');
+      setCampaigns((prev) => prev.filter((c) => c.id !== id));
+      toast.success(locale === 'es' ? 'Campaña eliminada' : 'Campaign deleted');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed');
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8 space-y-8 min-h-screen">
@@ -154,6 +183,8 @@ export default function CampaignsListPage() {
                 locale={locale}
                 t={t}
                 humanizeFn={humanize}
+                onDelete={handleDelete}
+                isDeleting={deletingId === c.id}
               />
             </StaggerItem>
           ))}
@@ -172,51 +203,72 @@ function CampaignCard({
   locale,
   t,
   humanizeFn,
+  onDelete,
+  isDeleting,
 }: {
   campaign: CampaignSummary;
   locale: string;
   t: (k: string) => string;
   humanizeFn: (s: string | null) => string;
+  onDelete: (id: string, name: string) => void;
+  isDeleting: boolean;
 }) {
   return (
-    <Link
-      href={`/campaigns/${campaign.id}`}
-      className="block rounded-lg border border-border bg-surface-2 hover:border-gold/40 transition-all overflow-hidden group border-light magnetic-hover"
-    >
-      <div className="aspect-[4/5] bg-bg flex items-center justify-center relative overflow-hidden">
-        {campaign.thumbnail ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={campaign.thumbnail}
-            alt={campaign.name}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-          />
-        ) : (
-          <ImageOff className="h-10 w-10 text-fg-subtle" />
-        )}
+    <div className="relative group">
+      {/* Delete button (hover-revealed, top-left to avoid variant badge) */}
+      <button
+        type="button"
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          onDelete(campaign.id, campaign.name);
+        }}
+        disabled={isDeleting}
+        title={locale === 'es' ? 'Eliminar campaña' : 'Delete campaign'}
+        className="absolute top-3 left-3 z-10 h-8 w-8 inline-flex items-center justify-center rounded-md bg-bg/80 backdrop-blur-sm border border-border opacity-0 group-hover:opacity-100 hover:bg-danger/20 hover:border-danger/40 hover:text-danger text-fg-muted transition-all disabled:opacity-50"
+      >
+        {isDeleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+      </button>
 
-        {campaign.variantCount > 0 && (
-          <span className="absolute top-3 right-3 px-2 py-0.5 rounded bg-bg/80 backdrop-blur-sm text-[11px] text-fg-muted border border-border">
-            {campaign.variantCount} {t('campaigns.list.variants')}
-          </span>
-        )}
-      </div>
+      <Link
+        href={`/campaigns/${campaign.id}`}
+        className="block rounded-lg border border-border bg-surface-2 hover:border-gold/40 transition-all overflow-hidden border-light magnetic-hover"
+      >
+        <div className="aspect-[4/5] bg-bg flex items-center justify-center relative overflow-hidden">
+          {campaign.thumbnail ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={campaign.thumbnail}
+              alt={campaign.name}
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+            />
+          ) : (
+            <ImageOff className="h-10 w-10 text-fg-subtle" />
+          )}
 
-      <div className="p-4 space-y-1.5">
-        <h3 className="font-display text-[15px] text-fg leading-snug line-clamp-2">
-          {campaign.name}
-        </h3>
-        <div className="flex items-center gap-2 text-[11.5px] text-fg-subtle">
-          {campaign.vertical && <span>{humanizeFn(campaign.vertical)}</span>}
-          {campaign.vertical && campaign.campaignType && <span>·</span>}
-          {campaign.campaignType && (
-            <span>{humanizeFn(campaign.campaignType)}</span>
+          {campaign.variantCount > 0 && (
+            <span className="absolute top-3 right-3 px-2 py-0.5 rounded bg-bg/80 backdrop-blur-sm text-[11px] text-fg-muted border border-border">
+              {campaign.variantCount} {t('campaigns.list.variants')}
+            </span>
           )}
         </div>
-        <div className="text-[11px] text-fg-subtle">
-          {formatDate(campaign.updatedAt, locale)}
+
+        <div className="p-4 space-y-1.5">
+          <h3 className="font-display text-[15px] text-fg leading-snug line-clamp-2">
+            {campaign.name}
+          </h3>
+          <div className="flex items-center gap-2 text-[11.5px] text-fg-subtle">
+            {campaign.vertical && <span>{humanizeFn(campaign.vertical)}</span>}
+            {campaign.vertical && campaign.campaignType && <span>·</span>}
+            {campaign.campaignType && (
+              <span>{humanizeFn(campaign.campaignType)}</span>
+            )}
+          </div>
+          <div className="text-[11px] text-fg-subtle">
+            {formatDate(campaign.updatedAt, locale)}
+          </div>
         </div>
-      </div>
-    </Link>
+      </Link>
+    </div>
   );
 }
