@@ -24,29 +24,60 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'No active workspace' }, { status: 403 });
   }
 
-  const { data: doc } = await svc
+  // Fetch document — DON'T filter by deleted_at (allow re-delete attempts)
+  const { data: doc, error: fetchErr } = await svc
     .from('documents')
-    .select('id, storage_bucket, storage_path')
+    .select('id, storage_bucket, storage_path, deleted_at')
     .eq('id', parsed.data.id)
     .eq('org_id', orgId)
-    .is('deleted_at', null)
     .maybeSingle();
 
-  if (!doc) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-  const d = doc as { id: string; storage_bucket: string; storage_path: string };
+  if (fetchErr) {
+    console.error('[knowledge/delete] fetch error:', fetchErr);
+    return NextResponse.json({ error: fetchErr.message }, { status: 500 });
+  }
+  if (!doc) {
+    return NextResponse.json({ error: 'Document not found' }, { status: 404 });
+  }
 
-  // Soft delete first
-  await svc
-    .from('documents')
-    .update({ deleted_at: new Date().toISOString() } as never)
-    .eq('id', d.id)
+  const d = doc as {
+    id: string;
+    storage_bucket: string;
+    storage_path: string;
+    deleted_at: string | null;
+  };
+
+  // Soft delete (idempotent — already deleted is fine)
+  if (!d.deleted_at) {
+    const { error: updErr } = await svc
+      .from('documents')
+      .update({ deleted_at: new Date().toISOString() } as never)
+      .eq('id', d.id)
+      .eq('org_id', orgId);
+
+    if (updErr) {
+      console.error('[knowledge/delete] update error:', updErr);
+      return NextResponse.json({ error: updErr.message }, { status: 500 });
+    }
+  }
+
+  // Hard delete chunks (best-effort, log but don't fail)
+  const { error: chunkErr } = await svc
+    .from('document_chunks')
+    .delete()
+    .eq('document_id', d.id)
     .eq('org_id', orgId);
 
-  // Hard delete chunks (they carry no user-editable state)
-  await svc.from('document_chunks').delete().eq('document_id', d.id).eq('org_id', orgId);
+  if (chunkErr) {
+    console.warn('[knowledge/delete] chunks deletion failed (non-fatal):', chunkErr);
+  }
 
   // Remove from storage (best-effort)
-  await svc.storage.from(d.storage_bucket).remove([d.storage_path]).catch(() => {});
+  try {
+    await svc.storage.from(d.storage_bucket).remove([d.storage_path]);
+  } catch (err) {
+    console.warn('[knowledge/delete] storage removal failed (non-fatal):', err);
+  }
 
   return NextResponse.json({ ok: true });
 }
