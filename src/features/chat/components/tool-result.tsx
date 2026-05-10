@@ -3,6 +3,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { Pencil, Send, Download, FileText, BookOpen, Image as ImageIcon, Video, Loader2, AlertCircle, X, Undo2, Brush, Eraser, Sparkles, Maximize2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { ActionCardRouter } from './action-card-router';
 
 // ToolKind importado desde lib/chat/types para evitar duplicación
 export type { ToolKind, ToolPart } from '@/lib/chat/types';
@@ -12,6 +13,18 @@ export type ToolStatus = 'running' | 'done' | 'failed';
 import type { ToolPart } from '@/lib/chat/types';
 
 export function ToolResult({ part }: { part: ToolPart }) {
+  // Action pending — render confirmation card instead of regular result
+  if (part.status === 'done' && part.result && typeof part.result === 'object' && '__action_pending__' in part.result) {
+    const action = part.result as unknown as {
+      __action_pending__: true;
+      kind: 'email' | 'calendar' | 'slack';
+      preview: Record<string, unknown>;
+      tool_name: string;
+      tool_input: Record<string, unknown>;
+    };
+    return <ActionCardRouter action={action} />;
+  }
+
   if (part.status === 'running') {
     if (part.kind === 'image' || part.kind === 'create_ad') {
       return <ImageGeneratingSkeleton aspectRatio={(part.input.aspect_ratio as string) || '1:1'} />;

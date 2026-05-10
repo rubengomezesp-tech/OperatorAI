@@ -204,11 +204,90 @@ export async function getConnectedProviders(
 /**
  * Execute an integration tool through Composio.
  */
+// ─── Tools that require user confirmation (write actions) ───
+const TOOLS_REQUIRING_CONFIRMATION = new Set([
+  'gmail_send_email',
+  'gcal_create_event',
+  'slack_send_message',
+]);
+
+const TOOL_TO_KIND: Record<string, 'email' | 'calendar' | 'slack'> = {
+  gmail_send_email: 'email',
+  gcal_create_event: 'calendar',
+  slack_send_message: 'slack',
+};
+
+function buildPreview(toolName: string, input: Record<string, unknown>): Record<string, unknown> {
+  if (toolName === 'gmail_send_email') {
+    return {
+      to: input.recipient_email,
+      subject: input.subject,
+      body: input.body,
+    };
+  }
+  if (toolName === 'gcal_create_event') {
+    return {
+      summary: input.summary,
+      description: input.description,
+      start_datetime: input.start_datetime,
+      end_datetime: input.end_datetime,
+      attendees: input.attendees,
+      location: input.location,
+    };
+  }
+  if (toolName === 'slack_send_message') {
+    return {
+      channel: input.channel,
+      text: input.text,
+    };
+  }
+  return input;
+}
+
+/**
+ * executeIntegrationToolDirect
+ *
+ * Bypass del flow del chat — ejecuta directamente el tool en Composio.
+ * Usado por /api/integrations/execute-pending cuando el user confirma
+ * una ActionCard.
+ */
+export async function executeIntegrationToolDirect(
+  toolName: string,
+  input: Record<string, unknown>,
+  ctx: { userId: string },
+): Promise<Record<string, unknown>> {
+  // Find tool def
+  const allTools = [...GMAIL_TOOLS, ...GCAL_TOOLS, ...GDRIVE_TOOLS, ...SLACK_TOOLS];
+  const def = allTools.find((t) => t.name === toolName);
+  if (!def) throw new Error(`Unknown integration tool: ${toolName}`);
+
+  const result = await composioExecuteTool({ userId: ctx.userId, toolSlug: def.composioSlug, input });
+  return result as unknown as Record<string, unknown>;
+}
+
+
 export async function executeIntegrationTool(
   toolName: string,
   input: Record<string, unknown>,
   ctx: { orgId: string; userId: string; svc: SupabaseClient },
 ): Promise<{ ok: boolean; result?: unknown; error?: string }> {
+  // ─── Confirmation gate ───
+  if (TOOLS_REQUIRING_CONFIRMATION.has(toolName)) {
+    const kind = TOOL_TO_KIND[toolName];
+    const preview = buildPreview(toolName, input);
+    return {
+      ok: true,
+      result: {
+        __action_pending__: true,
+        kind,
+        preview,
+        tool_name: toolName,
+        tool_input: input,
+        message: `Action queued. User confirmation required via UI card.`,
+      },
+    };
+  }
+
   const meta = TOOL_NAME_INDEX.get(toolName);
   if (!meta) {
     return { ok: false, error: `Unknown integration tool: ${toolName}` };
