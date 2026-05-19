@@ -23,6 +23,7 @@ export type Intent =
   | 'file_analysis'     // análisis de archivo (CSV, Excel, JSON)
   | 'brand_query'       // pregunta sobre la marca del usuario
   | 'meta'              // pregunta sobre OperatorAI mismo (capacidades, etc.)
+  | 'coding'            // pregunta o tarea relacionada con código/desarrollo
   | 'ambiguous';        // no se puede determinar — pedir aclaración
 
 export interface IntentDetection {

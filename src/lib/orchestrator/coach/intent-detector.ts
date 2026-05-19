@@ -153,7 +153,13 @@ function detectByHeuristics(message: string): IntentDetection | null {
     };
   }
 
-  if (RX_CODING.test(trimmed)) { return { intent: 'coding', confidence: 0.88, reasoning: 'Código' }; }
+  if (RX_CODING.test(trimmed)) {
+    return {
+      intent: 'coding',
+      confidence: 0.88,
+      reasoning: 'Detectada pregunta o tarea relacionada con código/desarrollo',
+    };
+  }
 
   // Sin match claro → delegamos al modelo
   return null;
@@ -176,6 +182,7 @@ Intents posibles (elige UNO):
 - file_analysis: pide analizar datos de un archivo CSV/Excel/JSON
 - brand_query: pregunta sobre su marca, logo, colores, tipografía
 - meta: pregunta qué eres, qué puedes hacer, capacidades de OperatorAI
+- coding: pregunta o tarea relacionada con código, bugs, scripts, APIs, TypeScript, React o Next.js
 - ambiguous: imposible de determinar — necesita aclaración
 
 Devuelve EXACTAMENTE este JSON, sin texto adicional:
@@ -271,6 +278,7 @@ const VALID_INTENTS: ReadonlySet<Intent> = new Set([
   'file_analysis',
   'brand_query',
   'meta',
+  'coding',
   'ambiguous',
 ]);
 

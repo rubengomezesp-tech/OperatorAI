@@ -15,9 +15,11 @@
  */
 
 import { OPERATOR_MASTER_PROMPT } from './operator-prompt';
-
-const LOCAL_OPERATOR_URL = process.env.LOCAL_OPERATOR_URL || 'http://localhost:1234';
-const LOCAL_OPERATOR_MODEL = process.env.LOCAL_OPERATOR_MODEL || 'operator-qwen14b';
+import {
+  getOperatorCoachConfig,
+  getOperatorCoachHeaders,
+  probeOperatorCoach,
+} from '@/lib/operator/coach-endpoint';
 
 export interface OperatorMessage {
   role: 'system' | 'user' | 'assistant';
@@ -41,6 +43,7 @@ export interface CallOperatorOptions {
 
 export interface OperatorResponse {
   content: string;
+  model: string;
   toolCall?: { name: string; arguments: Record<string, unknown> };
   raw: unknown;
   usage?: {
@@ -96,6 +99,7 @@ export async function callOperator(
   userMessage: string,
   options: CallOperatorOptions = {}
 ): Promise<OperatorResponse> {
+  const config = getOperatorCoachConfig();
   const systemPrompt = buildSystemPrompt(options);
 
   const messages: OperatorMessage[] = [
@@ -104,11 +108,11 @@ export async function callOperator(
     { role: 'user', content: userMessage },
   ];
 
-  const response = await fetch(`${LOCAL_OPERATOR_URL}/v1/chat/completions`, {
+  const response = await fetch(`${config.url}/v1/chat/completions`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: getOperatorCoachHeaders(config),
     body: JSON.stringify({
-      model: LOCAL_OPERATOR_MODEL,
+      model: config.model,
       messages,
       max_tokens: options.maxTokens ?? 1024,
       temperature: options.temperature ?? 0.7,
@@ -127,6 +131,7 @@ export async function callOperator(
 
   return {
     content,
+    model: String(data.model ?? config.model),
     toolCall,
     raw: data,
     usage: data.usage,
@@ -138,15 +143,6 @@ export async function callOperator(
  * Útil para healthchecks y mostrar estado en UI.
  */
 export async function isOperatorAvailable(): Promise<boolean> {
-  try {
-    const response = await fetch(`${LOCAL_OPERATOR_URL}/v1/models`, {
-      method: 'GET',
-      signal: AbortSignal.timeout(3000),
-    });
-    if (!response.ok) return false;
-    const data = await response.json();
-    return data.data?.some((m: { id: string }) => m.id === LOCAL_OPERATOR_MODEL) ?? false;
-  } catch {
-    return false;
-  }
+  const probe = await probeOperatorCoach();
+  return probe.ok;
 }

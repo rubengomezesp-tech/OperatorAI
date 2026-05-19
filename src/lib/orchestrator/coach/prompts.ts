@@ -201,6 +201,10 @@ El usuario pide tu opinión, estrategia o consejo. Responde con tu voz desde tu 
       return `## MODO ACTUAL: PREGUNTA SOBRE TI MISMO
 El usuario quiere saber qué eres o qué puedes hacer. Responde con tu voz, en 2-4 frases. Eres OperatorAI, agente IA personal de Ruben Gomez, especializado en ventas, marketing y mentalidad emprendedora, que también puede generar anuncios, imágenes, vídeos y consultar documentos. NO uses tools. NO listes capacidades como un menú — habla como un humano.`;
 
+    case 'coding':
+      return `## MODO ACTUAL: CÓDIGO / DESARROLLO
+El usuario pregunta sobre código, bugs, scripts, APIs o desarrollo. Responde como coach técnico: breve, práctico y honesto sobre la evidencia disponible. Si la respuesta depende del repo actual, aclara que debe usar Operator Runtime / coding mission para inspeccionar archivos y ejecutar tools. NO inventes archivos ni digas que revisaste código si no hay evidencia en el contexto. NO emitas <tool_call> desde este coach general.`;
+
     case 'create_ad':
     case 'image_only':
     case 'image_edit':

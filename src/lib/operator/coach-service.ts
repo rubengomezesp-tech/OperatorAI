@@ -2,10 +2,10 @@ import 'server-only';
 
 import {
   callOperator,
-  isOperatorAvailable,
   type OperatorMessage,
   type OperatorResponse,
 } from '@/lib/models/local-operator-client';
+import { probeOperatorCoach } from '@/lib/operator/coach-endpoint';
 
 /**
  * Coach Service — capa de servicio que conecta el modelo local OperatorAI
@@ -60,12 +60,18 @@ export interface CoachOutput {
 }
 
 export class OperatorCoachUnavailableError extends Error {
-  constructor() {
+  constructor(message?: string) {
     super(
-      'OperatorAI local no está disponible. Verifica que LM Studio o el servicio headless esté corriendo en localhost:1234.'
+      message
+        ?? 'OperatorAI coach no está disponible. Verifica que el endpoint configurado en OPERATOR_COACH_URL responda y que el modelo pueda completar.'
     );
     this.name = 'OperatorCoachUnavailableError';
   }
+}
+
+function buildUnavailableMessage(probe: Awaited<ReturnType<typeof probeOperatorCoach>>): string {
+  const base = `OperatorAI coach no está disponible en ${probe.config.url} usando modelo ${probe.config.model}.`;
+  return probe.errorMessage ? `${base} ${probe.errorMessage}` : base;
 }
 
 /**
@@ -115,9 +121,9 @@ export async function runCoach(input: CoachInput): Promise<CoachOutput> {
   const start = Date.now();
 
   // Healthcheck rápido — evitamos esperar timeout de fetch si el server está caído
-  const available = await isOperatorAvailable();
-  if (!available) {
-    throw new OperatorCoachUnavailableError();
+  const probe = await probeOperatorCoach();
+  if (!probe.ok) {
+    throw new OperatorCoachUnavailableError(buildUnavailableMessage(probe));
   }
 
   const ragContext = buildRagBlock(input);
@@ -133,8 +139,11 @@ export async function runCoach(input: CoachInput): Promise<CoachOutput> {
     });
   } catch (error) {
     // Si el server cayó entre el healthcheck y la llamada
-    if (error instanceof Error && error.message.includes('fetch')) {
-      throw new OperatorCoachUnavailableError();
+    if (
+      error instanceof Error
+      && (error.message.includes('fetch') || error.message.startsWith('[OperatorAI] HTTP'))
+    ) {
+      throw new OperatorCoachUnavailableError(error.message);
     }
     throw error;
   }
@@ -151,7 +160,7 @@ export async function runCoach(input: CoachInput): Promise<CoachOutput> {
       total: response.usage?.total_tokens ?? 0,
     },
     elapsedMs,
-    model: 'operator-qwen14b',
+    model: response.model,
   };
 }
 
@@ -159,5 +168,6 @@ export async function runCoach(input: CoachInput): Promise<CoachOutput> {
  * Healthcheck público para usar en UI o status pages.
  */
 export async function isCoachAvailable(): Promise<boolean> {
-  return isOperatorAvailable();
+  const probe = await probeOperatorCoach();
+  return probe.ok;
 }
