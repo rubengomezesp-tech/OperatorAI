@@ -46,6 +46,8 @@ const RX_BRAND_QUERY = /\b(mi marca|mi brand|mi logo|mi paleta|mis colores|mi ti
 
 const RX_META = /\b(qu[eé] eres|qui[eé]n eres|qu[eé] (puedes|sabes) hacer|para qu[eé] sirves|c[óo]mo te llamas|cu[áa]les son tus (capacidades|habilidades|funciones)|operator\s?ai|c[óo]mo funcionas)\b/i;
 
+const RX_CODING = /\b(c[oó]digo|code|script|funci[oó]n|function|clase|class|componente|component|api|endpoint|bug|error|typescript|javascript|python|react|nextjs)\b/i;
+
 const RX_BUSINESS_ADVICE = /\b(c[óo]mo (vender|conseguir|aumentar|escalar|crecer|monetizar)|estrategia|consejo|recomendaci[óo]n|qu[eé] piensas|qu[eé] opinas|c[óo]mo enfoc(?:ar|o)|qu[eé] (deber[íi]a|tengo que) hacer|c[óo]mo cierro|objeci[óo]n|cierre)\b/i;
 
 /**
@@ -150,6 +152,8 @@ function detectByHeuristics(message: string): IntentDetection | null {
       reasoning: 'Detectada pregunta de consejo de negocio/marketing',
     };
   }
+
+  if (RX_CODING.test(trimmed)) { return { intent: 'coding', confidence: 0.88, reasoning: 'Código' }; }
 
   // Sin match claro → delegamos al modelo
   return null;
