@@ -140,8 +140,8 @@ export type RecoveryAction =
 /* -------------------------------------------------------------------------- */
 
 export const COACH_CONFIG = {
-  url: process.env.LOCAL_OPERATOR_URL || 'http://localhost:1234',
-  model: process.env.LOCAL_OPERATOR_MODEL || 'operator-qwen14b',
+  url: process.env.OPERATOR_COACH_URL || process.env.LOCAL_OPERATOR_URL || 'http://localhost:1234',
+  model: process.env.OPERATOR_COACH_MODEL || process.env.LOCAL_OPERATOR_MODEL || 'operator-qwen14b',
   maxToolLoops: 3,
   maxRecoveryAttempts: 2,
   intentTemperature: 0.1,    // intent detection muy determinista
