@@ -16,10 +16,11 @@ interface Props {
 export function MessageList({ messages, onRegenerate, regenDisabled, userAvatarUrl, userInitial }: Props) {
   const { t } = useI18n();
   const endRef = useRef<HTMLDivElement>(null);
+  const lastMessageContent = messages[messages.length - 1]?.content;
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
-  }, [messages.length, messages[messages.length - 1]?.content]);
+  }, [messages.length, lastMessageContent]);
 
   if (messages.length === 0) {
     // Empty state handled by ChatView's EmptyState component (Sprint 3.1)
@@ -34,7 +35,7 @@ export function MessageList({ messages, onRegenerate, regenDisabled, userAvatarU
   })();
 
   return (
-    <div className="flex-1 overflow-y-auto">
+    <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
       <div className="w-full px-4 sm:px-6 lg:px-8 py-8 space-y-6">
         {messages.map((m, i) => (
           <MessageBubble

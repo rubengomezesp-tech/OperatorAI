@@ -351,7 +351,7 @@ html, body {
     position: relative;
     flex: 1;
     min-height: 0;
-    height: 100%;
+    height: calc(var(--vvh, 100vh) - 56px);
+    max-height: calc(var(--vvh, 100vh) - 56px);
   }
 }
-

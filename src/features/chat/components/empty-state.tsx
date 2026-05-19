@@ -58,7 +58,7 @@ export function EmptyState({ onSuggestion }: EmptyStateProps) {
   const isEs = locale === 'es';
 
   return (
-    <div className="flex flex-col w-full">
+    <div className="flex h-full min-h-0 flex-1 flex-col w-full">
       {/* Spacer para empujar las sugerencias hacia abajo */}
       <div className="flex-1" />
 
@@ -67,7 +67,7 @@ export function EmptyState({ onSuggestion }: EmptyStateProps) {
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
-        className="px-4 pb-3 space-y-1"
+        className="px-4 sm:px-6 lg:px-8 pb-4 space-y-1"
       >
         {SUGGESTIONS.map((s, i) => {
           const Icon = s.icon;

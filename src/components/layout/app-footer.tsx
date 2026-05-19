@@ -1,9 +1,14 @@
 'use client';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { useI18n } from '@/lib/i18n';
 
 export function AppFooter() {
   const { t } = useI18n();
+  const pathname = usePathname();
+
+  if (pathname?.startsWith('/chat')) return null;
+
   return (
     <footer className="border-t border-border/60 px-6 py-5 bg-bg/80 backdrop-blur-sm">
       <div className="max-w-[960px] mx-auto flex items-center justify-between text-[12.5px]">

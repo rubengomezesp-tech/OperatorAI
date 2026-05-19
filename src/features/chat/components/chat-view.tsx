@@ -44,7 +44,9 @@ export function ChatView({
   useVisualViewport();
 
   useEffect(() => {
-    if (consecutiveFailures === 0) setRecoveryDismissed(false);
+    if (consecutiveFailures !== 0) return;
+    const reset = window.setTimeout(() => setRecoveryDismissed(false), 0);
+    return () => window.clearTimeout(reset);
   }, [consecutiveFailures]);
 
   const selectedModel = useChatStore((s) => s.selectedModel);
@@ -280,7 +282,7 @@ export function ChatView({
           </div>
         )}
 
-        <div className="flex-1 overflow-y-auto overscroll-contain min-h-0 flex flex-col justify-end">
+        <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
           {messages.length === 0 ? (
             <EmptyState
               onSuggestion={(prompt) => {
@@ -311,7 +313,7 @@ export function ChatView({
           )}
         </div>
 
-        <div className="flex-shrink-0" style={{ paddingBottom: "var(--kbh, 0px)" }}>
+        <div className="relative z-20 flex-shrink-0" style={{ paddingBottom: "var(--kbh, 0px)" }}>
           <Composer onSend={handleSend} onCancel={cancel} loading={loading} />
         </div>
       </div>
