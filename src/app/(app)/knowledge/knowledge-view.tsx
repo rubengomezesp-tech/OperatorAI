@@ -56,7 +56,10 @@ export function KnowledgeView() {
   }, []);
 
   useEffect(() => {
-    loadDocs();
+    const timer = window.setTimeout(() => {
+      loadDocs();
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [loadDocs]);
 
   async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -129,16 +132,14 @@ export function KnowledgeView() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ documentId: id }),
+        body: JSON.stringify({ id }),
       });
-      if (res.ok) {
-        toast.success('Document deleted');
-        setDocs((prev) => prev.filter((d) => d.id !== id));
-      } else {
-        throw new Error('Delete failed');
-      }
-    } catch {
-      toast.error('Failed to delete document');
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body?.error ?? 'Delete failed');
+      toast.success('Document deleted');
+      setDocs((prev) => prev.filter((d) => d.id !== id));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to delete document');
     }
   }
 

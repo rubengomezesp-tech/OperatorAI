@@ -6,11 +6,23 @@ import { resolveOrgContext } from '@/features/chat/server/resolve-org-context';
 
 export const runtime = 'nodejs';
 
-const BodySchema = z.object({ id: z.string().min(1) });
+const BodySchema = z.object({
+  id: z.string().min(1).optional(),
+  documentId: z.string().min(1).optional(),
+}).refine((body) => body.id || body.documentId, {
+  message: 'Missing document id',
+});
 
 export async function POST(req: NextRequest) {
   const parsed = BodySchema.safeParse(await req.json().catch(() => ({})));
-  if (!parsed.success) return NextResponse.json({ error: 'Invalid body' }, { status: 400 });
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: parsed.error.issues[0]?.message ?? 'Invalid body' },
+      { status: 400 },
+    );
+  }
+  const documentId = parsed.data.id ?? parsed.data.documentId;
+  if (!documentId) return NextResponse.json({ error: 'Missing document id' }, { status: 400 });
 
   const ssr = await createSupabaseServerClient();
   const { data: { user } } = await ssr.auth.getUser();
@@ -28,7 +40,7 @@ export async function POST(req: NextRequest) {
   const { data: doc, error: fetchErr } = await svc
     .from('documents')
     .select('id, storage_bucket, storage_path, deleted_at')
-    .eq('id', parsed.data.id)
+    .eq('id', documentId)
     .eq('org_id', orgId)
     .maybeSingle();
 

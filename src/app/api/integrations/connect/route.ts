@@ -4,7 +4,11 @@ import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { createSupabaseServiceClient } from '@/lib/supabase/service';
 import { resolveOrgContext } from '@/features/chat/server/resolve-org-context';
 import { initiateConnection } from '@/features/integrations/server/composio-client';
-import { findIntegration, isProviderConnectable } from '@/features/integrations/data/catalog';
+import {
+  findIntegration,
+  getAuthConfigIdForProvider,
+  isProviderConnectable,
+} from '@/features/integrations/data/catalog';
 import { serverEnv } from '@/lib/env';
 
 export const runtime = 'nodejs';
@@ -26,6 +30,23 @@ export async function POST(req: NextRequest) {
       {
         error: `${provider.name} is not yet configured on this server. Auth config missing.`,
         setup: true,
+      },
+      { status: 503 },
+    );
+  }
+
+  const authConfigEnvVar = getAuthConfigIdForProvider(provider.id);
+  const authConfigId = authConfigEnvVar
+    ? (serverEnv as unknown as Record<string, string | undefined>)[authConfigEnvVar]
+    : undefined;
+
+  if (authConfigEnvVar && !authConfigId) {
+    return NextResponse.json(
+      {
+        error: `${provider.name} auth config missing. Add ${authConfigEnvVar} in Vercel with the Composio auth config id (ac_...).`,
+        setup: true,
+        envVar: authConfigEnvVar,
+        setupHint: `Create an OAuth auth config for ${provider.composioName} in Composio, then set ${authConfigEnvVar}=ac_... in Vercel Production.`,
       },
       { status: 503 },
     );
@@ -89,9 +110,11 @@ export async function POST(req: NextRequest) {
 
     // Auth config missing
     if (msg.includes('auth config') || msg.includes('COMPOSIO_AUTH_CONFIG')) {
+      const envVar = getAuthConfigIdForProvider(provider.id);
       return NextResponse.json({
-        error: `${provider.name} auth config missing. Create in Composio dashboard.`,
+        error: `${provider.name} auth config missing. Add ${envVar ?? 'the provider auth config env var'} in Vercel with the Composio auth config id (ac_...).`,
         setup: true,
+        envVar,
       }, { status: 503 });
     }
 
