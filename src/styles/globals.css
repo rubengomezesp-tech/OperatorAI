@@ -327,9 +327,7 @@ html, body {
   }
 }
 
-/* ═══ iOS Keyboard — Contenedor fijo sin saltos ═══ */
-/* Mobile: position:fixed para que el teclado ajuste el viewport */
-/* Desktop: position:relative para no tapar el Topbar */
+/* ═══ Chat viewport — composer anchored to the visible chat footer ═══ */
 .chat-fixed-container {
   transition: none !important;
   will-change: auto;
@@ -353,5 +351,18 @@ html, body {
     min-height: 0;
     height: calc(var(--vvh, 100vh) - 56px);
     max-height: calc(var(--vvh, 100vh) - 56px);
+  }
+}
+
+@media (min-width: 1024px) {
+  .chat-fixed-container {
+    position: fixed;
+    top: 56px;
+    right: 0;
+    bottom: 0;
+    left: 260px;
+    height: auto;
+    max-height: none;
+    z-index: 20;
   }
 }
