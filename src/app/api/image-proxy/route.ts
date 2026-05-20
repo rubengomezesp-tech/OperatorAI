@@ -16,6 +16,8 @@
  *   - Hard limits on response size
  *   - Only forward image/* MIME types
  *   - Timeout 15s
+ *   - Brand imports may proxy public images from arbitrary company websites,
+ *     but only for same-origin app requests and still with private IP blocks.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -72,6 +74,8 @@ const MAX_REDIRECTS = 3;
 
 export async function GET(req: NextRequest) {
   const targetUrl = req.nextUrl.searchParams.get('url');
+  const purpose = req.nextUrl.searchParams.get('purpose');
+  const allowPublicBrandImage = purpose === 'brand' && isSameOriginAppRequest(req);
 
   if (!targetUrl) {
     return NextResponse.json({ error: 'Missing url parameter' }, { status: 400 });
@@ -91,7 +95,7 @@ export async function GET(req: NextRequest) {
   }
 
   // Step 3: Hostname must be in allowlist
-  if (!isHostAllowed(parsed.hostname)) {
+  if (!isHostAllowed(parsed.hostname) && !allowPublicBrandImage) {
     console.warn('[image-proxy] blocked disallowed host', {
       host: parsed.hostname,
       ip: req.headers.get('x-forwarded-for') ?? 'unknown',
@@ -120,6 +124,7 @@ export async function GET(req: NextRequest) {
       timeoutMs: FETCH_TIMEOUT_MS,
       maxBytes: MAX_RESPONSE_BYTES,
       maxRedirects: MAX_REDIRECTS,
+      allowPublicHosts: allowPublicBrandImage,
     });
 
     if (!result.ok) {
@@ -296,7 +301,7 @@ interface SafeFetchResult {
 
 async function fetchWithSafety(
   url: string,
-  options: { timeoutMs: number; maxBytes: number; maxRedirects: number }
+  options: { timeoutMs: number; maxBytes: number; maxRedirects: number; allowPublicHosts?: boolean }
 ): Promise<SafeFetchResult> {
   let currentUrl = url;
   let redirects = 0;
@@ -337,7 +342,7 @@ async function fetchWithSafety(
       // Re-validate the redirect target
       if (
         (nextUrl.protocol !== 'http:' && nextUrl.protocol !== 'https:') ||
-        !isHostAllowed(nextUrl.hostname) ||
+        (!isHostAllowed(nextUrl.hostname) && !options.allowPublicHosts) ||
         (await isPrivateOrInternal(nextUrl.hostname))
       ) {
         throw new Error(`Redirect to disallowed host blocked: ${nextUrl.hostname}`);
@@ -411,4 +416,32 @@ async function fetchWithSafety(
   }
 
   throw new Error(`Too many redirects (max ${options.maxRedirects})`);
+}
+
+function isSameOriginAppRequest(req: NextRequest): boolean {
+  const secFetchSite = req.headers.get('sec-fetch-site');
+  if (secFetchSite === 'cross-site') return false;
+
+  const origin = req.headers.get('origin');
+  const host = req.headers.get('host');
+  if (origin && host) {
+    try {
+      return new URL(origin).host === host;
+    } catch {
+      return false;
+    }
+  }
+
+  const referer = req.headers.get('referer');
+  if (referer && host) {
+    try {
+      return new URL(referer).host === host;
+    } catch {
+      return false;
+    }
+  }
+
+  // Some browsers omit Origin/Referer for image loads. If Sec-Fetch-Site is
+  // absent or says same-origin/same-site/none, keep compatibility.
+  return secFetchSite !== 'cross-site';
 }

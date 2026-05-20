@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useI18n } from '@/lib/i18n';
+import { proxiedImageUrl } from '@/lib/image-utils';
 
 interface Brand {
   id: string;
@@ -69,7 +70,10 @@ export function BrandSwitcher() {
   }
 
   useEffect(() => {
-    fetchBrands();
+    const timer = window.setTimeout(() => {
+      void fetchBrands();
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, []);
 
   // Click outside
@@ -84,6 +88,7 @@ export function BrandSwitcher() {
   }, [open]);
 
   const activeBrand = brands.find((b) => b.is_active) ?? brands[0];
+  const activeBrandLogo = proxiedImageUrl(activeBrand?.logo_url, 'brand');
 
   async function handleSwitch(brandId: string) {
     if (brandId === activeBrand?.id) {
@@ -202,10 +207,10 @@ export function BrandSwitcher() {
       >
         {/* Avatar */}
         <div className="h-6 w-6 rounded shrink-0 flex items-center justify-center text-[10px] font-semibold overflow-hidden">
-          {activeBrand.logo_url ? (
+          {activeBrandLogo ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
-              src={activeBrand.logo_url}
+              src={activeBrandLogo}
               alt={activeBrand.brand_name ?? ''}
               className="w-full h-full object-cover"
             />
@@ -231,6 +236,7 @@ export function BrandSwitcher() {
             {brands.map((b) => {
               const isActive = b.is_active;
               const isSwitchingThis = switching === b.id;
+              const brandLogo = proxiedImageUrl(b.logo_url, 'brand');
               return (
                 <button
                   key={b.id}
@@ -243,10 +249,10 @@ export function BrandSwitcher() {
                 >
                   {/* Avatar */}
                   <div className="h-7 w-7 rounded shrink-0 overflow-hidden flex items-center justify-center text-[10.5px] font-semibold">
-                    {b.logo_url ? (
+                    {brandLogo ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
-                        src={b.logo_url}
+                        src={brandLogo}
                         alt={b.brand_name ?? ''}
                         className="w-full h-full object-cover"
                       />

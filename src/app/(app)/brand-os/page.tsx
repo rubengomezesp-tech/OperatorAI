@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardBody } from '@/components/ui/card';
 import { useI18n } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
+import { proxiedImageUrl } from '@/lib/image-utils';
 
 interface BrandProfile {
   brand_name: string;
@@ -292,6 +293,7 @@ export default function BrandOSPage() {
   const connectedCount = integrations.filter((i) => i.status === 'connected').length;
   const profileWebsite = websiteUrl || getProfileWebsite(bp);
   const profileLogo = getProfileLogo(bp);
+  const profileLogoSrc = proxiedImageUrl(profileLogo, 'brand');
 
   return (
     <div className="px-6 lg:px-10 py-8 max-w-[1080px] w-full mx-auto space-y-6">
@@ -343,9 +345,9 @@ export default function BrandOSPage() {
               )}
             </div>
             <div className="flex items-center gap-3">
-              {profileLogo ? (
+              {profileLogoSrc ? (
                 <img
-                  src={profileLogo}
+                  src={profileLogoSrc}
                   alt="Logo"
                   className="h-14 w-14 rounded-lg border border-border bg-white object-contain p-1.5"
                 />
@@ -474,11 +476,11 @@ export default function BrandOSPage() {
             </Button>
           </div>
 
-          {(profileLogo || bp.colors.length > 0 || extractMeta?.warnings?.length) && (
+          {(profileLogoSrc || bp.colors.length > 0 || extractMeta?.warnings?.length) && (
             <div className="flex flex-col gap-3 rounded-lg border border-border bg-surface-2/40 p-3 sm:flex-row sm:items-center">
-              {profileLogo && (
+              {profileLogoSrc && (
                 <img
-                  src={profileLogo}
+                  src={profileLogoSrc}
                   alt=""
                   className="h-12 w-12 rounded-md border border-border bg-white object-contain p-1"
                 />

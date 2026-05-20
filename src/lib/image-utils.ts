@@ -6,7 +6,10 @@
  * @param url - Image URL (external or local)
  * @returns Proxied URL for external, original for local, null if input is null
  */
-export function proxiedImageUrl(url: string | null | undefined): string | null {
+export function proxiedImageUrl(
+  url: string | null | undefined,
+  purpose?: 'brand',
+): string | null {
   if (!url) return null;
 
   // Local URLs don't need proxying
@@ -16,7 +19,9 @@ export function proxiedImageUrl(url: string | null | undefined): string | null {
 
   // External URLs get proxied
   if (url.startsWith('http://') || url.startsWith('https://')) {
-    return `/api/image-proxy?url=${encodeURIComponent(url)}`;
+    const params = new URLSearchParams({ url });
+    if (purpose) params.set('purpose', purpose);
+    return `/api/image-proxy?${params.toString()}`;
   }
 
   // Unknown scheme, return as-is (will likely fail, which is expected)
