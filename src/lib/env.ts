@@ -20,6 +20,7 @@ const serverSchema = z.object({
   ANTHROPIC_API_KEY: z.string().optional(),
   GOOGLE_API_KEY: z.string().optional(),
   GEMINI_API_KEY: z.string().optional(),
+  FIRECRAWL_API_KEY: z.string().optional(),
   VAPID_PRIVATE_KEY: z.string().optional(),
   REPLICATE_API_TOKEN: z.string().optional(),
 

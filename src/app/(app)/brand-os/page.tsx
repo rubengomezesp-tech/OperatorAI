@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Save, Palette, Type, Target, Eye, Shield, Plus, X, Loader2, Globe, RefreshCw, Plug, FileText, ArrowRight, Sparkles, Image as ImageIcon } from 'lucide-react';
+import { Save, Palette, Plus, X, Loader2, Globe, RefreshCw, Plug, FileText, ArrowRight, Sparkles, Image as ImageIcon, Brain, Database, CheckCircle2, AlertTriangle, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardBody } from '@/components/ui/card';
@@ -52,6 +52,29 @@ interface IntegrationRow {
   status: 'pending' | 'connected' | 'disconnected' | 'error';
 }
 
+interface CompanyIntelResult {
+  method: 'firecrawl' | 'scraper' | 'hybrid';
+  firecrawlEnabled: boolean;
+  pages: Array<{
+    url: string;
+    title?: string;
+    method: 'firecrawl' | 'scraper' | 'hybrid';
+    chars: number;
+  }>;
+  createdDocuments: Array<{
+    id: string;
+    title: string;
+    status: 'ready' | 'failed';
+    chunkCount: number;
+    error?: string;
+  }>;
+  warnings: string[];
+  requirements: {
+    firecrawl: boolean;
+    embeddings: boolean;
+  };
+}
+
 const DEFAULT: BrandProfile = {
   brand_name: '', description: '', vibe: '', colors: [], fonts: [],
   target_audience: '', tone_keywords: [], visual_style: '', industry: '',
@@ -97,9 +120,10 @@ export default function BrandOSPage() {
   const [rescanning, setRescanning] = useState(false);
   const [websiteUrl, setWebsiteUrl] = useState('');
   const [extractMeta, setExtractMeta] = useState<{ confidence?: number; warnings?: string[] } | null>(null);
+  const [intelLoading, setIntelLoading] = useState(false);
+  const [intelMaxPages, setIntelMaxPages] = useState(8);
+  const [intelResult, setIntelResult] = useState<CompanyIntelResult | null>(null);
   const [newColor, setNewColor] = useState('#C9A863');
-  const [newTag, setNewTag] = useState('');
-  const [tagField, setTagField] = useState<keyof BrandProfile | null>(null);
 
   useEffect(() => {
     Promise.all([
@@ -199,6 +223,51 @@ export default function BrandOSPage() {
       toast.error(e instanceof Error ? e.message : 'Failed');
     } finally {
       setRescanning(false);
+    }
+  }
+
+  async function refreshKnowledgeAssets() {
+    const kbRes = await fetch('/api/knowledge/list');
+    const kbData = await kbRes.json();
+    const docs = (kbData.documents ?? []) as BrandAsset[];
+    setAssets(docs.filter((d) => d.category === 'brand' || d.is_brand_asset));
+  }
+
+  async function buildCompanyKnowledge() {
+    const url = normalizeUrl(websiteUrl);
+    if (!url) {
+      toast.error(locale === 'es' ? 'Sin URL configurada' : 'No URL configured');
+      return;
+    }
+    setIntelLoading(true);
+    setIntelResult(null);
+    try {
+      const res = await fetch('/api/brand/company-intel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          url,
+          maxPages: intelMaxPages,
+          createKnowledge: true,
+          replaceExisting: true,
+        }),
+      });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body?.details ?? body?.error ?? 'Failed');
+      setWebsiteUrl(url);
+      setIntelResult(body);
+      await refreshKnowledgeAssets();
+
+      const failed = (body.createdDocuments ?? []).filter((doc: { status: string }) => doc.status === 'failed').length;
+      if (failed > 0) {
+        toast.warning(locale === 'es' ? 'Conocimiento creado con avisos' : 'Knowledge created with warnings');
+      } else {
+        toast.success(locale === 'es' ? 'Base de conocimiento creada' : 'Knowledge base created');
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed');
+    } finally {
+      setIntelLoading(false);
     }
   }
 
@@ -436,6 +505,142 @@ export default function BrandOSPage() {
                   {extractMeta.warnings[0]}
                 </div>
               ) : null}
+            </div>
+          )}
+        </CardBody>
+      </Card>
+
+      {/* COMPANY INTELLIGENCE */}
+      <Card>
+        <CardBody className="space-y-4">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <Brain className="h-4 w-4 text-gold" />
+                <h2 className="font-display text-[16px]">
+                  {t('Company knowledge extractor', 'Extractor de conocimiento')}
+                </h2>
+              </div>
+              <p className="mt-1 text-[12.5px] text-fg-muted">
+                {t(
+                  'Build AI-ready company documents from the website and index them in Knowledge.',
+                  'Crea documentos de empresa listos para agentes y los indexa en Knowledge.',
+                )}
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 text-[11px] text-fg-muted">
+              <span className="inline-flex items-center gap-1 rounded-md border border-border bg-surface-2 px-2 py-1">
+                <Search className="h-3 w-3" />
+                {intelResult?.method ?? t('auto crawler', 'crawler auto')}
+              </span>
+              <span className={cn(
+                'inline-flex items-center gap-1 rounded-md border px-2 py-1',
+                intelResult?.requirements?.embeddings === false
+                  ? 'border-danger/30 bg-danger/10 text-danger'
+                  : 'border-border bg-surface-2',
+              )}>
+                <Database className="h-3 w-3" />
+                {t('RAG index', 'Indice RAG')}
+              </span>
+            </div>
+          </div>
+
+          <div className="grid gap-2 md:grid-cols-[1fr_130px_auto]">
+            <input
+              type="url"
+              value={websiteUrl}
+              onChange={(e) => setWebsiteUrl(e.target.value)}
+              placeholder="https://empresa.com"
+              className="min-h-10 rounded-md border border-border bg-surface-2 px-3 py-2 text-[14px] text-fg placeholder:text-fg-subtle outline-none transition-colors focus:border-gold"
+            />
+            <select
+              value={intelMaxPages}
+              onChange={(e) => setIntelMaxPages(Number(e.target.value))}
+              className="min-h-10 rounded-md border border-border bg-surface-2 px-3 py-2 text-[13px] text-fg outline-none transition-colors focus:border-gold"
+            >
+              <option value={6}>{t('6 pages', '6 paginas')}</option>
+              <option value={8}>{t('8 pages', '8 paginas')}</option>
+              <option value={12}>{t('12 pages', '12 paginas')}</option>
+              <option value={14}>{t('14 pages', '14 paginas')}</option>
+            </select>
+            <Button onClick={buildCompanyKnowledge} loading={intelLoading} disabled={!websiteUrl.trim()}>
+              <Brain className="h-3.5 w-3.5" />
+              {t('Build knowledge', 'Crear conocimiento')}
+            </Button>
+          </div>
+
+          {intelResult && (
+            <div className="space-y-3 rounded-lg border border-border bg-surface-2/40 p-3">
+              <div className="grid grid-cols-3 gap-2">
+                <div className="rounded-md border border-border bg-bg/30 p-3">
+                  <div className="text-[10.5px] uppercase tracking-[0.14em] text-fg-subtle">
+                    {t('Pages', 'Paginas')}
+                  </div>
+                  <div className="mt-1 font-display text-[24px] text-gold">{intelResult.pages.length}</div>
+                </div>
+                <div className="rounded-md border border-border bg-bg/30 p-3">
+                  <div className="text-[10.5px] uppercase tracking-[0.14em] text-fg-subtle">
+                    {t('Docs', 'Docs')}
+                  </div>
+                  <div className="mt-1 font-display text-[24px] text-gold">{intelResult.createdDocuments.length}</div>
+                </div>
+                <div className="rounded-md border border-border bg-bg/30 p-3">
+                  <div className="text-[10.5px] uppercase tracking-[0.14em] text-fg-subtle">
+                    {t('Chunks', 'Chunks')}
+                  </div>
+                  <div className="mt-1 font-display text-[24px] text-gold">
+                    {intelResult.createdDocuments.reduce((sum, doc) => sum + doc.chunkCount, 0)}
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                {intelResult.createdDocuments.map((doc) => (
+                  <div
+                    key={doc.title}
+                    className="flex items-center gap-3 rounded-md border border-border bg-bg/30 px-3 py-2"
+                  >
+                    {doc.status === 'ready' ? (
+                      <CheckCircle2 className="h-4 w-4 shrink-0 text-success" />
+                    ) : (
+                      <AlertTriangle className="h-4 w-4 shrink-0 text-danger" />
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-[12.5px] font-medium">{doc.title}</div>
+                      <div className="text-[11px] text-fg-subtle">
+                        {doc.status === 'ready'
+                          ? t(`${doc.chunkCount} knowledge chunks`, `${doc.chunkCount} chunks de conocimiento`)
+                          : doc.error}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {intelResult.warnings.length > 0 && (
+                <div className="rounded-md border border-gold/20 bg-gold/5 px-3 py-2 text-[11.5px] text-fg-muted">
+                  {intelResult.warnings[0]}
+                </div>
+              )}
+
+              <div className="flex flex-wrap gap-2">
+                {intelResult.pages.slice(0, 5).map((page) => (
+                  <a
+                    key={page.url}
+                    href={page.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="max-w-[220px] truncate rounded-md border border-border bg-bg/30 px-2 py-1 text-[11px] text-fg-muted hover:border-gold/50 hover:text-gold"
+                  >
+                    {page.title || page.url.replace(/^https?:\/\//, '')}
+                  </a>
+                ))}
+              </div>
+
+              <Link href="/knowledge" className="inline-flex items-center gap-1 text-[12px] text-gold hover:underline">
+                {t('Open Knowledge', 'Abrir Knowledge')}
+                <ArrowRight className="h-3 w-3" />
+              </Link>
             </div>
           )}
         </CardBody>
