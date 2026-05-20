@@ -23,6 +23,7 @@ import {
   Shield,
   Trash2, BookOpen, HelpCircle,
   Loader2,
+  Terminal,
   type LucideIcon,
 } from 'lucide-react';
 import { useBrandAssets } from '@/lib/brand-assets-context';
@@ -110,7 +111,10 @@ export function Sidebar({ isAdmin = false, onClose }: Props) {
   }, []);
 
   useEffect(() => {
-    refresh();
+    const timer = window.setTimeout(() => {
+      void refresh();
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [refresh]);
 
   // Re-fetch when navigating between chats
@@ -167,6 +171,11 @@ export function Sidebar({ isAdmin = false, onClose }: Props) {
       href: '/brand-os',
       label: isEs ? 'Marca' : 'Brand',
       icon: Palette,
+    },
+    {
+      href: '/coding',
+      label: 'Codex',
+      icon: Terminal,
     },
     {
       href: '/settings',

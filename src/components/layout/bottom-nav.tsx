@@ -8,7 +8,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { MessageSquare, Sparkles, Palette, Settings } from 'lucide-react';
+import { MessageSquare, Sparkles, Palette, Settings, Terminal } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
 import { useBrandAssets } from '@/lib/brand-assets-context';
 import { cn } from '@/lib/utils';
@@ -23,6 +23,7 @@ export function BottomNav() {
     { href: '/chat', label: isEs ? 'Chat' : 'Chat', icon: MessageSquare, customUrl: navChatUrl },
     { href: '/campaigns', label: isEs ? 'Campañas' : 'Campaigns', icon: Sparkles, customUrl: navCampaignsUrl },
     { href: '/brand-os', label: isEs ? 'Marca' : 'Brand', icon: Palette, customUrl: navBrandUrl },
+    { href: '/coding', label: 'Codex', icon: Terminal },
     { href: '/settings', label: isEs ? 'Ajustes' : 'Settings', icon: Settings, customUrl: navSettingsUrl },
   ];
 
@@ -37,7 +38,7 @@ export function BottomNav() {
               key={item.href}
               href={item.href}
               className={cn(
-                'flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg transition-colors',
+                'flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-lg transition-colors',
                 isActive ? 'text-gold' : 'text-fg-muted hover:text-fg',
               )}
             >

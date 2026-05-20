@@ -6,7 +6,7 @@ import {
   Search, LayoutDashboard, MessageSquare, FolderOpen, ImageIcon,
   Mic, Zap, FileSpreadsheet, FileText, Brain, Plug, CreditCard,
   Settings, LogOut, Sparkles, User, Palette, Bell, Shield,
-  ArrowRight,
+  ArrowRight, Terminal,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -32,6 +32,7 @@ const items: NavItem[] = [
   { id: 'files', label: 'Files & Analysis', href: '/files', icon: FileSpreadsheet, category: 'Automate', keywords: ['csv', 'excel', 'data', 'code interpreter'] },
   // Intelligence
   { id: 'knowledge', label: 'Knowledge', href: '/knowledge', icon: FileText, category: 'Intelligence', keywords: ['documents', 'rag', 'search docs'] },
+  { id: 'coding', label: 'Operator Codex', href: '/coding', icon: Terminal, category: 'Intelligence', keywords: ['repo', 'code', 'codex', 'terminal', 'github'] },
   { id: 'assistants', label: 'Assistants', href: '/assistants', icon: Sparkles, category: 'Intelligence' },
   // Settings
   { id: 'settings', label: 'All Settings', href: '/settings', icon: Settings, shortcut: ['G', 'S'], category: 'Settings' },
@@ -76,7 +77,11 @@ export function CommandPalette({ open, onClose }: Props) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = '';
-      setSearch('');
+      const timer = window.setTimeout(() => setSearch(''), 0);
+      return () => {
+        window.clearTimeout(timer);
+        document.body.style.overflow = '';
+      };
     }
     return () => { document.body.style.overflow = ''; };
   }, [open]);

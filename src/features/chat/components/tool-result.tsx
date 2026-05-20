@@ -84,15 +84,22 @@ export function ToolResult({ part }: { part: ToolPart }) {
   }
 
   if (part.kind === 'coding_mission' && part.result?.text) {
+    const summary = part.result.summary ?? 'Repo inspection complete.';
     return (
       <div className="my-3 rounded-lg border border-gold/25 bg-surface-2/60 p-3.5">
         <div className="flex items-center gap-2 text-[11.5px] text-fg-muted mb-2">
           <Terminal className="h-3 w-3 text-gold" />
           Coding runtime
         </div>
-        <div className="text-[13px] text-fg whitespace-pre-wrap leading-relaxed font-mono">
-          {part.result.text}
-        </div>
+        <div className="text-[13.5px] text-fg leading-relaxed">{summary}</div>
+        <details className="mt-3">
+          <summary className="cursor-pointer text-[12px] text-gold hover:text-gold-soft">
+            Ver detalle técnico
+          </summary>
+          <pre className="mt-3 max-h-[360px] overflow-auto rounded-md bg-bg/70 p-3 text-[12px] text-fg-soft whitespace-pre-wrap leading-relaxed">
+            {part.result.text}
+          </pre>
+        </details>
       </div>
     );
   }

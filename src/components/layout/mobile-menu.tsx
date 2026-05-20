@@ -18,6 +18,7 @@ import {
   Trash2,
   BookOpen,
   HelpCircle,
+  Terminal,
   X,
   Menu,
   Loader2,
@@ -96,7 +97,13 @@ export function MobileMenu({ open, onClose, isAdmin = false }: { open: boolean; 
     } catch {} finally { setLoading(false); }
   }, []);
 
-  useEffect(() => { if (open) refresh(); }, [open, refresh]);
+  useEffect(() => {
+    if (!open) return;
+    const timer = window.setTimeout(() => {
+      void refresh();
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [open, refresh]);
 
   // Body scroll lock
   useEffect(() => {
@@ -137,6 +144,7 @@ export function MobileMenu({ open, onClose, isAdmin = false }: { open: boolean; 
     { href: '/knowledge', label: isEs ? 'Conocimiento' : 'Knowledge', icon: BookOpen },
     { href: '/campaigns', label: isEs ? 'Campañas' : 'Campaigns', icon: Sparkles },
     { href: '/brand-os', label: isEs ? 'Marca' : 'Brand', icon: Palette },
+    { href: '/coding', label: 'Codex', icon: Terminal },
     { href: '/settings', label: isEs ? 'Configuración' : 'Settings', icon: Settings },
     { href: '/help', label: isEs ? 'Ayuda' : 'Help', icon: HelpCircle },
     ...(isAdmin ? [{ href: '/admin', label: 'Admin', icon: Shield }] : []),

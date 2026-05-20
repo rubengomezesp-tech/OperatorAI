@@ -9,6 +9,7 @@ import { BrandSwitcher } from './brand-switcher';
 
 const TITLES: Record<string, string> = {
   '/chat': 'Creative Agent',
+  '/coding': 'Operator Codex',
   '/memory': 'Memory',
   '/campaigns/new': 'Create Campaign',
   '/settings': 'Settings',
