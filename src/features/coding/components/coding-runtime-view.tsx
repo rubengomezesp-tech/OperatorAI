@@ -6,7 +6,6 @@ import {
   Bot,
   CheckCircle2,
   ChevronDown,
-  CircleDashed,
   Code2,
   Copy,
   FileSearch,
@@ -83,9 +82,9 @@ interface ChatMessage {
 }
 
 const QUICK_TASKS = [
-  'Revisa el repo y dame las 5 mejoras tecnicas mas importantes.',
-  'Busca bugs o riesgos antes de desplegar.',
-  'Revisa el ultimo diff y dime si esta seguro.',
+  'Revisa el repo y dime las 5 mejoras mas importantes.',
+  'Mira el ultimo diff y dime si puedo desplegar.',
+  'Busca riesgos de seguridad o deuda tecnica.',
   'Dime el siguiente cambio pequeno con mas impacto.',
 ];
 
@@ -95,7 +94,7 @@ const TOOLS = [
   { key: 'gitStatus', label: 'Git status', icon: GitBranch, enabled: true, locked: false },
   { key: 'gitDiff', label: 'Diff', icon: GitCompare, enabled: true, locked: false },
   { key: 'terminal', label: 'Terminal', icon: Terminal, enabled: false, locked: true },
-  { key: 'writeFiles', label: 'Escribir', icon: Code2, enabled: false, locked: true },
+  { key: 'writeFiles', label: 'Escribir archivos', icon: Code2, enabled: false, locked: true },
   { key: 'commit', label: 'Commit', icon: KeyRound, enabled: false, locked: true },
 ] as const;
 
@@ -119,7 +118,15 @@ function sectionAfter(text: string, heading: string, nextHeadings: string[]): st
 }
 
 function parseSections(text: string): SectionMap {
-  const headings = ['Task', 'Git status', 'Git diff stat', 'Project summary', 'Files sampled', 'Relevant search results', 'Safety'];
+  const headings = [
+    'Task',
+    'Git status',
+    'Git diff stat',
+    'Project summary',
+    'Files sampled',
+    'Relevant search results',
+    'Safety',
+  ];
   return {
     task: sectionAfter(text, 'Task', headings),
     gitStatus: sectionAfter(text, 'Git status', headings),
@@ -179,10 +186,73 @@ function makeId() {
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
-function StatusDot({ ok, loading }: { ok?: boolean; loading?: boolean }) {
-  if (loading) return <Loader2 className="h-3.5 w-3.5 animate-spin text-gold" />;
-  if (ok) return <CheckCircle2 className="h-3.5 w-3.5 text-success" />;
-  return <AlertTriangle className="h-3.5 w-3.5 text-danger" />;
+function connectionState(status: StatusResponse | null, loading: boolean) {
+  if (loading) {
+    return {
+      tone: 'loading' as const,
+      title: 'Comprobando runtime',
+      detail: 'Estoy mirando si el puente del Mac y Qwen responden.',
+    };
+  }
+
+  if (!status) {
+    return {
+      tone: 'error' as const,
+      title: 'Sin estado',
+      detail: 'No he recibido respuesta del panel de estado.',
+    };
+  }
+
+  if (!status.bridgeAvailable) {
+    return {
+      tone: 'error' as const,
+      title: 'Puente local apagado',
+      detail: status.diagnostic?.bridge ?? 'Vercel no puede alcanzar el puente del Mac.',
+    };
+  }
+
+  if (!status.modelAvailable) {
+    return {
+      tone: 'warning' as const,
+      title: 'Qwen no responde',
+      detail:
+        status.diagnostic?.modelMessage ??
+        'El puente esta vivo, pero el modelo local no completo el healthcheck.',
+    };
+  }
+
+  return {
+    tone: 'ready' as const,
+    title: 'Listo',
+    detail: 'Puede inspeccionar el repo en modo lectura segura.',
+  };
+}
+
+function StatusIcon({ tone }: { tone: ReturnType<typeof connectionState>['tone'] }) {
+  if (tone === 'loading') return <Loader2 className="h-3.5 w-3.5 animate-spin text-gold" />;
+  if (tone === 'ready') return <CheckCircle2 className="h-3.5 w-3.5 text-success" />;
+  return (
+    <AlertTriangle
+      className={cn('h-3.5 w-3.5', tone === 'warning' ? 'text-gold' : 'text-danger')}
+    />
+  );
+}
+
+function StatusPill({ label, ok, loading }: { label: string; ok?: boolean; loading: boolean }) {
+  const tone = loading ? 'loading' : ok ? 'ready' : 'error';
+  return (
+    <span
+      className={cn(
+        'inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-[12px]',
+        tone === 'ready' && 'border-success/20 bg-success/10 text-success',
+        tone === 'loading' && 'border-gold/20 bg-gold/10 text-gold',
+        tone === 'error' && 'border-danger/25 bg-danger/10 text-danger',
+      )}
+    >
+      <StatusIcon tone={tone} />
+      {label}
+    </span>
+  );
 }
 
 function ToolChip({
@@ -207,10 +277,13 @@ function ToolChip({
       onClick={onClick}
       className={cn(
         'inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-[12px] transition-colors',
-        active ? 'border-gold/35 bg-gold/10 text-fg' : 'border-border bg-surface-2/70 text-fg-muted',
+        active
+          ? 'border-gold/35 bg-gold/10 text-fg'
+          : 'border-border bg-surface-2/70 text-fg-muted',
         !locked && 'hover:border-gold/40 hover:text-fg',
         locked && 'cursor-not-allowed opacity-45',
       )}
+      title={locked ? 'Bloqueado en produccion por seguridad' : undefined}
     >
       <Icon className="h-3.5 w-3.5 text-gold" />
       {label}
@@ -240,9 +313,9 @@ function RuntimeDetails({ result }: { result: MissionData }) {
   const matches = countSearchMatches(sections.searches);
 
   return (
-    <details className="mt-4 rounded-lg border border-border bg-surface-2/45">
+    <details className="mt-4 rounded-xl border border-border bg-bg/35">
       <summary className="flex cursor-pointer list-none items-center justify-between px-3 py-2.5 text-[12.5px] text-gold">
-        Herramientas y detalle tecnico
+        Ver detalle tecnico
         <ChevronDown className="h-4 w-4" />
       </summary>
 
@@ -254,15 +327,25 @@ function RuntimeDetails({ result }: { result: MissionData }) {
             ['Estado', shortStatus(sections)],
             ['Matches', String(matches)],
           ].map(([label, value]) => (
-            <div key={label} className="rounded-md border border-border bg-bg/45 p-2">
-              <div className="text-[10.5px] uppercase tracking-[0.12em] text-fg-subtle">{label}</div>
+            <div key={label} className="rounded-md border border-border bg-surface/45 p-2">
+              <div className="text-[10.5px] uppercase tracking-[0.12em] text-fg-subtle">
+                {label}
+              </div>
               <div className="mt-1 truncate text-[12.5px] text-fg">{value}</div>
             </div>
           ))}
         </div>
 
-        <TextBlock label="Git" text={[sections.gitStatus, sections.gitDiff].filter(Boolean).join('\n\n')} empty="No hay salida de git." />
-        <TextBlock label="Contexto encontrado" text={[sections.project, sections.files, sections.searches].filter(Boolean).join('\n\n')} empty="No hay contexto tecnico." />
+        <TextBlock
+          label="Git"
+          text={[sections.gitStatus, sections.gitDiff].filter(Boolean).join('\n\n')}
+          empty="No hay salida de git."
+        />
+        <TextBlock
+          label="Contexto encontrado"
+          text={[sections.project, sections.files, sections.searches].filter(Boolean).join('\n\n')}
+          empty="No hay contexto tecnico."
+        />
         <TextBlock label="Salida completa" text={result.text} empty="No hay salida completa." />
       </div>
     </details>
@@ -275,10 +358,16 @@ function AssistantResult({ result }: { result: MissionData }) {
   return (
     <div>
       <div className="space-y-2 text-[14.5px] leading-relaxed text-fg-soft">
-        {lines.length > 0 ? lines.map((line, index) => <p key={`${line}-${index}`}>{line}</p>) : <p>{result.summary}</p>}
+        {lines.length > 0 ? (
+          lines.map((line, index) => <p key={`${line}-${index}`}>{line}</p>)
+        ) : (
+          <p>{result.summary}</p>
+        )}
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-2 text-[11.5px] text-fg-subtle">
-        <span className="rounded-full border border-border bg-bg/40 px-2 py-1">{result.requestedMode}</span>
+        <span className="rounded-full border border-border bg-bg/40 px-2 py-1">
+          {result.requestedMode}
+        </span>
         <span>{formatTime(result.completedAt)}</span>
       </div>
       <RuntimeDetails result={result} />
@@ -299,10 +388,10 @@ function ChatBubble({ message }: { message: ChatMessage }) {
 
       <div
         className={cn(
-          'max-w-[860px] rounded-2xl border px-4 py-3',
+          'max-w-[820px] rounded-2xl border px-4 py-3 shadow-sm',
           isUser
             ? 'rounded-br-md border-gold/25 bg-gold/10 text-fg'
-            : 'rounded-bl-md border-border bg-surface/75 text-fg',
+            : 'rounded-bl-md border-border bg-surface/70 text-fg',
         )}
       >
         {message.loading ? (
@@ -320,6 +409,151 @@ function ChatBubble({ message }: { message: ChatMessage }) {
   );
 }
 
+function ConnectionNotice({
+  status,
+  loading,
+  onRefresh,
+}: {
+  status: StatusResponse | null;
+  loading: boolean;
+  onRefresh: () => void;
+}) {
+  const state = connectionState(status, loading);
+  const ready = state.tone === 'ready';
+
+  if (ready) return null;
+
+  return (
+    <div
+      className={cn(
+        'mx-auto mb-5 max-w-[820px] rounded-2xl border px-4 py-3',
+        state.tone === 'warning'
+          ? 'border-gold/25 bg-gold/10 text-fg'
+          : 'border-danger/25 bg-danger/10 text-fg',
+      )}
+    >
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex min-w-0 gap-3">
+          <div className="mt-0.5">
+            <StatusIcon tone={state.tone} />
+          </div>
+          <div className="min-w-0">
+            <div className="text-[14px] font-medium">{state.title}</div>
+            <p className="mt-1 text-[12.5px] leading-relaxed text-fg-muted">{state.detail}</p>
+          </div>
+        </div>
+        <Button type="button" variant="secondary" size="sm" onClick={onRefresh} disabled={loading}>
+          <RefreshCw className={cn('h-3.5 w-3.5', loading && 'animate-spin')} />
+          Refresh
+        </Button>
+      </div>
+
+      <details className="mt-3 text-[12.5px] text-fg-muted">
+        <summary className="cursor-pointer text-fg-soft">Como ponerlo funcional</summary>
+        <div className="mt-2 space-y-2 leading-relaxed">
+          <p>1. En el Mac, deja encendido el puente:</p>
+          <code className="block rounded-md border border-border bg-bg/65 px-3 py-2 text-[12px] text-fg">
+            cd ~/OperatorBrain &amp;&amp; bash scripts/run.sh
+          </code>
+          <p>
+            2. Si el enlace de Cloudflare cambio, actualiza en Vercel la variable{' '}
+            <code>OPERATOR_COACH_URL</code> con el nuevo enlace.
+          </p>
+          {status?.endpoint ? (
+            <p className="break-all">
+              Endpoint que esta usando produccion ahora:{' '}
+              <span className="text-fg">{status.endpoint}</span>
+            </p>
+          ) : null}
+          <p>3. Pulsa Refresh aqui y vuelve a mandar la mision.</p>
+        </div>
+      </details>
+    </div>
+  );
+}
+
+function RuntimeControls({
+  mode,
+  running,
+  tools,
+  permissions,
+  setMode,
+  toggleTool,
+}: {
+  mode: Mode;
+  running: boolean;
+  tools: ToolState;
+  permissions: ToolState;
+  setMode: (mode: Mode) => void;
+  toggleTool: (key: ToolKey) => void;
+}) {
+  return (
+    <details className="mt-2 text-[12.5px] text-fg-muted">
+      <summary className="inline-flex cursor-pointer list-none items-center gap-2 rounded-full border border-border bg-surface-2 px-3 py-1.5 transition-colors hover:border-gold/35 hover:text-fg">
+        <Wrench className="h-3.5 w-3.5 text-gold" />
+        Herramientas y permisos
+        <ChevronDown className="h-3.5 w-3.5" />
+      </summary>
+
+      <div className="mt-2 space-y-3 rounded-xl border border-border bg-surface/70 p-3">
+        <div>
+          <div className="mb-2 text-[10.5px] uppercase tracking-[0.14em] text-fg-subtle">Modo</div>
+          <div className="flex flex-wrap gap-2">
+            {(['plan', 'dry-run'] as Mode[]).map((item) => (
+              <button
+                key={item}
+                type="button"
+                disabled={running}
+                onClick={() => setMode(item)}
+                className={cn(
+                  'inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-[12px] capitalize transition-colors',
+                  mode === item
+                    ? 'border-gold/40 bg-gold/10 text-gold'
+                    : 'border-border bg-surface-2 text-fg-muted hover:text-fg',
+                )}
+              >
+                {item}
+              </button>
+            ))}
+            <span
+              className="inline-flex h-8 items-center gap-1.5 rounded-full border border-border bg-surface-2 px-3 text-[12px] text-fg-subtle opacity-70"
+              title="Run real queda bloqueado en produccion para evitar escribir o ejecutar comandos peligrosos desde la web."
+            >
+              <LockKeyhole className="h-3 w-3" />
+              run real bloqueado
+            </span>
+          </div>
+        </div>
+
+        <div>
+          <div className="mb-2 flex flex-wrap items-center gap-2">
+            <span className="text-[10.5px] uppercase tracking-[0.14em] text-fg-subtle">
+              Herramientas
+            </span>
+            <span className="inline-flex h-6 items-center gap-1.5 rounded-full bg-success/10 px-2 text-[11px] text-success">
+              <ShieldCheck className="h-3 w-3" />
+              lectura segura
+            </span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {TOOLS.map((tool) => (
+              <ToolChip
+                key={tool.key}
+                label={tool.label}
+                icon={tool.icon}
+                active={permissions[tool.key] || tools[tool.key]}
+                locked={tool.locked}
+                disabled={running}
+                onClick={() => toggleTool(tool.key)}
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+    </details>
+  );
+}
+
 export function CodingRuntimeView({ isAdmin }: { isAdmin: boolean }) {
   const [status, setStatus] = useState<StatusResponse | null>(null);
   const [statusLoading, setStatusLoading] = useState(true);
@@ -332,8 +566,8 @@ export function CodingRuntimeView({ isAdmin }: { isAdmin: boolean }) {
       id: 'hello',
       role: 'assistant',
       content: [
-        'Soy Operator Codex. Escribeme una mision normal, como si hablaras conmigo.',
-        'Puedo leer el repo, buscar codigo, revisar git status y mirar el diff. Terminal, escritura y commits siguen bloqueados en produccion.',
+        'Soy Operator Codex. Mandame una mision normal, como si hablaras conmigo.',
+        'Yo preparo el contexto del repo, reviso git, busco codigo y te contesto con prioridades. Por ahora no escribo archivos ni ejecuto terminal desde produccion.',
       ].join('\n\n'),
     },
   ]);
@@ -341,26 +575,29 @@ export function CodingRuntimeView({ isAdmin }: { isAdmin: boolean }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const permissions = useMemo<ToolState>(() => ({
-    ...tools,
-    terminal: false,
-    writeFiles: false,
-    commit: false,
-  }), [tools]);
+  const permissions = useMemo<ToolState>(
+    () => ({
+      ...tools,
+      terminal: false,
+      writeFiles: false,
+      commit: false,
+    }),
+    [tools],
+  );
 
+  const state = connectionState(status, statusLoading);
   const bridgeConnected = Boolean(status?.bridgeAvailable);
-  const diagnosticText = status?.diagnostic?.bridge ?? status?.diagnostic?.modelMessage ?? null;
   const canSend = input.trim().length > 2 && bridgeConnected && !running;
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
-  }, [messages, running]);
+  }, [messages, running, status]);
 
   async function loadStatus() {
     setStatusLoading(true);
     try {
       const response = await fetch('/api/operator/coding-mission', { credentials: 'include' });
-      const body = await response.json() as StatusResponse;
+      const body = (await response.json()) as StatusResponse;
       setStatus(body);
     } catch (error) {
       setStatus({
@@ -391,13 +628,23 @@ export function CodingRuntimeView({ isAdmin }: { isAdmin: boolean }) {
     const trimmed = task.trim();
     if (!trimmed || running) return;
 
+    if (!bridgeConnected) {
+      toast.error('Puente local apagado');
+      return;
+    }
+
     const loadingId = makeId();
     setInput('');
     setRunning(true);
     setMessages((current) => [
       ...current,
       { id: makeId(), role: 'user', content: trimmed },
-      { id: loadingId, role: 'assistant', content: 'Revisando repo y preparando respuesta...', loading: true },
+      {
+        id: loadingId,
+        role: 'assistant',
+        content: 'Estoy leyendo el repo y preparando respuesta...',
+        loading: true,
+      },
     ]);
 
     try {
@@ -414,25 +661,39 @@ export function CodingRuntimeView({ isAdmin }: { isAdmin: boolean }) {
         }),
       });
 
-      const body = await response.json() as MissionResponse;
+      const body = (await response.json()) as MissionResponse;
       if (!response.ok || !body.ok || !body.data) {
         throw new Error(body.message ?? body.error ?? 'Mission failed');
       }
 
-      setMessages((current) => current.map((message) => (
-        message.id === loadingId
-          ? { id: loadingId, role: 'assistant', content: body.data?.summary ?? 'Listo.', result: body.data }
-          : message
-      )));
-      toast.success('Operator Codex completed');
+      setMessages((current) =>
+        current.map((message) =>
+          message.id === loadingId
+            ? {
+                id: loadingId,
+                role: 'assistant',
+                content: body.data?.summary ?? 'Listo.',
+                result: body.data,
+              }
+            : message,
+        ),
+      );
+      toast.success('Operator Codex listo');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Coding runtime failed';
-      setMessages((current) => current.map((item) => (
-        item.id === loadingId
-          ? { id: loadingId, role: 'assistant', content: `No he podido ejecutar la mision: ${message}` }
-          : item
-      )));
+      setMessages((current) =>
+        current.map((item) =>
+          item.id === loadingId
+            ? {
+                id: loadingId,
+                role: 'assistant',
+                content: `No he podido ejecutar la mision: ${message}`,
+              }
+            : item,
+        ),
+      );
       toast.error(message);
+      void loadStatus();
     } finally {
       setRunning(false);
       window.setTimeout(() => textareaRef.current?.focus(), 0);
@@ -463,113 +724,51 @@ export function CodingRuntimeView({ isAdmin }: { isAdmin: boolean }) {
   }
 
   return (
-    <main className="mx-auto flex h-[calc(100dvh-82px)] w-full max-w-[1180px] flex-col px-3 py-4 sm:px-5">
-      <header className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-surface/75 px-4 py-3">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-gold">
-            <Terminal className="h-3.5 w-3.5" />
-            Operator Codex
+    <main className="mx-auto flex h-[calc(100dvh-82px)] w-full max-w-[1040px] flex-col px-3 sm:px-5">
+      <header className="flex h-14 shrink-0 items-center justify-between gap-3 border-b border-border/70">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-gold/25 bg-gold/10">
+            <Terminal className="h-4 w-4 text-gold" />
           </div>
-          <h1 className="mt-1 font-display text-2xl leading-none text-fg sm:text-3xl">Repo chat</h1>
+          <div className="min-w-0">
+            <div className="truncate text-[14px] font-medium text-fg">Operator Codex</div>
+            <div className="truncate text-[12px] text-fg-muted">{state.title}</div>
+          </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="inline-flex h-8 items-center gap-1.5 rounded-full border border-border bg-surface-2 px-3 text-[12px] text-fg-muted">
-            <StatusDot ok={status?.bridgeAvailable} loading={statusLoading} />
-            Bridge
-          </span>
-          <span className="inline-flex h-8 items-center gap-1.5 rounded-full border border-border bg-surface-2 px-3 text-[12px] text-fg-muted">
-            <StatusDot ok={status?.modelAvailable} loading={statusLoading} />
-            Qwen
-          </span>
-          <Button type="button" variant="secondary" size="sm" onClick={() => void loadStatus()} disabled={statusLoading}>
+        <div className="flex shrink-0 items-center gap-2">
+          <StatusPill label="Bridge" ok={status?.bridgeAvailable} loading={statusLoading} />
+          <StatusPill label="Qwen" ok={status?.modelAvailable} loading={statusLoading} />
+          <Button
+            type="button"
+            variant="secondary"
+            size="icon"
+            onClick={() => void loadStatus()}
+            disabled={statusLoading}
+            aria-label="Refresh runtime status"
+          >
             <RefreshCw className={cn('h-3.5 w-3.5', statusLoading && 'animate-spin')} />
-            Refresh
           </Button>
         </div>
       </header>
 
-      {diagnosticText ? (
-        <div className="mb-3 rounded-lg border border-danger/25 bg-danger/5 px-4 py-2 text-[12.5px] text-danger">
-          {diagnosticText}
-        </div>
-      ) : null}
+      <section ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-1 py-6">
+        <ConnectionNotice
+          status={status}
+          loading={statusLoading}
+          onRefresh={() => void loadStatus()}
+        />
 
-      <section
-        ref={scrollRef}
-        className="min-h-0 flex-1 overflow-y-auto rounded-lg border border-border bg-bg/35 px-3 py-4 sm:px-5"
-      >
-        <div className="mx-auto flex max-w-[920px] flex-col gap-5">
+        <div className="mx-auto flex max-w-[860px] flex-col gap-5">
           {messages.map((message) => (
             <ChatBubble key={message.id} message={message} />
           ))}
         </div>
       </section>
 
-      <footer className="mt-3 rounded-lg border border-border bg-surface/90 p-3 shadow-2xl">
-        <div className="mx-auto max-w-[920px]">
-          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-            <div className="flex flex-wrap items-center gap-2">
-              {(['plan', 'dry-run', 'run'] as Mode[]).map((item) => {
-                const locked = item === 'run';
-                const active = mode === item;
-                return (
-                  <button
-                    key={item}
-                    type="button"
-                    disabled={locked || running}
-                    onClick={() => setMode(item)}
-                    className={cn(
-                      'inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-[12px] capitalize transition-colors',
-                      active ? 'border-gold/40 bg-gold/10 text-gold' : 'border-border bg-surface-2 text-fg-muted hover:text-fg',
-                      locked && 'cursor-not-allowed opacity-45',
-                    )}
-                  >
-                    {locked ? <LockKeyhole className="h-3 w-3" /> : null}
-                    {item}
-                  </button>
-                );
-              })}
-            </div>
-
-            <button
-              type="button"
-              onClick={() => void copyLastOutput()}
-              className="inline-flex h-8 items-center gap-1.5 rounded-full border border-border bg-surface-2 px-3 text-[12px] text-fg-muted transition-colors hover:text-fg"
-            >
-              <Copy className="h-3.5 w-3.5" />
-              Copiar ultimo detalle
-            </button>
-          </div>
-
-          <details className="mb-2 rounded-lg border border-border bg-bg/30 px-3 py-2">
-            <summary className="flex cursor-pointer list-none items-center justify-between text-[12.5px] text-fg-muted">
-              <span className="inline-flex items-center gap-2">
-                <Wrench className="h-3.5 w-3.5 text-gold" />
-                Herramientas
-              </span>
-              <ChevronDown className="h-4 w-4" />
-            </summary>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {TOOLS.map((tool) => (
-                <ToolChip
-                  key={tool.key}
-                  label={tool.label}
-                  icon={tool.icon}
-                  active={permissions[tool.key]}
-                  locked={tool.locked}
-                  disabled={running}
-                  onClick={() => toggleTool(tool.key)}
-                />
-              ))}
-              <span className="inline-flex h-8 items-center gap-1.5 rounded-full bg-success/10 px-3 text-[12px] text-success">
-                <ShieldCheck className="h-3.5 w-3.5" />
-                Lectura segura
-              </span>
-            </div>
-          </details>
-
-          <div className="flex items-end gap-2 rounded-xl border border-border bg-bg/70 p-2 focus-within:border-gold/45 focus-within:ring-2 focus-within:ring-gold/10">
+      <footer className="shrink-0 border-t border-border/70 bg-bg/95 pb-4 pt-3">
+        <div className="mx-auto max-w-[860px]">
+          <div className="flex items-end gap-2 rounded-2xl border border-border bg-surface/90 p-2 shadow-2xl focus-within:border-gold/45 focus-within:ring-2 focus-within:ring-gold/10">
             <textarea
               ref={textareaRef}
               value={input}
@@ -581,12 +780,43 @@ export function CodingRuntimeView({ isAdmin }: { isAdmin: boolean }) {
                 }
               }}
               rows={1}
-              placeholder="Escribe una mision para el repo..."
+              placeholder={
+                bridgeConnected
+                  ? 'Dime que hacemos con el repo...'
+                  : 'Enciende el puente del Mac para poder ejecutar misiones...'
+              }
               className="max-h-36 min-h-11 flex-1 resize-none bg-transparent px-2 py-2 text-[15px] leading-relaxed text-fg outline-none placeholder:text-fg-subtle"
             />
-            <Button type="button" size="icon" onClick={() => void runMission(input)} disabled={!canSend} loading={running} aria-label="Run mission">
+            <Button
+              type="button"
+              size="icon"
+              onClick={() => void runMission(input)}
+              disabled={!canSend}
+              loading={running}
+              aria-label="Enviar mision"
+            >
               {!running ? <Play className="h-4 w-4" /> : null}
             </Button>
+          </div>
+
+          <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+            <RuntimeControls
+              mode={mode}
+              running={running}
+              tools={tools}
+              permissions={permissions}
+              setMode={setMode}
+              toggleTool={toggleTool}
+            />
+
+            <button
+              type="button"
+              onClick={() => void copyLastOutput()}
+              className="inline-flex h-8 items-center gap-1.5 rounded-full border border-border bg-surface-2 px-3 text-[12px] text-fg-muted transition-colors hover:text-fg"
+            >
+              <Copy className="h-3.5 w-3.5" />
+              Copiar detalle
+            </button>
           </div>
 
           <div className="mt-2 flex flex-wrap gap-2">
