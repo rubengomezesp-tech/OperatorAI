@@ -13,7 +13,20 @@ export async function GET() {
 
     const svc = createSupabaseServiceClient();
     const { orgId } = await resolveOrgContext(svc, user.id);
-    const { data } = await svc.from('brand_profile').select('*').eq('org_id', orgId).maybeSingle();
+    let { data, error } = await svc
+      .from('brand_profile')
+      .select('*')
+      .eq('org_id', orgId)
+      .eq('is_active' as never, true as never)
+      .maybeSingle();
+
+    if (error?.message.includes('column')) {
+      const fallback = await svc.from('brand_profile').select('*').eq('org_id', orgId).maybeSingle();
+      data = fallback.data;
+      error = fallback.error;
+    }
+
+    if (error && error.code !== 'PGRST116') throw error;
 
     return NextResponse.json({ profile: data });
   } catch {
