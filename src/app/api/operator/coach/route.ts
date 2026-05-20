@@ -6,9 +6,12 @@ import { checkUsage, incrementUsage } from '@/lib/billing/usage';
 import { isChatDisabled, isMaintenanceMode } from '@/lib/admin/maintenance';
 import {
   runCoach,
-  isCoachAvailable,
   OperatorCoachUnavailableError,
 } from '@/lib/operator/coach-service';
+import {
+  getOperatorCoachPublicConfig,
+  probeOperatorCoach,
+} from '@/lib/operator/coach-endpoint';
 import { resolveOrgContext } from '@/features/chat/server/resolve-org-context';
 
 export const runtime = 'nodejs';
@@ -39,12 +42,20 @@ const BodySchema = z.object({
 /* -------------------------------------------------------------------------- */
 
 export async function GET() {
-  const available = await isCoachAvailable();
+  const probe = await probeOperatorCoach();
+  const config = getOperatorCoachPublicConfig();
   return NextResponse.json({
     ok: true,
-    coachAvailable: available,
-    model: 'operator-qwen14b',
-    endpoint: 'http://localhost:1234',
+    coachAvailable: probe.ok,
+    model: config.model,
+    endpoint: config.url,
+    authHeader: config.authHeader,
+    hasApiKey: config.hasApiKey,
+    diagnostic: {
+      stage: probe.errorStage ?? null,
+      message: probe.errorMessage ?? null,
+      models: process.env.NODE_ENV === 'production' ? undefined : probe.models,
+    },
   });
 }
 

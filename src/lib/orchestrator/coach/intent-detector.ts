@@ -22,6 +22,10 @@
  */
 
 import { COACH_CONFIG, type Intent, type IntentDetection } from './types';
+import {
+  getOperatorCoachConfig,
+  getOperatorCoachHeaders,
+} from '@/lib/operator/coach-endpoint';
 
 /* -------------------------------------------------------------------------- */
 /*  HEURÍSTICAS DETERMINISTAS                                                  */
@@ -187,11 +191,12 @@ interface ClassifierResponse {
 }
 
 async function detectByModel(message: string, signal?: AbortSignal): Promise<IntentDetection> {
-  const res = await fetch(`${COACH_CONFIG.url}/v1/chat/completions`, {
+  const config = getOperatorCoachConfig();
+  const res = await fetch(`${config.url}/v1/chat/completions`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: getOperatorCoachHeaders(config),
     body: JSON.stringify({
-      model: COACH_CONFIG.model,
+      model: config.model,
       messages: [
         { role: 'system', content: INTENT_CLASSIFIER_PROMPT },
         { role: 'user', content: message },

@@ -30,6 +30,10 @@ import {
   type ToolCallRequest,
   type ToolExecutionResult,
 } from './types';
+import {
+  getOperatorCoachConfig,
+  getOperatorCoachHeaders,
+} from '@/lib/operator/coach-endpoint';
 
 /* -------------------------------------------------------------------------- */
 /*  Streaming primitivo del coach (OpenAI-compatible API)                      */
@@ -49,18 +53,25 @@ async function* streamCoach(
   messages: OpenAIMessage[],
   opts: { temperature: number; maxTokens: number; signal?: AbortSignal },
 ): AsyncGenerator<{ type: 'delta'; value: string } | { type: 'final'; data: StreamFinal }> {
-  const res = await fetch(`${COACH_CONFIG.url}/v1/chat/completions`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: COACH_CONFIG.model,
-      messages,
-      temperature: opts.temperature,
-      max_tokens: opts.maxTokens,
-      stream: true,
-    }),
-    signal: opts.signal,
-  });
+  const config = getOperatorCoachConfig();
+  let res: Response;
+  try {
+    res = await fetch(`${config.url}/v1/chat/completions`, {
+      method: 'POST',
+      headers: getOperatorCoachHeaders(config),
+      body: JSON.stringify({
+        model: config.model,
+        messages,
+        temperature: opts.temperature,
+        max_tokens: opts.maxTokens,
+        stream: true,
+      }),
+      signal: opts.signal,
+    });
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new Error(`Coach endpoint unreachable at ${config.url}: ${detail}`);
+  }
 
   if (!res.ok || !res.body) {
     const errText = await res.text().catch(() => 'unknown');
