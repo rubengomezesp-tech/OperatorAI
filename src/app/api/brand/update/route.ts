@@ -27,6 +27,7 @@ function buildBrandPayload(body: Record<string, unknown>, orgId: string, minimal
 
   return {
     ...base,
+    logo_url: normalizeOptionalString(body.logo_url) ?? normalizeOptionalString(body.detected_logo_url),
     colors: Array.isArray(body.colors) ? body.colors : [],
     fonts: Array.isArray(body.fonts) ? body.fonts : [],
     target_audience: normalizeOptionalString(body.target_audience),

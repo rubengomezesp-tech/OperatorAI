@@ -28,7 +28,25 @@ export async function GET() {
 
     if (error && error.code !== 'PGRST116') throw error;
 
-    return NextResponse.json({ profile: data });
+    const profile = data
+      ? {
+          ...(data as Record<string, unknown>),
+          website_url:
+            (data as Record<string, unknown>).website_url
+            ?? (data as Record<string, unknown>).source_url
+            ?? null,
+          detected_logo_url:
+            (data as Record<string, unknown>).detected_logo_url
+            ?? (data as Record<string, unknown>).logo_url
+            ?? null,
+          detected_colors:
+            (data as Record<string, unknown>).detected_colors
+            ?? (data as Record<string, unknown>).colors
+            ?? null,
+        }
+      : null;
+
+    return NextResponse.json({ profile });
   } catch {
     return NextResponse.json({ profile: null });
   }

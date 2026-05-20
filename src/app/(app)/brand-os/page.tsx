@@ -24,7 +24,9 @@ interface BrandProfile {
   brand_values: string[];
   competitors?: string[];
   website_url?: string;
+  source_url?: string;
   detected_logo_url?: string;
+  logo_url?: string;
   detected_colors?: {
     primary?: string;
     secondary?: string;
@@ -58,6 +60,33 @@ const DEFAULT: BrandProfile = {
 
 const PRESET_COLORS = ['#C9A863', '#1A1A1B', '#FFFFFF', '#0A0A0B', '#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#14B8A6', '#F97316'];
 
+function getProfileWebsite(profile: Partial<BrandProfile> | null | undefined): string {
+  return profile?.website_url || profile?.source_url || '';
+}
+
+function getProfileLogo(profile: Partial<BrandProfile>): string | undefined {
+  return profile.detected_logo_url || profile.logo_url || undefined;
+}
+
+function normalizeUrl(input: string): string {
+  const trimmed = input.trim();
+  if (!trimmed) return '';
+  return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+}
+
+function uniqueColors(values: Array<string | undefined | null>): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const value of values) {
+    if (!value || !/^#[0-9a-f]{6}$/i.test(value)) continue;
+    const color = value.toLowerCase();
+    if (seen.has(color)) continue;
+    seen.add(color);
+    out.push(color);
+  }
+  return out;
+}
+
 export default function BrandOSPage() {
   const { locale } = useI18n();
   const [bp, setBp] = useState<BrandProfile>(DEFAULT);
@@ -66,6 +95,8 @@ export default function BrandOSPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [rescanning, setRescanning] = useState(false);
+  const [websiteUrl, setWebsiteUrl] = useState('');
+  const [extractMeta, setExtractMeta] = useState<{ confidence?: number; warnings?: string[] } | null>(null);
   const [newColor, setNewColor] = useState('#C9A863');
   const [newTag, setNewTag] = useState('');
   const [tagField, setTagField] = useState<keyof BrandProfile | null>(null);
@@ -77,7 +108,10 @@ export default function BrandOSPage() {
       fetch('/api/integrations/list').then((r) => r.json()),
     ])
       .then(([brandData, kbData, intData]) => {
-        if (brandData.profile) setBp({ ...DEFAULT, ...brandData.profile });
+        if (brandData.profile) {
+          setBp({ ...DEFAULT, ...brandData.profile });
+          setWebsiteUrl(getProfileWebsite(brandData.profile));
+        }
         const docs = (kbData.documents ?? []) as BrandAsset[];
         setAssets(docs.filter((d) => d.category === 'brand' || d.is_brand_asset));
         if (Array.isArray(intData.integrations)) setIntegrations(intData.integrations);
@@ -91,7 +125,11 @@ export default function BrandOSPage() {
       const res = await fetch('/api/brand/update', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(bp),
+        body: JSON.stringify({
+          ...bp,
+          website_url: websiteUrl,
+          detected_logo_url: getProfileLogo(bp),
+        }),
       });
       if (!res.ok) throw new Error('Failed');
       toast.success(locale === 'es' ? 'Marca guardada' : 'Brand saved');
@@ -103,23 +141,60 @@ export default function BrandOSPage() {
   }
 
   async function rescanUrl() {
-    if (!bp.website_url?.trim()) {
+    await extractFromUrl();
+  }
+
+  async function extractFromUrl() {
+    const url = normalizeUrl(websiteUrl);
+    if (!url) {
       toast.error(locale === 'es' ? 'Sin URL configurada' : 'No URL configured');
       return;
     }
     setRescanning(true);
+    setExtractMeta(null);
     try {
       const res = await fetch('/api/brand/extract', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: bp.website_url, persist: true }),
+        body: JSON.stringify({ url, persist: true, downloadLogo: true }),
       });
       const body = await res.json();
       if (!res.ok) throw new Error(body?.error ?? 'Failed');
-      toast.success(locale === 'es' ? 'URL re-escaneada' : 'URL re-scanned');
-      // Reload brand
-      const brandData = await fetch('/api/brand/get').then((r) => r.json());
-      if (brandData.profile) setBp({ ...DEFAULT, ...brandData.profile });
+
+      const extracted = body.extracted ?? {};
+      const brand = body.brand ?? {};
+      const extractedColors = extracted.colors ?? {};
+      const colors = uniqueColors([
+        extractedColors.primary,
+        extractedColors.secondary,
+        extractedColors.accent,
+        extractedColors.background,
+        ...((extractedColors.palette ?? []) as Array<{ hex?: string }>).map((color) => color.hex),
+      ]);
+      const fonts = [
+        extracted.fonts?.primary?.family,
+        extracted.fonts?.display?.family,
+        ...((extracted.fonts?.detected ?? []) as string[]),
+      ].filter((font, index, list): font is string => Boolean(font) && list.indexOf(font) === index);
+
+      setWebsiteUrl(url);
+      setBp((prev) => ({
+        ...prev,
+        website_url: url,
+        brand_name: extracted.name || brand.name || prev.brand_name,
+        description: extracted.description || prev.description,
+        industry: extracted.industry || prev.industry,
+        colors: colors.length > 0 ? colors : prev.colors,
+        fonts: fonts.length > 0 ? fonts : prev.fonts,
+        detected_logo_url: brand.logoUrl || extracted.logoUrl || prev.detected_logo_url,
+        logo_url: brand.logoUrl || extracted.logoUrl || prev.logo_url,
+        detected_colors: extracted.colors || prev.detected_colors,
+      }));
+      setExtractMeta({
+        confidence: body.meta?.confidence,
+        warnings: body.meta?.warnings,
+      });
+      toast.success(locale === 'es' ? 'Contexto importado desde la web' : 'Website context imported');
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed');
     } finally {
@@ -146,6 +221,8 @@ export default function BrandOSPage() {
   }
 
   const connectedCount = integrations.filter((i) => i.status === 'connected').length;
+  const profileWebsite = websiteUrl || getProfileWebsite(bp);
+  const profileLogo = getProfileLogo(bp);
 
   return (
     <div className="px-6 lg:px-10 py-8 max-w-[1080px] w-full mx-auto space-y-6">
@@ -180,7 +257,7 @@ export default function BrandOSPage() {
               <span className="text-[10.5px] uppercase tracking-[0.16em] text-fg-subtle">
                 {t('Identity', 'Identidad')}
               </span>
-              {bp.website_url && (
+              {profileWebsite && (
                 <button
                   onClick={rescanUrl}
                   disabled={rescanning}
@@ -197,9 +274,9 @@ export default function BrandOSPage() {
               )}
             </div>
             <div className="flex items-center gap-3">
-              {bp.detected_logo_url ? (
+              {profileLogo ? (
                 <img
-                  src={bp.detected_logo_url}
+                  src={profileLogo}
                   alt="Logo"
                   className="h-14 w-14 rounded-lg border border-border bg-white object-contain p-1.5"
                 />
@@ -212,15 +289,15 @@ export default function BrandOSPage() {
                 <div className="font-display text-[14.5px] truncate">
                   {bp.brand_name || t('No name yet', 'Sin nombre')}
                 </div>
-                {bp.website_url ? (
+                {profileWebsite ? (
                   <a
-                    href={bp.website_url}
+                    href={profileWebsite}
                     target="_blank"
                     rel="noreferrer"
                     className="text-[12px] text-fg-muted hover:text-gold inline-flex items-center gap-1 truncate"
                   >
                     <Globe className="h-3 w-3 shrink-0" />
-                    <span className="truncate">{bp.website_url.replace(/^https?:\/\//, '')}</span>
+                    <span className="truncate">{profileWebsite.replace(/^https?:\/\//, '')}</span>
                   </a>
                 ) : (
                   <div className="text-[12px] text-fg-subtle">{t('No URL', 'Sin URL')}</div>
@@ -288,6 +365,81 @@ export default function BrandOSPage() {
           </CardBody>
         </Card>
       </div>
+
+      {/* URL IMPORT */}
+      <Card>
+        <CardBody className="space-y-4">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <Globe className="h-4 w-4 text-gold" />
+                <h2 className="font-display text-[16px]">
+                  {t('Import from website', 'Importar desde web')}
+                </h2>
+              </div>
+              <p className="mt-1 text-[12.5px] text-fg-muted">
+                {t(
+                  'Paste the company URL and Operator will pull name, description, logo, colors and typography signals.',
+                  'Pega la URL de la empresa y Operator extrae nombre, descripción, logo, colores y señales de tipografía.',
+                )}
+              </p>
+            </div>
+            {extractMeta?.confidence !== undefined && (
+              <div className="text-[11px] uppercase tracking-[0.14em] text-fg-subtle">
+                {t('Confidence', 'Confianza')}: {Math.round(extractMeta.confidence * 100)}%
+              </div>
+            )}
+          </div>
+
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <input
+              type="url"
+              value={websiteUrl}
+              onChange={(e) => setWebsiteUrl(e.target.value)}
+              placeholder="https://empresa.com"
+              className="min-h-10 flex-1 rounded-md border border-border bg-surface-2 px-3 py-2 text-[14px] text-fg placeholder:text-fg-subtle outline-none transition-colors focus:border-gold"
+            />
+            <Button onClick={extractFromUrl} loading={rescanning} disabled={!websiteUrl.trim()}>
+              <RefreshCw className="h-3.5 w-3.5" />
+              {t('Extract context', 'Extraer contexto')}
+            </Button>
+          </div>
+
+          {(profileLogo || bp.colors.length > 0 || extractMeta?.warnings?.length) && (
+            <div className="flex flex-col gap-3 rounded-lg border border-border bg-surface-2/40 p-3 sm:flex-row sm:items-center">
+              {profileLogo && (
+                <img
+                  src={profileLogo}
+                  alt=""
+                  className="h-12 w-12 rounded-md border border-border bg-white object-contain p-1"
+                />
+              )}
+              <div className="min-w-0 flex-1 space-y-2">
+                <div className="text-[12.5px] text-fg-soft">
+                  {bp.brand_name || t('Detected brand context', 'Contexto de marca detectado')}
+                </div>
+                {bp.colors.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {bp.colors.slice(0, 8).map((color) => (
+                      <span
+                        key={color}
+                        className="h-5 w-5 rounded border border-border-strong"
+                        style={{ backgroundColor: color }}
+                        title={color}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+              {extractMeta?.warnings?.length ? (
+                <div className="max-w-sm text-[11.5px] text-fg-subtle">
+                  {extractMeta.warnings[0]}
+                </div>
+              ) : null}
+            </div>
+          )}
+        </CardBody>
+      </Card>
 
       {/* BRAND ASSETS LIST */}
       {assets.length > 0 && (
