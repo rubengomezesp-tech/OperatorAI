@@ -338,6 +338,17 @@ function inferToolFromMessage(message: string): ToolCallRequest | null {
     };
   }
 
+  if (/\b(repo|repositorio|github|codex|terminal|c[oó]digo|build|deploy|vercel|commit|branch)/.test(lower)) {
+    return {
+      id: `coach-infer-${Date.now()}`,
+      name: 'coding_mission',
+      arguments: {
+        task: message,
+        mode: 'dry-run',
+      },
+    };
+  }
+
   return null;
 }
 

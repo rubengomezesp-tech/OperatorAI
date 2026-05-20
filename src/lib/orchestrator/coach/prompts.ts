@@ -80,6 +80,26 @@ Argumentos:
 EJEMPLO:
 <tool_call>{"name":"file_analysis","arguments":{"file_id":"abc123","question":"¿Qué producto se vendió más en marzo?"}}</tool_call>`,
 
+  coding_mission: `### coding_mission — runtime tipo Codex para repo/código
+Úsalo cuando el usuario pide conectar al repo, revisar código, inspeccionar GitHub, mirar errores de build/deploy, buscar archivos, analizar diffs o planear cambios técnicos.
+Este runtime NO vive dentro del modelo: es una herramienta separada conectada al Mac mediante el puente seguro.
+
+Argumentos OBLIGATORIOS:
+  - task (string): la misión técnica concreta del usuario, fiel a su mensaje.
+
+Argumentos OPCIONALES:
+  - mode: "plan" | "dry-run". Default "dry-run". Usa "dry-run" para inspeccionar y recomendar sin escribir.
+  - max_files (number): 20-300. Default 120.
+  - max_matches (number): 10-120. Default 40.
+
+EJEMPLO:
+<tool_call>{"name":"coding_mission","arguments":{"task":"Conectate al repo y dime si existe el runtime estilo Codex","mode":"dry-run","max_files":120,"max_matches":40}}</tool_call>
+
+REGLAS:
+  - Si el usuario solo pregunta si puedes ver el repo, usa esta tool con mode "dry-run".
+  - No prometas escribir archivos ni hacer commits desde el chat normal.
+  - Si la tool dice que el bridge no está disponible, explica que hay que encender el puente del Mac.`,
+
   get_brand_assets: `### get_brand_assets — recuperar contexto de marca
 Úsalo CUANDO necesites saber colores, logo, tono o audiencia de la marca del usuario antes de generar algo.
 NO toma argumentos.
@@ -207,6 +227,7 @@ El usuario quiere saber qué eres o qué puedes hacer. Responde con tu voz, en 2
     case 'video':
     case 'knowledge_query':
     case 'file_analysis':
+    case 'coding_task':
     case 'brand_query':
       return buildToolBranch(args);
 

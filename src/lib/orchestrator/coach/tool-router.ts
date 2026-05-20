@@ -126,7 +126,7 @@ export function routeToolCall(parsed: ParsedToolBlock): ToolCallValidation {
     return {
       ok: false,
       reason: 'unknown_tool',
-      details: `La tool "${parsed.rawName}" no existe ni tiene alias conocido. Tools válidas: create_ad, image, video, knowledge_search, file_analysis, get_brand_assets.`,
+      details: `La tool "${parsed.rawName}" no existe ni tiene alias conocido. Tools válidas: create_ad, image, video, knowledge_search, file_analysis, coding_mission, get_brand_assets.`,
     };
   }
 

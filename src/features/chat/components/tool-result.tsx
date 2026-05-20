@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
-import { Pencil, Send, Download, FileText, BookOpen, Image as ImageIcon, Video, Loader2, AlertCircle, X, Undo2, Brush, Eraser, Sparkles, Maximize2 } from 'lucide-react';
+import { Pencil, Send, Download, FileText, BookOpen, Image as ImageIcon, Video, Loader2, AlertCircle, X, Undo2, Brush, Eraser, Sparkles, Maximize2, Terminal } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ActionCardRouter } from './action-card-router';
 
@@ -83,19 +83,35 @@ export function ToolResult({ part }: { part: ToolPart }) {
     );
   }
 
+  if (part.kind === 'coding_mission' && part.result?.text) {
+    return (
+      <div className="my-3 rounded-lg border border-gold/25 bg-surface-2/60 p-3.5">
+        <div className="flex items-center gap-2 text-[11.5px] text-fg-muted mb-2">
+          <Terminal className="h-3 w-3 text-gold" />
+          Coding runtime
+        </div>
+        <div className="text-[13px] text-fg whitespace-pre-wrap leading-relaxed font-mono">
+          {part.result.text}
+        </div>
+      </div>
+    );
+  }
+
   return null;
 }
 
 function ToolRunningCard({ kind, input }: { kind: ToolKind; input: Record<string, unknown> }) {
-  const Icon = kind === 'image' ? ImageIcon : kind === 'video' ? Video : kind === 'file_analysis' ? FileText : BookOpen;
+  const Icon = kind === 'image' ? ImageIcon : kind === 'video' ? Video : kind === 'file_analysis' ? FileText : kind === 'coding_mission' ? Terminal : BookOpen;
   const label =
     kind === 'image' ? 'Composing visual' :
     kind === 'video' ? 'Rendering video' :
-    kind === 'file_analysis' ? 'Analyzing file' : 'Searching knowledge';
+    kind === 'file_analysis' ? 'Analyzing file' :
+    kind === 'coding_mission' ? 'Inspecting repo' : 'Searching knowledge';
   const subtitle =
     kind === 'image' ? (input.prompt as string)?.slice(0, 80) :
     kind === 'video' ? (input.prompt as string)?.slice(0, 80) :
-    kind === 'file_analysis' ? 'Reading content' : (input.query as string)?.slice(0, 80);
+    kind === 'file_analysis' ? 'Reading content' :
+    kind === 'coding_mission' ? (input.task as string)?.slice(0, 80) : (input.query as string)?.slice(0, 80);
 
   return (
     <div className="my-3 inline-flex items-start gap-2.5 rounded-lg border border-gold/20 bg-gold/5 px-3.5 py-2.5">
@@ -119,7 +135,7 @@ function ToolRunningCard({ kind, input }: { kind: ToolKind; input: Record<string
 }
 
 function ToolFailedCard({ kind, error }: { kind: ToolKind; error?: string }) {
-  const label = kind === 'image' ? 'Image failed' : kind === 'video' ? 'Video failed' : kind === 'file_analysis' ? 'Analysis failed' : 'Search failed';
+  const label = kind === 'image' ? 'Image failed' : kind === 'video' ? 'Video failed' : kind === 'file_analysis' ? 'Analysis failed' : kind === 'coding_mission' ? 'Coding runtime failed' : 'Search failed';
   return (
     <div className="my-3 inline-flex items-start gap-2.5 rounded-lg border border-danger/30 bg-danger/5 px-3.5 py-2.5">
       <AlertCircle className="h-4 w-4 text-danger shrink-0 mt-0.5" />
@@ -265,7 +281,7 @@ export function ImageTile({ url }: { url: string }) {
         </div>
       )}
 
-      <ImageEditModal open={editOpen} onClose={() => setEditOpen(false)} imageUrl={url} />
+      <ImageEditModal key={url} open={editOpen} onClose={() => setEditOpen(false)} imageUrl={url} />
     </div>
   );
 }
@@ -290,12 +306,6 @@ function ImageEditModal({ open, onClose, imageUrl }: { open: boolean; onClose: (
   const canUndo = history.length > 1;
 
   useEffect(() => {
-    setHistory([imageUrl]);
-    setPrompt('');
-    setShowEditInput(false);
-    setMaskDataUrl(null);
-    setSelectMode(false);
-
     // Fetch persistent history from DB
     let cancelled = false;
     (async () => {

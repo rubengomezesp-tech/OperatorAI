@@ -122,6 +122,14 @@ export const FileAnalysisSchema = z.object({
   question: z.string().min(2),
 });
 
+/** coding_mission — runtime de repo/código a través del bridge local */
+export const CodingMissionSchema = z.object({
+  task: z.string().min(3, 'task debe explicar la misión técnica'),
+  mode: z.enum(['plan', 'dry-run']).default('dry-run'),
+  max_files: z.number().int().min(20).max(300).default(120),
+  max_matches: z.number().int().min(10).max(120).default(40),
+});
+
 /** get_brand_assets — sin argumentos */
 export const GetBrandAssetsSchema = z.object({}).default({});
 
@@ -210,6 +218,15 @@ const TOOL_NAME_ALIASES: Record<string, CoachToolName> = {
   'fileAnalysis': 'file_analysis',
   'analyze_file': 'file_analysis',
   'analyse_file': 'file_analysis',
+
+  'coding_mission': 'coding_mission',
+  'codingMission': 'coding_mission',
+  'code_mission': 'coding_mission',
+  'repo': 'coding_mission',
+  'repo_agent': 'coding_mission',
+  'codex': 'coding_mission',
+  'terminal_exec': 'coding_mission',
+  'inspect_repo': 'coding_mission',
 
   'get_brand_assets': 'get_brand_assets',
   'getBrandAssets': 'get_brand_assets',
@@ -391,6 +408,32 @@ export function preCoerceArgs(
       break;
     }
 
+    case 'coding_mission': {
+      if (out.prompt && !out.task) {
+        out.task = out.prompt;
+        delete out.prompt;
+        corrections.push(`renombrado "prompt" → "task"`);
+      }
+      if (out.mission && !out.task) {
+        out.task = out.mission;
+        delete out.mission;
+        corrections.push(`renombrado "mission" → "task"`);
+      }
+      if (typeof out.max_files === 'string') {
+        const n = parseInt(out.max_files, 10);
+        if (Number.isFinite(n)) out.max_files = n;
+      }
+      if (typeof out.max_matches === 'string') {
+        const n = parseInt(out.max_matches, 10);
+        if (Number.isFinite(n)) out.max_matches = n;
+      }
+      if (out.mode === 'run') {
+        out.mode = 'dry-run';
+        corrections.push(`mode "run" → "dry-run" en chat normal`);
+      }
+      break;
+    }
+
     case 'get_brand_assets': {
       // No tiene argumentos; limpiamos cualquier basura
       break;
@@ -410,6 +453,7 @@ const SCHEMA_BY_TOOL: Record<CoachToolName, z.ZodSchema> = {
   video: VideoSchema,
   knowledge_search: KnowledgeSearchSchema,
   file_analysis: FileAnalysisSchema,
+  coding_mission: CodingMissionSchema,
   get_brand_assets: GetBrandAssetsSchema,
   // ═══ EXTERNAL TOOLS (Sprint 4) ═══
   web_search: WebSearchSchema,

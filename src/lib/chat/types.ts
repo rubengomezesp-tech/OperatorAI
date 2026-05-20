@@ -1,6 +1,6 @@
 export type UiMessageRole = 'user' | 'assistant';
 
-export type ToolKind = 'image' | 'video' | 'file_analysis' | 'knowledge_search' | 'create_ad' | 'web_search' | 'web_fetch' | 'send_email' | 'read_emails' | 'browser_action';
+export type ToolKind = 'image' | 'video' | 'file_analysis' | 'knowledge_search' | 'coding_mission' | 'get_brand_assets' | 'compose_ad' | 'create_ad' | 'web_search' | 'web_fetch' | 'send_email' | 'read_emails' | 'browser_action';
 export type ToolStatus = 'running' | 'done' | 'failed';
 
 export interface ToolPart {
@@ -13,6 +13,7 @@ export interface ToolPart {
     videoUrl?: string;
     thumbnailUrl?: string;
     text?: string;
+    summary?: string;
     sources?: Array<{ title: string; id: string }>;
   };
   error?: string;

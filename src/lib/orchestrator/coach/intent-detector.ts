@@ -46,6 +46,9 @@ const RX_KNOWLEDGE = /\b(documento|documentos|pdf|pdfs|knowledge|conocimiento|se
 
 const RX_FILE_ANALYSIS = /\b(analiz(?:a|ar|al?o|el?o|alos)|an[áa]lisis|csv|excel|hoja de c[áa]lculo|spreadsheet|datos del archivo)\b/i;
 
+const RX_CODING_TASK = /\b(repo|repositorio|github|gitup|commit|branch|pull\s*request|pr\b|c[oó]digo|codebase|terminal|consola|codex|build|deploy|vercel|typescript|eslint|test|tests|bug|error|stacktrace|runtime|archivo|fichero|carpeta|src\/|package\.json|supabase|sql|migraci[oó]n)\b/i;
+const RX_CODING_VERB = /\b(conecta(?:rte)?|conectar|revisa(?:r)?|mir(?:a|ar)|inspecciona(?:r)?|analiza(?:r)?|arregla(?:r)?|fix|corrige(?:r)?|implementa(?:r)?|edita(?:r)?|lee(?:r)?|busca(?:r)?|ejecuta(?:r)?|corre(?:r)?|deploy(?:ar)?|sube(?:r)?|commitea(?:r)?)\b/i;
+
 const RX_BRAND_QUERY = /\b(mi marca|mi brand|mi logo|mi paleta|mis colores|mi tipograf[íi]a|brand[\s-]?os|brand assets|qu[eé] colores tengo|c[uó]m(?:o|al)? es mi marca)\b/i;
 
 const RX_META = /\b(qu[eé] eres|qui[eé]n eres|qu[eé] (puedes|sabes) hacer|para qu[eé] sirves|c[óo]mo te llamas|cu[áa]les son tus (capacidades|habilidades|funciones)|operator\s?ai|c[óo]mo funcionas)\b/i;
@@ -82,6 +85,15 @@ function detectByHeuristics(message: string): IntentDetection | null {
   const hasVideoIntent = RX_VIDEO_INTENT.test(trimmed);
   const hasVerb = RX_AD_VERBS.test(trimmed);
   const hasEdit = RX_IMAGE_EDIT.test(trimmed);
+
+  // CODING_TASK — repo/código/terminal
+  if (RX_CODING_TASK.test(trimmed) && (RX_CODING_VERB.test(trimmed) || /\b(repo|github|codex|terminal)\b/i.test(trimmed))) {
+    return {
+      intent: 'coding_task',
+      confidence: 0.93,
+      reasoning: 'Detectada petición sobre repo/código/terminal',
+    };
+  }
 
   // CREATE_AD — anuncio finalizado (tiene prioridad sobre image cuando hay verbos)
   if (hasAdIntent && hasVerb) {
@@ -174,6 +186,7 @@ Intents posibles (elige UNO):
 - video: pide generar vídeo, clip o animación
 - knowledge_query: pregunta sobre documentos/PDFs subidos por el usuario
 - file_analysis: pide analizar datos de un archivo CSV/Excel/JSON
+- coding_task: pide revisar, conectar, arreglar, analizar o ejecutar algo en un repo/código/GitHub/terminal
 - brand_query: pregunta sobre su marca, logo, colores, tipografía
 - meta: pregunta qué eres, qué puedes hacer, capacidades de OperatorAI
 - ambiguous: imposible de determinar — necesita aclaración
@@ -333,6 +346,7 @@ export function intentRequiresTool(intent: Intent): boolean {
     intent === 'video' ||
     intent === 'knowledge_query' ||
     intent === 'file_analysis' ||
+    intent === 'coding_task' ||
     intent === 'brand_query'
   );
 }
@@ -355,6 +369,8 @@ export function toolsForIntent(intent: Intent): import('./types').CoachToolName[
       return ['knowledge_search'];
     case 'file_analysis':
       return ['file_analysis'];
+    case 'coding_task':
+      return ['coding_mission'];
     case 'brand_query':
       return ['get_brand_assets'];
     default:

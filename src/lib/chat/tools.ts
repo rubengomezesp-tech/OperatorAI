@@ -2,6 +2,10 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 
 import { executeAdapter, type ExternalToolName } from '@/lib/orchestrator/tools';
+import {
+  getOperatorCoachConfig,
+  getOperatorCoachHeaders,
+} from '@/lib/operator/coach-endpoint';
 
 import {
   getIntegrationToolSpecs,
@@ -10,7 +14,7 @@ import {
   type IntegrationToolSpec,
 } from './integration-tools';
 
-export type ToolKind = 'image' | 'video' | 'file_analysis' | 'knowledge_search' | 'get_brand_assets' | 'compose_ad' | 'create_ad' | 'web_search' | 'web_fetch' | 'send_email' | 'read_emails' | 'browser_action';
+export type ToolKind = 'image' | 'video' | 'file_analysis' | 'knowledge_search' | 'coding_mission' | 'get_brand_assets' | 'compose_ad' | 'create_ad' | 'web_search' | 'web_fetch' | 'send_email' | 'read_emails' | 'browser_action';
 
 export interface ToolSpec {
   name: ToolKind;
@@ -141,6 +145,7 @@ export interface ToolResult {
     videoUrl?: string;
     thumbnailUrl?: string;
     text?: string;
+    summary?: string;
     sources?: Array<{ title: string; id: string }>;
   };
   error?: string;
@@ -206,6 +211,7 @@ export async function executeTool(
       case 'video': return await execVideo(input, ctx);
       case 'file_analysis': return await execFileAnalysis(input, ctx);
       case 'knowledge_search': return await execKnowledgeSearch(input, ctx);
+      case 'coding_mission': return await execCodingMission(input, ctx);
       case 'get_brand_assets': return await execGetBrandAssets(input, ctx);
       case 'compose_ad': return await execComposeAd(input, ctx);
       case 'create_ad': return await execCreateAd(input, ctx);
@@ -264,6 +270,55 @@ export async function executeTool(
     const msg = e instanceof Error ? e.message : 'Tool execution failed';
     console.error('[tools.execute]', name, msg);
     return { ok: false, error: msg };
+  }
+}
+
+async function execCodingMission(input: Record<string, unknown>, ctx: ToolContext): Promise<ToolResult> {
+  const task = String(input.task ?? '').trim();
+  if (!task) return { ok: false, error: 'Missing coding task' };
+
+  const config = getOperatorCoachConfig();
+  try {
+    const res = await fetch(`${config.url}/v1/coding-mission`, {
+      method: 'POST',
+      headers: getOperatorCoachHeaders(config),
+      body: JSON.stringify({
+        task,
+        mode: input.mode === 'plan' ? 'plan' : 'dry-run',
+        maxFiles: Number(input.max_files ?? 120),
+        maxMatches: Number(input.max_matches ?? 40),
+        orgId: ctx.orgId,
+        userId: ctx.userId,
+      }),
+      signal: ctx.signal,
+    });
+
+    const body = await res.json().catch(() => ({})) as {
+      ok?: boolean;
+      text?: string;
+      summary?: string;
+      error?: string;
+    };
+
+    if (!res.ok || body.ok === false) {
+      return {
+        ok: false,
+        error: body.error ?? `Coding bridge failed (${res.status})`,
+      };
+    }
+
+    return {
+      ok: true,
+      result: {
+        text: body.text ?? body.summary ?? 'Coding runtime returned no text.',
+        summary: body.summary,
+      },
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : 'Coding bridge unavailable',
+    };
   }
 }
 
@@ -674,4 +729,3 @@ async function execExternalAdapter(
     },
   };
 }
-

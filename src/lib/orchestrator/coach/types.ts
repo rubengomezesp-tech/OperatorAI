@@ -21,6 +21,7 @@ export type Intent =
   | 'video'             // vídeo corto
   | 'knowledge_query'   // pregunta sobre documentos del usuario
   | 'file_analysis'     // análisis de archivo (CSV, Excel, JSON)
+  | 'coding_task'       // inspección o trabajo sobre repos/código/terminal
   | 'brand_query'       // pregunta sobre la marca del usuario
   | 'meta'              // pregunta sobre OperatorAI mismo (capacidades, etc.)
   | 'ambiguous';        // no se puede determinar — pedir aclaración
@@ -42,7 +43,7 @@ export type CoachToolName =
   | 'video'
   | 'knowledge_search'
   | 'file_analysis'
-  | 'get_brand_assets' | 'web_search' | 'web_fetch' | 'send_email' | 'read_emails' | 'browser_action';
+  | 'get_brand_assets' | 'coding_mission' | 'web_search' | 'web_fetch' | 'send_email' | 'read_emails' | 'browser_action';
 
 /** Tool calls que el coach NUNCA debe usar directamente (se filtran del prompt) */
 export const HIDDEN_TOOLS: ReadonlySet<string> = new Set([
@@ -81,6 +82,7 @@ export interface ToolExecutionResult {
     videoUrl?: string;
     thumbnailUrl?: string;
     text?: string;
+    summary?: string;
     sources?: Array<{ title: string; id: string }>;
   };
   error?: string;
