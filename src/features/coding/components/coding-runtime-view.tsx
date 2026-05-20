@@ -453,7 +453,7 @@ function ConnectionNotice({
         <div className="mt-2 space-y-2 leading-relaxed">
           <p>1. En el Mac, deja encendido el puente:</p>
           <code className="block rounded-md border border-border bg-bg/65 px-3 py-2 text-[12px] text-fg">
-            cd ~/OperatorBrain &amp;&amp; bash scripts/run.sh
+            cd ~/OperatorBrain &amp;&amp; bash scripts/start_coach_tunnel.sh
           </code>
           <p>
             2. Si el enlace de Cloudflare cambio, actualiza en Vercel la variable{' '}
