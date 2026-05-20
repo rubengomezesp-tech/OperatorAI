@@ -127,42 +127,10 @@ export function LandingPageClient({ content }: Props) {
 
             <motion.p
               variants={fadeUp}
-              className="text-[16px] sm:text-[20px] text-fg-muted max-w-2xl mx-auto mb-10 leading-relaxed"
+              className="text-[16px] sm:text-[20px] text-fg-muted max-w-2xl mx-auto mb-0 leading-relaxed"
             >
               {tx(content.hero_subtitle)}
             </motion.p>
-
-            <motion.div
-              variants={fadeUp}
-              className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-6"
-            >
-              <Magnetic>
-                <Link
-                  href="/signup"
-                  className="group inline-flex items-center justify-center gap-2 rounded-lg gold-grad text-bg font-medium text-[15px] shadow-[0_8px_30px_rgb(201_168_99_/_0.4)] hover:shadow-[0_12px_40px_rgb(201_168_99_/_0.55)] transition-all w-full sm:w-auto px-8"
-                  style={{ height: '52px' }}
-                >
-                  {tx(content.cta_primary)}
-                  <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-                </Link>
-              </Magnetic>
-
-              <a
-                href="#demo"
-                className="inline-flex items-center justify-center gap-2 rounded-lg border border-border bg-surface-2/60 backdrop-blur-md text-fg text-[14.5px] hover:bg-surface-3 hover:border-gold/30 transition-colors w-full sm:w-auto px-6"
-                style={{ height: '52px' }}
-              >
-                {tx(content.cta_secondary)}
-              </a>
-            </motion.div>
-
-            <motion.div
-              variants={fadeUp}
-              className="flex items-center justify-center gap-2 text-[12.5px] text-fg-subtle"
-            >
-              <Check className="h-3.5 w-3.5 text-gold/70" />
-              <span>{tx(content.trial_badge)}</span>
-            </motion.div>
           </motion.div>
 
           {/* DEMO INTERACTIVO */}

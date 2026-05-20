@@ -190,7 +190,6 @@ export function HomeContentEditor() {
         <Field label="Title (gold accent)" value={content.hero_title_accent[lang]} onChange={(v) => updateBilingual(['hero_title_accent'], v)} />
         <Field label="Subtitle" value={content.hero_subtitle[lang]} onChange={(v) => updateBilingual(['hero_subtitle'], v)} multiline />
         <Field label="Primary CTA" value={content.cta_primary[lang]} onChange={(v) => updateBilingual(['cta_primary'], v)} />
-        <Field label="Secondary CTA" value={content.cta_secondary[lang]} onChange={(v) => updateBilingual(['cta_secondary'], v)} />
         <Field label="Trial badge" value={content.trial_badge[lang]} onChange={(v) => updateBilingual(['trial_badge'], v)} />
       </Section>
 
