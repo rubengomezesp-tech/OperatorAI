@@ -58,7 +58,7 @@ export function getOperatorCoachConfig(): OperatorCoachConfig {
       || readEnv('OPERATOR_COACH_PROXY_TOKEN')
       || readEnv('LOCAL_OPERATOR_API_KEY'),
     authHeader: readEnv('OPERATOR_COACH_AUTH_HEADER') || 'Authorization',
-    timeoutMs: Number(readEnv('OPERATOR_COACH_TIMEOUT_MS') || 10_000),
+    timeoutMs: Number(readEnv('OPERATOR_COACH_TIMEOUT_MS') || 45_000),
   };
 }
 
