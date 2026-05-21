@@ -207,7 +207,9 @@ function connectionState(status: StatusResponse | null, loading: boolean) {
     return {
       tone: 'error' as const,
       title: 'Puente local apagado',
-      detail: status.diagnostic?.bridge ?? 'Vercel no puede alcanzar el puente del Mac.',
+      detail:
+        status.diagnostic?.bridge ??
+        'Vercel no puede alcanzar el puente fijo del Mac en qwen.operatoraiapp.com.',
     };
   }
 
@@ -224,7 +226,7 @@ function connectionState(status: StatusResponse | null, loading: boolean) {
   return {
     tone: 'ready' as const,
     title: 'Listo',
-    detail: 'Puede inspeccionar el repo en modo lectura segura.',
+    detail: 'Qwen esta conectado por el puente fijo y puede inspeccionar el repo en modo lectura segura.',
   };
 }
 
@@ -451,13 +453,13 @@ function ConnectionNotice({
       <details className="mt-3 text-[12.5px] text-fg-muted">
         <summary className="cursor-pointer text-fg-soft">Como ponerlo funcional</summary>
         <div className="mt-2 space-y-2 leading-relaxed">
-          <p>1. En el Mac, deja encendido el puente:</p>
+          <p>1. En el Mac, arranca o reinicia los servicios del puente fijo:</p>
           <code className="block rounded-md border border-border bg-bg/65 px-3 py-2 text-[12px] text-fg">
-            cd ~/OperatorBrain &amp;&amp; bash scripts/start_coach_tunnel.sh
+            cd ~/OperatorBrain &amp;&amp; bash scripts/restart_coach_services.sh
           </code>
           <p>
-            2. Si el enlace de Cloudflare cambio, actualiza en Vercel la variable{' '}
-            <code>OPERATOR_COACH_URL</code> con el nuevo enlace.
+            2. Vercel debe tener <code>OPERATOR_COACH_URL</code> apuntando siempre a{' '}
+            <code>https://qwen.operatoraiapp.com</code>.
           </p>
           {status?.endpoint ? (
             <p className="break-all">
