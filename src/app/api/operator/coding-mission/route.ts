@@ -76,28 +76,49 @@ async function bridgeHealth() {
   }
 }
 
+function isCreationMission(task: string): boolean {
+  return /diseñ|disen|design|ui|ux|pantalla|layout|landing|feature|funci[oó]n|crear|crea|añad|anad|implementar|panel|bot[oó]n|formulario|componente/i
+    .test(task);
+}
+
 async function buildCodingAnalysis(input: {
   task: string;
   bridgeText: string;
 }): Promise<string | null> {
   const config = getOperatorCoachConfig();
+  const creationMission = isCreationMission(input.task);
   try {
     const response = await fetch(`${config.url}/v1/chat/completions`, {
       method: 'POST',
       headers: getOperatorCoachHeaders(config),
       body: JSON.stringify({
         model: config.model,
-        temperature: 0.15,
-        max_tokens: 900,
+        temperature: creationMission ? 0.22 : 0.15,
+        max_tokens: creationMission ? 1200 : 900,
         messages: [
           {
             role: 'system',
-            content: [
-              'Eres Operator Codex, un reviewer senior de repos.',
-              'Convierte la inspección técnica en una respuesta breve, accionable y en español.',
-              'No inventes acceso de escritura. Si solo hay modo lectura, dilo con naturalidad.',
-              'Formato: 1 frase de estado, luego Top 5 mejoras con prioridad, y una siguiente acción recomendada.',
-            ].join('\n'),
+            content: creationMission
+              ? [
+                  'Eres Operator Codex, un product engineer senior con buen ojo de diseño UI/UX y frontend.',
+                  'Tu trabajo es transformar la inspeccion del repo en una propuesta concreta de diseño o feature.',
+                  'Respeta el sistema visual existente, rutas existentes y arquitectura local antes de inventar.',
+                  'No digas que escribiste archivos. En esta fase solo puedes proponer cambios y patch plan.',
+                  'Si falta contexto del usuario, dilo como preguntas concretas, pero aun asi avanza con una suposicion razonable.',
+                  'Formato:',
+                  '1. Estado en una frase.',
+                  '2. Diseño/experiencia propuesta.',
+                  '3. Archivos probables a editar o crear.',
+                  '4. Plan de implementacion en pasos pequeños.',
+                  '5. Contexto que el usuario puede darte para mejorar el resultado.',
+                  '6. Siguiente accion recomendada.',
+                ].join('\n')
+              : [
+                  'Eres Operator Codex, un reviewer senior de repos.',
+                  'Convierte la inspección técnica en una respuesta breve, accionable y en español.',
+                  'No inventes acceso de escritura. Si solo hay modo lectura, dilo con naturalidad.',
+                  'Formato: 1 frase de estado, luego Top 5 mejoras con prioridad, y una siguiente acción recomendada.',
+                ].join('\n'),
           },
           {
             role: 'user',

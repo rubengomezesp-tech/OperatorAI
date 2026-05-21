@@ -83,9 +83,37 @@ interface ChatMessage {
 
 const QUICK_TASKS = [
   'Revisa el repo y dime las 5 mejoras mas importantes.',
-  'Mira el ultimo diff y dime si puedo desplegar.',
+  'Disena una pantalla nueva siguiendo el estilo actual.',
+  'Crea el plan tecnico para una feature con UI y API.',
   'Busca riesgos de seguridad o deuda tecnica.',
-  'Dime el siguiente cambio pequeno con mas impacto.',
+  'Mira el ultimo diff y dime si puedo desplegar.',
+];
+
+const FEATURE_BRIEF_TEMPLATE = [
+  'Quiero crear una feature:',
+  '',
+  'Objetivo:',
+  'Usuario principal:',
+  'Pantalla o ruta:',
+  'Datos que necesita:',
+  'Acciones/botones:',
+  'Estados: vacio, carga, error, exito:',
+  'Estilo o referencia:',
+  'Que no debe tocar:',
+  'Como sabremos que esta terminado:',
+].join('\n');
+
+const BRIEF_TIPS = [
+  'Objetivo',
+  'Usuario',
+  'Ruta',
+  'Datos',
+  'Acciones',
+  'Estados',
+  'Permisos',
+  'Referencia visual',
+  'No tocar',
+  'Criterio final',
 ];
 
 const TOOLS = [
@@ -556,6 +584,45 @@ function RuntimeControls({
   );
 }
 
+function BriefGuide({ onUseTemplate }: { onUseTemplate: () => void }) {
+  return (
+    <details className="mt-2 text-[12.5px] text-fg-muted">
+      <summary className="inline-flex cursor-pointer list-none items-center gap-2 rounded-full border border-border bg-surface-2 px-3 py-1.5 transition-colors hover:border-gold/35 hover:text-fg">
+        <Sparkles className="h-3.5 w-3.5 text-gold" />
+        Brief para disenar o crear
+        <ChevronDown className="h-3.5 w-3.5" />
+      </summary>
+
+      <div className="mt-2 rounded-xl border border-border bg-surface/70 p-3">
+        <div className="flex flex-wrap gap-2">
+          {BRIEF_TIPS.map((tip) => (
+            <span
+              key={tip}
+              className="inline-flex rounded-full border border-border bg-bg/45 px-2.5 py-1 text-[11.5px] text-fg-soft"
+            >
+              {tip}
+            </span>
+          ))}
+        </div>
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+          <p className="max-w-[620px] text-[12px] leading-relaxed text-fg-muted">
+            Cuanto mas claro sea el objetivo, la pantalla, los datos y los estados, mejor podra
+            proponer UI, archivos y pasos de implementacion.
+          </p>
+          <button
+            type="button"
+            onClick={onUseTemplate}
+            className="inline-flex h-8 items-center gap-1.5 rounded-full border border-gold/30 bg-gold/10 px-3 text-[12px] text-gold transition-colors hover:bg-gold/15"
+          >
+            <Code2 className="h-3.5 w-3.5" />
+            Usar plantilla
+          </button>
+        </div>
+      </div>
+    </details>
+  );
+}
+
 export function CodingRuntimeView({ isAdmin }: { isAdmin: boolean }) {
   const [status, setStatus] = useState<StatusResponse | null>(null);
   const [statusLoading, setStatusLoading] = useState(true);
@@ -569,7 +636,7 @@ export function CodingRuntimeView({ isAdmin }: { isAdmin: boolean }) {
       role: 'assistant',
       content: [
         'Soy Operator Codex. Mandame una mision normal, como si hablaras conmigo.',
-        'Yo preparo el contexto del repo, reviso git, busco codigo y te contesto con prioridades. Por ahora no escribo archivos ni ejecuto terminal desde produccion.',
+        'Yo preparo el contexto del repo, reviso git, busco codigo y puedo proponerte diseno, archivos y plan de implementacion. Por ahora no escribo archivos ni ejecuto terminal desde produccion.',
       ].join('\n\n'),
     },
   ]);
@@ -820,6 +887,13 @@ export function CodingRuntimeView({ isAdmin }: { isAdmin: boolean }) {
               Copiar detalle
             </button>
           </div>
+
+          <BriefGuide
+            onUseTemplate={() => {
+              setInput(FEATURE_BRIEF_TEMPLATE);
+              window.setTimeout(() => textareaRef.current?.focus(), 0);
+            }}
+          />
 
           <div className="mt-2 flex flex-wrap gap-2">
             {QUICK_TASKS.map((quick) => (
