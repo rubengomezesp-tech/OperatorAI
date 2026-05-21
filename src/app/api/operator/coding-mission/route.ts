@@ -24,9 +24,17 @@ const PermissionsSchema = z.object({
   commit: z.boolean().default(false),
 }).default({});
 
+const ModelSchema = z
+  .string()
+  .trim()
+  .min(3)
+  .max(120)
+  .regex(/^[A-Za-z0-9._:/-]+$/);
+
 const BodySchema = z.object({
   task: z.string().min(3).max(5_000),
   mode: z.enum(['plan', 'dry-run', 'run']).default('dry-run'),
+  model: ModelSchema.optional(),
   maxFiles: z.number().int().min(20).max(300).default(120),
   maxMatches: z.number().int().min(10).max(120).default(40),
   permissions: PermissionsSchema,
@@ -39,6 +47,7 @@ interface CodingBridgeResponse {
   mode?: string;
   summary?: string;
   text?: string;
+  model?: string;
   error?: string;
 }
 
@@ -48,6 +57,32 @@ interface ChatCompletionResponse {
       content?: string;
     };
   }>;
+}
+
+interface OperatorModelOption {
+  id: string;
+  label?: string;
+  version?: string;
+  available?: boolean;
+  trained?: boolean;
+  fused?: boolean;
+  active?: boolean;
+  status?: string;
+  counts?: {
+    train?: number;
+    valid?: number;
+    extracts?: number;
+    audios?: number;
+    texts?: number;
+  };
+}
+
+interface OperatorModelsResponse {
+  ok?: boolean;
+  activeModel?: string;
+  latestModel?: string;
+  versionsDir?: string;
+  models?: OperatorModelOption[];
 }
 
 const HTML_MOCKUP_RE = /\b(mockup|maqueta|prototipo|prototype|wireframe|html|visualizar|preview|vista previa)\b/i;
@@ -78,6 +113,23 @@ async function bridgeHealth() {
   }
 }
 
+async function fetchOperatorModels(): Promise<OperatorModelsResponse | null> {
+  const config = getOperatorCoachConfig();
+  try {
+    const response = await fetch(`${config.url}/v1/operator-models`, {
+      method: 'GET',
+      headers: getOperatorCoachHeaders(config),
+      signal: AbortSignal.timeout(Math.min(config.timeoutMs, 12_000)),
+      cache: 'no-store',
+    });
+    if (!response.ok) return null;
+    const body = (await response.json().catch(() => ({}))) as OperatorModelsResponse;
+    return body.ok === false ? null : body;
+  } catch {
+    return null;
+  }
+}
+
 function isCreationMission(task: string): boolean {
   return /diseñ|disen|design|ui|ux|pantalla|layout|landing|feature|funci[oó]n|crear|crea|añad|anad|implementar|panel|bot[oó]n|formulario|componente/i
     .test(task);
@@ -100,6 +152,7 @@ function cleanHtmlMockup(value: string): string {
 async function buildCodingAnalysis(input: {
   task: string;
   bridgeText: string;
+  model: string;
 }): Promise<string | null> {
   const config = getOperatorCoachConfig();
   const creationMission = isCreationMission(input.task);
@@ -108,7 +161,7 @@ async function buildCodingAnalysis(input: {
       method: 'POST',
       headers: getOperatorCoachHeaders(config),
       body: JSON.stringify({
-        model: config.model,
+        model: input.model,
         temperature: creationMission ? 0.22 : 0.15,
         max_tokens: creationMission ? 1200 : 900,
         messages: [
@@ -161,6 +214,7 @@ async function buildCodingAnalysis(input: {
 async function buildHtmlMockup(input: {
   task: string;
   bridgeText: string;
+  model: string;
 }): Promise<string | null> {
   const config = getOperatorCoachConfig();
 
@@ -169,7 +223,7 @@ async function buildHtmlMockup(input: {
       method: 'POST',
       headers: getOperatorCoachHeaders(config),
       body: JSON.stringify({
-        model: config.model,
+        model: input.model,
         temperature: 0.28,
         max_tokens: 3600,
         messages: [
@@ -222,12 +276,28 @@ export async function GET() {
     probeOperatorCoach(),
   ]);
   const config = getOperatorCoachPublicConfig();
+  const catalog = bridge.ok ? await fetchOperatorModels() : null;
+  const listedModels = catalog?.models?.length
+    ? catalog.models
+    : probe.models?.map((id) => ({
+        id,
+        label: id,
+        available: true,
+        trained: id.includes('operator-qwen14b'),
+        fused: id.includes('operator-qwen14b'),
+        active: id === config.model,
+        status: 'ready',
+      }));
 
   return NextResponse.json({
     ok: true,
     bridgeAvailable: bridge.ok,
     modelAvailable: probe.ok,
     model: config.model,
+    activeModel: catalog?.activeModel ?? config.model,
+    latestModel: catalog?.latestModel ?? config.model,
+    models: listedModels ?? [],
+    versionsDir: catalog?.versionsDir ?? null,
     endpoint: config.url,
     hasApiKey: config.hasApiKey,
     diagnostic: {
@@ -257,6 +327,7 @@ export async function POST(request: NextRequest) {
 
   const config = getOperatorCoachConfig();
   const safeMode = parsed.data.mode === 'run' ? 'dry-run' : parsed.data.mode;
+  const selectedModel = parsed.data.model || config.model;
 
   try {
     const response = await fetch(`${config.url}/v1/coding-mission`, {
@@ -265,6 +336,7 @@ export async function POST(request: NextRequest) {
       body: JSON.stringify({
         task: parsed.data.task,
         mode: safeMode,
+        model: selectedModel,
         maxFiles: parsed.data.maxFiles,
         maxMatches: parsed.data.maxMatches,
         permissions: {
@@ -290,11 +362,13 @@ export async function POST(request: NextRequest) {
     const analysis = await buildCodingAnalysis({
       task: parsed.data.task,
       bridgeText: body.text ?? body.summary ?? '',
+      model: selectedModel,
     });
     const mockupHtml = wantsHtmlMockup(parsed.data.task)
       ? await buildHtmlMockup({
           task: parsed.data.task,
           bridgeText: body.text ?? body.summary ?? '',
+          model: selectedModel,
         })
       : null;
 
@@ -303,6 +377,7 @@ export async function POST(request: NextRequest) {
       data: {
         runtime: body.runtime ?? 'operator-local-codex-bridge',
         workspace: body.workspace ?? null,
+        model: body.model ?? selectedModel,
         mode: body.mode ?? safeMode,
         summary: body.summary ?? 'Coding runtime completed.',
         analysis,

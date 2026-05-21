@@ -39,6 +39,10 @@ interface StatusResponse {
   bridgeAvailable?: boolean;
   modelAvailable?: boolean;
   model?: string;
+  activeModel?: string;
+  latestModel?: string;
+  versionsDir?: string | null;
+  models?: OperatorModelOption[];
   endpoint?: string;
   hasApiKey?: boolean;
   diagnostic?: {
@@ -51,6 +55,7 @@ interface StatusResponse {
 interface MissionData {
   runtime: string;
   workspace: string | null;
+  model?: string | null;
   mode: string;
   summary: string;
   analysis: string | null;
@@ -59,6 +64,24 @@ interface MissionData {
   text: string;
   requestedMode: Mode;
   completedAt: string;
+}
+
+interface OperatorModelOption {
+  id: string;
+  label?: string;
+  version?: string;
+  available?: boolean;
+  trained?: boolean;
+  fused?: boolean;
+  active?: boolean;
+  status?: string;
+  counts?: {
+    train?: number;
+    valid?: number;
+    extracts?: number;
+    audios?: number;
+    texts?: number;
+  };
 }
 
 interface MissionResponse {
@@ -305,6 +328,66 @@ function StatusPill({ label, ok, loading }: { label: string; ok?: boolean; loadi
   );
 }
 
+function modelShortName(modelId: string | null | undefined): string {
+  if (!modelId) return 'Qwen';
+  return modelId.replace(/^operator-qwen14b-?/, 'Qwen ');
+}
+
+function ModelSelector({
+  status,
+  selectedModel,
+  running,
+  onSelect,
+}: {
+  status: StatusResponse | null;
+  selectedModel: string;
+  running: boolean;
+  onSelect: (model: string) => void;
+}) {
+  const models = status?.models ?? [];
+  const current = models.find((model) => model.id === selectedModel);
+  const readyCount = models.filter((model) => model.available).length;
+  const hasModels = models.length > 0;
+
+  return (
+    <div className="hidden min-w-[210px] max-w-[320px] items-center gap-2 rounded-full border border-border bg-surface-2 px-2.5 py-1.5 sm:flex">
+      <Bot className="h-3.5 w-3.5 shrink-0 text-gold" />
+      <select
+        value={selectedModel}
+        disabled={running || !hasModels}
+        onChange={(event) => onSelect(event.target.value)}
+        className="min-w-0 flex-1 bg-transparent text-[12px] text-fg outline-none disabled:opacity-60"
+        title="Selecciona que Qwen entrenado usara esta mision"
+      >
+        {hasModels ? (
+          models.map((model) => (
+            <option key={model.id} value={model.id} disabled={!model.available}>
+              {(model.label ?? model.id) + (model.available ? '' : ' (no cargado)')}
+            </option>
+          ))
+        ) : (
+          <option value={selectedModel || status?.model || ''}>
+            {status?.model ?? 'Cargando modelos'}
+          </option>
+        )}
+      </select>
+      <span
+        className={cn(
+          'shrink-0 rounded-full px-2 py-0.5 text-[10.5px]',
+          current?.available ? 'bg-success/10 text-success' : 'bg-danger/10 text-danger',
+        )}
+        title={
+          current?.counts?.train
+            ? `${current.counts.train} train / ${current.counts.valid ?? 0} valid`
+            : `${readyCount} modelos listos`
+        }
+      >
+        {current?.version?.toUpperCase() ?? modelShortName(selectedModel)}
+      </span>
+    </div>
+  );
+}
+
 function ToolChip({
   label,
   icon: Icon,
@@ -415,6 +498,11 @@ function AssistantResult({ result }: { result: MissionData }) {
         )}
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-2 text-[11.5px] text-fg-subtle">
+        {result.model ? (
+          <span className="rounded-full border border-gold/25 bg-gold/10 px-2 py-1 text-gold">
+            {modelShortName(result.model)}
+          </span>
+        ) : null}
         <span className="rounded-full border border-border bg-bg/40 px-2 py-1">
           {result.requestedMode}
         </span>
@@ -751,6 +839,7 @@ export function CodingRuntimeView({ isAdmin }: { isAdmin: boolean }) {
   const [statusLoading, setStatusLoading] = useState(true);
   const [input, setInput] = useState('');
   const [mode, setMode] = useState<Mode>('dry-run');
+  const [selectedModel, setSelectedModel] = useState('');
   const [tools, setTools] = useState<ToolState>(DEFAULT_TOOLS);
   const [running, setRunning] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([
@@ -779,7 +868,14 @@ export function CodingRuntimeView({ isAdmin }: { isAdmin: boolean }) {
 
   const state = connectionState(status, statusLoading);
   const bridgeConnected = Boolean(status?.bridgeAvailable);
-  const canSend = input.trim().length > 2 && bridgeConnected && !running;
+  const effectiveModel = selectedModel || status?.latestModel || status?.model || 'operator-qwen14b-v6';
+  const selectedModelInfo = status?.models?.find((model) => model.id === effectiveModel);
+  const canSend =
+    input.trim().length > 2
+    && bridgeConnected
+    && !running
+    && Boolean(effectiveModel)
+    && selectedModelInfo?.available !== false;
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
@@ -806,6 +902,32 @@ export function CodingRuntimeView({ isAdmin }: { isAdmin: boolean }) {
   useEffect(() => {
     void loadStatus();
   }, []);
+
+  useEffect(() => {
+    if (!status) return;
+
+    setSelectedModel((current) => {
+      const stored =
+        typeof window !== 'undefined'
+          ? window.localStorage.getItem('operator-codex-model') ?? ''
+          : '';
+      const models = status.models ?? [];
+      const currentValid = current && models.some((model) => model.id === current && model.available);
+      if (currentValid) return current;
+      const storedValid = stored && models.some((model) => model.id === stored && model.available);
+      if (storedValid) return stored;
+      const next =
+        status.latestModel
+        || status.activeModel
+        || status.model
+        || models.find((model) => model.available)?.id
+        || 'operator-qwen14b-v6';
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem('operator-codex-model', next);
+      }
+      return next;
+    });
+  }, [status]);
 
   function toggleTool(key: ToolKey) {
     const tool = TOOLS.find((item) => item.key === key);
@@ -850,6 +972,7 @@ export function CodingRuntimeView({ isAdmin }: { isAdmin: boolean }) {
           maxFiles: 120,
           maxMatches: 48,
           permissions,
+          model: effectiveModel,
         }),
       });
 
@@ -924,11 +1047,23 @@ export function CodingRuntimeView({ isAdmin }: { isAdmin: boolean }) {
           </div>
           <div className="min-w-0">
             <div className="truncate text-[14px] font-medium text-fg">Operator Codex</div>
-            <div className="truncate text-[12px] text-fg-muted">{state.title}</div>
+            <div className="truncate text-[12px] text-fg-muted">
+              {state.title} · {modelShortName(effectiveModel)}
+            </div>
           </div>
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
+          <ModelSelector
+            status={status}
+            selectedModel={effectiveModel}
+            running={running}
+            onSelect={(model) => {
+              setSelectedModel(model);
+              window.localStorage.setItem('operator-codex-model', model);
+              toast.success(`Qwen seleccionado: ${modelShortName(model)}`);
+            }}
+          />
           <StatusPill label="Bridge" ok={status?.bridgeAvailable} loading={statusLoading} />
           <StatusPill label="Qwen" ok={status?.modelAvailable} loading={statusLoading} />
           <Button
