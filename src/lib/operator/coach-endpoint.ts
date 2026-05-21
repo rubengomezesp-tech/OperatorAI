@@ -52,7 +52,7 @@ export function getOperatorCoachConfig(): OperatorCoachConfig {
     model:
       readEnv('OPERATOR_COACH_MODEL')
       || readEnv('LOCAL_OPERATOR_MODEL')
-      || 'operator-qwen14b',
+      || 'operator-qwen14b-v6',
     apiKey:
       readEnv('OPERATOR_COACH_API_KEY')
       || readEnv('OPERATOR_COACH_PROXY_TOKEN')

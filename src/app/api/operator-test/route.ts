@@ -33,7 +33,7 @@ export async function GET() {
     return NextResponse.json(
       {
         error: 'OperatorAI local no está disponible',
-        hint: 'Verifica que LM Studio esté corriendo en http://localhost:1234 con el modelo operator-qwen14b cargado',
+        hint: 'Verifica que LM Studio esté corriendo en http://localhost:1234 con el modelo operator-qwen14b-v6 cargado',
       },
       { status: 503 }
     );
