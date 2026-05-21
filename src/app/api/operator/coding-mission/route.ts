@@ -50,6 +50,8 @@ interface ChatCompletionResponse {
   }>;
 }
 
+const HTML_MOCKUP_RE = /\b(mockup|maqueta|prototipo|prototype|wireframe|html|visualizar|preview|vista previa)\b/i;
+
 async function requireAdminUser() {
   const ssr = await createSupabaseServerClient();
   const { data: { user } } = await ssr.auth.getUser();
@@ -79,6 +81,20 @@ async function bridgeHealth() {
 function isCreationMission(task: string): boolean {
   return /diseñ|disen|design|ui|ux|pantalla|layout|landing|feature|funci[oó]n|crear|crea|añad|anad|implementar|panel|bot[oó]n|formulario|componente/i
     .test(task);
+}
+
+function wantsHtmlMockup(task: string): boolean {
+  return HTML_MOCKUP_RE.test(task)
+    || /ver\s+antes|para\s+verlo|como\s+se\s+veria|cómo\s+se\s+vería/i.test(task);
+}
+
+function cleanHtmlMockup(value: string): string {
+  return value
+    .trim()
+    .replace(/^```html\s*/i, '')
+    .replace(/^```\s*/i, '')
+    .replace(/\s*```$/i, '')
+    .trim();
 }
 
 async function buildCodingAnalysis(input: {
@@ -137,6 +153,61 @@ async function buildCodingAnalysis(input: {
     if (!response.ok) return null;
     const body = await response.json().catch(() => ({})) as ChatCompletionResponse;
     return body.choices?.[0]?.message?.content?.trim() || null;
+  } catch {
+    return null;
+  }
+}
+
+async function buildHtmlMockup(input: {
+  task: string;
+  bridgeText: string;
+}): Promise<string | null> {
+  const config = getOperatorCoachConfig();
+
+  try {
+    const response = await fetch(`${config.url}/v1/chat/completions`, {
+      method: 'POST',
+      headers: getOperatorCoachHeaders(config),
+      body: JSON.stringify({
+        model: config.model,
+        temperature: 0.28,
+        max_tokens: 3600,
+        messages: [
+          {
+            role: 'system',
+            content: [
+              'Eres Operator Codex en modo UI prototyper.',
+              'Generas una maqueta HTML visual para que Ruben pueda verla antes de implementar.',
+              'Devuelve SOLO un documento HTML completo. Sin markdown, sin explicaciones y sin fences ```.',
+              'Usa CSS inline dentro de <style>. No uses JavaScript, scripts externos, paquetes externos, tracking ni formularios reales.',
+              'Debe ser responsive, pulido, con textos reales en espanol y estados visibles cuando aplique.',
+              'Si el usuario no da marca, usa una estetica sobria compatible con OperatorAI: fondo oscuro, dorado suave, tarjetas discretas y alta legibilidad.',
+              'Representa la idea de producto con fidelidad: layout, navegacion, estados, botones y jerarquia visual.',
+              'No copies literalmente interfaces propietarias; inspirate en patrones de producto modernos.',
+            ].join('\n'),
+          },
+          {
+            role: 'user',
+            content: [
+              `Mision de UI:\n${input.task}`,
+              '',
+              'Contexto del repo para respetar arquitectura/estilo:',
+              input.bridgeText.slice(0, 10_000),
+              '',
+              'Entrega ahora solo el HTML completo.',
+            ].join('\n'),
+          },
+        ],
+      }),
+      signal: AbortSignal.timeout(45_000),
+      cache: 'no-store',
+    });
+
+    if (!response.ok) return null;
+    const body = await response.json().catch(() => ({})) as ChatCompletionResponse;
+    const html = cleanHtmlMockup(body.choices?.[0]?.message?.content ?? '');
+    if (!/<html[\s>]/i.test(html) || !/<body[\s>]/i.test(html)) return null;
+    return html.slice(0, 80_000);
   } catch {
     return null;
   }
@@ -220,6 +291,12 @@ export async function POST(request: NextRequest) {
       task: parsed.data.task,
       bridgeText: body.text ?? body.summary ?? '',
     });
+    const mockupHtml = wantsHtmlMockup(parsed.data.task)
+      ? await buildHtmlMockup({
+          task: parsed.data.task,
+          bridgeText: body.text ?? body.summary ?? '',
+        })
+      : null;
 
     return NextResponse.json({
       ok: true,
@@ -229,6 +306,8 @@ export async function POST(request: NextRequest) {
         mode: body.mode ?? safeMode,
         summary: body.summary ?? 'Coding runtime completed.',
         analysis,
+        mockupHtml,
+        mockupTitle: mockupHtml ? 'Mockup HTML' : null,
         text: body.text ?? '',
         requestedMode: parsed.data.mode,
         permissions: {

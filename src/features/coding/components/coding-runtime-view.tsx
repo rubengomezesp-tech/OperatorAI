@@ -8,12 +8,15 @@ import {
   ChevronDown,
   Code2,
   Copy,
+  Eye,
+  FileCode2,
   FileSearch,
   GitBranch,
   GitCompare,
   KeyRound,
   Loader2,
   LockKeyhole,
+  Monitor,
   Play,
   RefreshCw,
   Search,
@@ -51,6 +54,8 @@ interface MissionData {
   mode: string;
   summary: string;
   analysis: string | null;
+  mockupHtml?: string | null;
+  mockupTitle?: string | null;
   text: string;
   requestedMode: Mode;
   completedAt: string;
@@ -83,6 +88,7 @@ interface ChatMessage {
 
 const QUICK_TASKS = [
   'Revisa el repo y dime las 5 mejoras mas importantes.',
+  'Crea un mockup HTML para visualizar una nueva pantalla.',
   'Disena una pantalla nueva siguiendo el estilo actual.',
   'Crea el plan tecnico para una feature con UI y API.',
   'Busca riesgos de seguridad o deuda tecnica.',
@@ -101,6 +107,20 @@ const FEATURE_BRIEF_TEMPLATE = [
   'Estilo o referencia:',
   'Que no debe tocar:',
   'Como sabremos que esta terminado:',
+].join('\n');
+
+const HTML_MOCKUP_TEMPLATE = [
+  'Quiero un mockup HTML para visualizar esta pantalla:',
+  '',
+  'Nombre de la pantalla:',
+  'Objetivo:',
+  'Usuario principal:',
+  'Secciones que debe tener:',
+  'Datos reales o ejemplos:',
+  'Acciones/botones:',
+  'Estados: vacio, carga, error, exito:',
+  'Estilo o referencia:',
+  'Que sensacion debe dar:',
 ].join('\n');
 
 const BRIEF_TIPS = [
@@ -398,9 +418,96 @@ function AssistantResult({ result }: { result: MissionData }) {
         <span className="rounded-full border border-border bg-bg/40 px-2 py-1">
           {result.requestedMode}
         </span>
+        {result.mockupHtml ? (
+          <span className="rounded-full border border-gold/25 bg-gold/10 px-2 py-1 text-gold">
+            mockup HTML
+          </span>
+        ) : null}
         <span>{formatTime(result.completedAt)}</span>
       </div>
+      {result.mockupHtml ? (
+        <MockupPreview title={result.mockupTitle ?? 'Mockup HTML'} html={result.mockupHtml} />
+      ) : null}
       <RuntimeDetails result={result} />
+    </div>
+  );
+}
+
+function MockupPreview({ title, html }: { title: string; html: string }) {
+  const [mode, setMode] = useState<'preview' | 'code'>('preview');
+
+  async function copyHtml() {
+    try {
+      await navigator.clipboard.writeText(html);
+      toast.success('HTML copiado');
+    } catch {
+      toast.error('No se pudo copiar el HTML');
+    }
+  }
+
+  return (
+    <div className="mt-4 overflow-hidden rounded-2xl border border-gold/20 bg-bg/65">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-surface/70 px-3 py-2.5">
+        <div className="flex min-w-0 items-center gap-2">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-gold/25 bg-gold/10">
+            <Monitor className="h-4 w-4 text-gold" />
+          </div>
+          <div className="min-w-0">
+            <div className="truncate text-[13px] font-medium text-fg">{title}</div>
+            <div className="text-[11.5px] text-fg-subtle">Vista segura sin scripts</div>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => setMode('preview')}
+            className={cn(
+              'inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-[12px] transition-colors',
+              mode === 'preview'
+                ? 'border-gold/35 bg-gold/10 text-gold'
+                : 'border-border bg-surface-2 text-fg-muted hover:text-fg',
+            )}
+          >
+            <Eye className="h-3.5 w-3.5" />
+            Preview
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode('code')}
+            className={cn(
+              'inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-[12px] transition-colors',
+              mode === 'code'
+                ? 'border-gold/35 bg-gold/10 text-gold'
+                : 'border-border bg-surface-2 text-fg-muted hover:text-fg',
+            )}
+          >
+            <FileCode2 className="h-3.5 w-3.5" />
+            HTML
+          </button>
+          <button
+            type="button"
+            onClick={() => void copyHtml()}
+            className="inline-flex h-8 items-center gap-1.5 rounded-full border border-border bg-surface-2 px-3 text-[12px] text-fg-muted transition-colors hover:text-fg"
+          >
+            <Copy className="h-3.5 w-3.5" />
+            Copiar
+          </button>
+        </div>
+      </div>
+
+      {mode === 'preview' ? (
+        <iframe
+          title={title}
+          sandbox=""
+          srcDoc={html}
+          className="h-[520px] w-full bg-white"
+        />
+      ) : (
+        <pre className="max-h-[520px] overflow-auto p-4 text-[12px] leading-relaxed text-fg-soft">
+          {html}
+        </pre>
+      )}
     </div>
   );
 }
@@ -584,7 +691,13 @@ function RuntimeControls({
   );
 }
 
-function BriefGuide({ onUseTemplate }: { onUseTemplate: () => void }) {
+function BriefGuide({
+  onUseTemplate,
+  onUseMockupTemplate,
+}: {
+  onUseTemplate: () => void;
+  onUseMockupTemplate: () => void;
+}) {
   return (
     <details className="mt-2 text-[12.5px] text-fg-muted">
       <summary className="inline-flex cursor-pointer list-none items-center gap-2 rounded-full border border-border bg-surface-2 px-3 py-1.5 transition-colors hover:border-gold/35 hover:text-fg">
@@ -609,14 +722,24 @@ function BriefGuide({ onUseTemplate }: { onUseTemplate: () => void }) {
             Cuanto mas claro sea el objetivo, la pantalla, los datos y los estados, mejor podra
             proponer UI, archivos y pasos de implementacion.
           </p>
-          <button
-            type="button"
-            onClick={onUseTemplate}
-            className="inline-flex h-8 items-center gap-1.5 rounded-full border border-gold/30 bg-gold/10 px-3 text-[12px] text-gold transition-colors hover:bg-gold/15"
-          >
-            <Code2 className="h-3.5 w-3.5" />
-            Usar plantilla
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={onUseTemplate}
+              className="inline-flex h-8 items-center gap-1.5 rounded-full border border-gold/30 bg-gold/10 px-3 text-[12px] text-gold transition-colors hover:bg-gold/15"
+            >
+              <Code2 className="h-3.5 w-3.5" />
+              Feature
+            </button>
+            <button
+              type="button"
+              onClick={onUseMockupTemplate}
+              className="inline-flex h-8 items-center gap-1.5 rounded-full border border-gold/30 bg-gold/10 px-3 text-[12px] text-gold transition-colors hover:bg-gold/15"
+            >
+              <Monitor className="h-3.5 w-3.5" />
+              Mockup HTML
+            </button>
+          </div>
         </div>
       </div>
     </details>
@@ -891,6 +1014,10 @@ export function CodingRuntimeView({ isAdmin }: { isAdmin: boolean }) {
           <BriefGuide
             onUseTemplate={() => {
               setInput(FEATURE_BRIEF_TEMPLATE);
+              window.setTimeout(() => textareaRef.current?.focus(), 0);
+            }}
+            onUseMockupTemplate={() => {
+              setInput(HTML_MOCKUP_TEMPLATE);
               window.setTimeout(() => textareaRef.current?.focus(), 0);
             }}
           />
